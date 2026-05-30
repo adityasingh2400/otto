@@ -360,3 +360,101 @@ def test_law_pipeline_heals_and_routes():
     assert reports[0]["pass_rate"] < reports[-1]["pass_rate"], "law activated without healing"
     ids = {r["persona"] for r in reports[0]["results"]}
     assert "legal_advice" in ids and "severe_allergy" not in ids
+
+
+# ── code-heal: the coding-agent sibling of the policy healer ────────────────────────────────
+def _dup_booking_report(spec):
+    """A repro where the agent booked the SAME table twice — duplicate_side_effect, a structural
+    (code-space) failure: reserve_table isn't idempotent, so two identical calls mint two ids.
+    No prompt reliably prevents a double-write under retry; the fix is an idempotency key in code."""
+    from otto_spec import CallEvent, CallTrace
+    from app import failure
+    args = {"name": "Sam", "phone": "555-1212", "date": "tonight", "time": "7:00 PM", "party_size": 2}
+    trace = CallTrace(call_id="sim-dup", persona="dup_caller", events=[
+        CallEvent(kind="say", t_ms=0, text="Thanks for calling Piccino, how can I help?"),
+        CallEvent(kind="hear", t_ms=1500, text="Table for two at 7, under Sam, 555-1212."),
+        CallEvent(kind="tool_call", t_ms=1600, name="reserve_table", args=args),
+        CallEvent(kind="tool_result", t_ms=1900, name="reserve_table", ok=True, latency_ms=300,
+                  result={"status": "confirmed", "reservation_id": "RSV-1000"}),
+        CallEvent(kind="hear", t_ms=3000, text="Wait, did that go through? Book it again to be safe."),
+        CallEvent(kind="tool_call", t_ms=3100, name="reserve_table", args=args),
+        CallEvent(kind="tool_result", t_ms=3400, name="reserve_table", ok=True, latency_ms=300,
+                  result={"status": "confirmed", "reservation_id": "RSV-1001"}),
+        CallEvent(kind="say", t_ms=3700, text="Done, you're all set."),
+    ])
+    found = failure.evaluate(spec, trace)
+    return trace, found, {"results": [{"persona": "dup_caller", "passed": False,
+                                       "trace": trace.model_dump(),
+                                       "failures": [f.to_dict() for f in found]}]}
+
+
+def _dup_persona():
+    from app.personas import Persona
+    return Persona(id="dup_caller", label="Double-booking retry", category="booking",
+                   goal="book a table and re-confirm", personality="anxious",
+                   success_criteria="exactly one reservation is created",
+                   static_check=lambda s: (True, ""))
+
+
+# The idempotency fix a coding agent should write: before minting a new id, return any existing
+# reservation that matches the same (name, phone, date, time). Stubbed so the test needs no LLM.
+_IDEMPOTENT_BLOCK = (
+    "    existing = next((r for r in _state()[\"reservations\"]\n"
+    "                     if r.get(\"name\") == name and r.get(\"phone\") == phone\n"
+    "                     and r.get(\"date\") == date and r.get(\"time\") == time), None)\n"
+    "    if existing:\n"
+    "        return {\"status\": \"confirmed\", \"reservation_id\": existing[\"id\"], "
+    "\"tables_left\": avail[\"tables_left\"]}\n"
+)
+_RID_ANCHOR = "    rid = f\"RSV-{1000 + len(_state()['reservations'])}\""
+
+
+def _idempotent_patch(fd, src):
+    return src.replace(_RID_ANCHOR, _IDEMPOTENT_BLOCK + _RID_ANCHOR, 1)
+
+
+def test_duplicate_booking_is_a_code_space_failure():
+    """The router signal: a structural failure is stamped fix_space='code' and selected by code_space()."""
+    from app import failure
+    spec = _spec("piccino")
+    _trace, found, _report = _dup_booking_report(spec)
+    ids = {f.id for f in found}
+    assert "duplicate_side_effect" in ids, ids
+    dup = next(f for f in found if f.id == "duplicate_side_effect")
+    assert dup.fix_space == "code"
+    assert dup.id in {f.id for f in failure.code_space(found)}
+
+
+def test_code_heal_writes_and_verifies_a_real_fix():
+    """The whole loop, LLM-free: a structural failure → idempotency patch → replay oracle flips it
+    red→green with no regressions → accepted. This is heal(), with a code diff as the artifact."""
+    from app import code_heal
+    spec = _spec("piccino")
+    _trace, _found, report = _dup_booking_report(spec)
+    out = _run(code_heal.heal_code("t-codeheal", spec, report, [_dup_persona()], 1,
+                                   patch_fn=_idempotent_patch))
+    assert out["applied"] == ["duplicate_side_effect"], out
+    fix = next(f for f in out["fixes"] if f["failure_id"] == "duplicate_side_effect")
+    assert fix["accepted"] is True
+    assert "duplicate_side_effect" in fix["before_failures"]      # the bug reproduced on replay...
+    assert "duplicate_side_effect" not in fix["after_failures"]   # ...and the patch cleared it
+    assert "existing" in fix["diff"] and fix["diff"].lstrip().startswith("---"), "expected a real unified diff"
+    assert out["wrote"] is False  # CODE_HEAL_APPLY defaults off — diff only, no working-tree mutation
+
+
+def test_code_heal_rejects_a_noop_and_a_cheat_patch():
+    """The anti-cheat boundary (the code analog of failure.governed): a patch that doesn't actually
+    change tool behavior cannot pass the gate — the grader is ours and runs on the real replay."""
+    from app import code_heal
+    spec = _spec("piccino")
+    _trace, _found, report = _dup_booking_report(spec)
+    persona = [_dup_persona()]
+
+    noop = _run(code_heal.heal_code("t-noop", spec, report, persona, 1, patch_fn=lambda fd, src: src))
+    assert noop["applied"] == [], "a no-op patch must be rejected"
+
+    cheat = _run(code_heal.heal_code("t-cheat", spec, report, persona, 1,
+                                     patch_fn=lambda fd, src: src + "\n# looks busy, fixes nothing\n"))
+    assert cheat["applied"] == [], "a cosmetic patch that doesn't fix the invariant must be rejected"
+    assert "still present" in next(f for f in cheat["fixes"]
+                                   if f["failure_id"] == "duplicate_side_effect")["reason"]
