@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Otto · landing layout explorations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4ECE2;--card:#FFFFFF;--ink:#2A0A10;--ink2:#6B4A3A;--dim:#9A8575;
+    --maroon:#7A1B2D;--line:#E4D7C8;
+    --disp:'Fraunces',Georgia,serif;--sans:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+    padding:clamp(28px,5vw,64px) clamp(20px,4vw,56px) 80px}
+  header{max-width:1480px;margin:0 auto 38px}
+  h1{font:600 clamp(28px,3.4vw,40px)/1.05 var(--disp);letter-spacing:-.02em}
+  h1 b{color:var(--maroon)}
+  .sub{margin-top:10px;font:400 13px/1.5 var(--mono);color:var(--ink2)}
+  .grid{max-width:1480px;margin:0 auto;display:flex;flex-wrap:wrap;gap:28px;justify-content:center}
+  .card{flex:1 1 432px;max-width:520px;display:flex;flex-direction:column}
+  .meta{display:flex;align-items:baseline;gap:11px;margin-bottom:14px}
+  .badge{font:600 14px/1 var(--mono);color:#fff;background:var(--maroon);width:26px;height:26px;
+    border-radius:7px;display:grid;place-items:center;flex:none}
+  .name{font:600 19px/1.1 var(--disp);letter-spacing:-.01em}
+  .tag{font:400 12.5px/1.4 var(--mono);color:var(--dim);margin-left:auto;text-align:right;max-width:50%}
+  .frame{position:relative;width:100%;aspect-ratio:1440/900;border-radius:14px;overflow:hidden;
+    border:1px solid var(--line);background:#fff;box-shadow:0 30px 70px -42px rgba(42,10,16,.5)}
+  .frame iframe{position:absolute;top:0;left:0;width:1440px;height:900px;border:0;
+    transform:scale(calc(100% / 1440 * 1));transform-origin:top left}
+  /* scale handled per breakpoint via container query fallback: use JS-free responsive scale */
+  .frame .scaler{position:absolute;top:0;left:0;width:1440px;height:900px;transform-origin:top left}
+  .open{margin-top:13px;font:500 13px/1 var(--mono);color:var(--maroon);text-decoration:none;
+    display:inline-flex;align-items:center;gap:6px;align-self:flex-start}
+  .open:hover{text-decoration:underline}
+  .note{max-width:1480px;margin:34px auto 0;font:400 12.5px/1.6 var(--mono);color:var(--dim);
+    border-top:1px solid var(--line);padding-top:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Otto<b>.</b> &nbsp;landing layout explorations</h1>
+  <p class="sub">3 minimal directions · same Warm Editorial brand (cream + maroon, Fraunces) · pick one or mix elements</p>
+</header>
+<div class="grid">
+  <div class="card">
+    <div class="meta"><span class="badge">A</span><span class="name">Off-Center Editorial</span>
+      <span class="tag">left-anchored, asymmetric, big empty field</span></div>
+    <div class="frame"><div class="scaler"><iframe src="./variant-A.html" title="Variant A" scrolling="no"></iframe></div></div>
+    <a class="open" href="./variant-A.html" target="_blank">Open full screen ↗</a>
+  </div>
+  <div class="card">
+    <div class="meta"><span class="badge">B</span><span class="name">Refined Center</span>
+      <span class="tag">your current shape, 10x craft, live pill</span></div>
+    <div class="frame"><div class="scaler"><iframe src="./variant-B.html" title="Variant B" scrolling="no"></iframe></div></div>
+    <a class="open" href="./variant-B.html" target="_blank">Open full screen ↗</a>
+  </div>
+  <div class="card">
+    <div class="meta"><span class="badge">C</span><span class="name">Poster</span>
+      <span class="tag">full-bleed type, footer rule, dramatic scale</span></div>
+    <div class="frame"><div class="scaler"><iframe src="./variant-C.html" title="Variant C" scrolling="no"></iframe></div></div>
+    <a class="open" href="./variant-C.html" target="_blank">Open full screen ↗</a>
+  </div>
+</div>
+<p class="note">Previews are live, scaled-down renders of the real pages. Click "Open full screen" to see any at true size. All three are droppable straight into apps/web/index.html.</p>
+<script>
+  // Scale each live iframe to fit its frame width, keeping the 1440x900 design size crisp.
+  function fit(){
+    document.querySelectorAll('.frame').forEach(function(f){
+      var s = f.clientWidth / 1440;
+      f.querySelector('.scaler').style.transform = 'scale(' + s + ')';
+    });
+  }
+  window.addEventListener('resize', fit);
+  window.addEventListener('load', fit);
+  fit();
+</script>
+</body>
+</html>

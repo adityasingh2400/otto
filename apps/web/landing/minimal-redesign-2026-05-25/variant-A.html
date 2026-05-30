@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Otto · your AI front desk</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%237A1B2D'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='18' font-weight='700' text-anchor='middle' fill='%23FAF6F1'%3EO%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAF6F1;--card:#FFFFFF;--ink:#2A0A10;--ink2:#6B4A3A;--dim:#9A8575;
+    --maroon:#7A1B2D;--maroon-l:#9A3040;--line:#E4D7C8;
+    --disp:'Fraunces',Georgia,serif;--sans:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);min-height:100vh;position:relative;overflow-x:hidden}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;mix-blend-mode:multiply;
+    background-image:radial-gradient(circle at 1px 1px,rgba(122,27,45,.045) 1px,transparent 1.4px);background-size:7px 7px}
+
+  .logo{position:fixed;top:36px;left:clamp(24px,9vw,160px);z-index:3;font:600 26px/1 var(--disp);letter-spacing:-.01em;color:var(--ink)}
+  .logo b{color:var(--maroon)}
+
+  main{position:relative;z-index:1;min-height:100vh;display:grid;align-items:center;
+    padding:128px clamp(24px,9vw,160px) 88px}
+  .col{max-width:min(920px,92vw);animation:rise .8s cubic-bezier(.2,.7,.2,1) both}
+
+  h1{font-family:var(--disp);font-weight:600;font-optical-sizing:auto;
+    font-size:clamp(38px,5.4vw,72px);line-height:1.06;letter-spacing:-.025em}
+  h1 span{display:block;white-space:nowrap}
+  h1 .k{font-style:italic;font-weight:500;color:var(--maroon)}
+
+  .field{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
+    border-radius:16px;padding:7px 7px 7px 18px;box-shadow:0 18px 44px -28px rgba(42,10,16,.45);
+    transition:.2s ease;margin-top:clamp(32px,4vw,48px);max-width:470px}
+  .field:focus-within{border-color:var(--maroon);box-shadow:0 22px 52px -24px rgba(122,27,45,.5)}
+  .field input{flex:1;min-width:0;border:0;outline:0;background:transparent;font:500 15px/1 var(--mono);color:var(--ink)}
+  .field input::placeholder{color:var(--dim)}
+  .field button{flex:none;width:46px;height:46px;border:0;border-radius:11px;background:var(--maroon);color:#fff;
+    font-size:19px;cursor:pointer;transition:.18s ease;display:grid;place-items:center}
+  .field button:hover{background:var(--maroon-l);transform:translateY(-1px)}
+  .field button:active{transform:none}
+
+  .hint{margin-top:16px;font:400 13px/1.5 var(--mono);color:var(--dim);max-width:470px}
+
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @media(max-width:560px){
+    .logo{left:24px;top:26px;font-size:24px}
+    main{padding:104px 24px 64px}
+    h1{font-size:clamp(34px,9vw,46px)}
+    h1 span{white-space:normal}
+  }
+</style>
+</head>
+<body>
+<div class="logo">Otto<b>.</b></div>
+<main>
+  <div class="col">
+    <h1>
+      <span>Answers every call.</span>
+      <span>Books every customer.</span>
+      <span class="k">Fixes its own mistakes.</span>
+    </h1>
+    <form class="field">
+      <input placeholder="https://www.your-business.com" spellcheck="false" autocomplete="off" aria-label="Your business website" />
+      <button aria-label="Build the line">→</button>
+    </form>
+    <p class="hint">paste your website · tested by hundreds of synthetic callers before it goes live</p>
+  </div>
+</main>
+<script>
+  document.querySelector('form').onsubmit=e=>{e.preventDefault();
+    const u=e.target.querySelector('input').value.trim();
+    location.href='/app/'+(u?('?url='+encodeURIComponent(u)):'');};
+</script>
+</body>
+</html>
