@@ -29,6 +29,14 @@ from . import config
 DIMENSIONS = ("conversation", "action", "outcome", "experience")
 _SEV_RANK = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
+# Detectors that are MONITORING signals, not pre-launch gating criteria: a policy can't heal them.
+# Latency/dead-air are infrastructure timing (a "one moment" policy mitigates the FELT experience
+# but never lowers the measured latency); a low-confidence mishear is immutable once it's in the
+# trace (even a correct read-back leaves the low-confidence `hear` behind). Gating on them would
+# stall activation forever, so the swarm verdict surfaces them but doesn't fail the gate on them.
+# Production (observe.py) still reports them — that's where they belong: live observability.
+MONITORING_ONLY = frozenset({"slow_action", "dead_air", "low_confidence_write"})
+
 
 @dataclass
 class FailureInstance:
@@ -425,6 +433,12 @@ def evaluate(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:
         except Exception:
             continue  # a detector bug must never break the eval
     return sorted(found.values(), key=lambda f: -_SEV_RANK[f.severity])
+
+
+def gating(failures: list[FailureInstance]) -> list[FailureInstance]:
+    """The subset that should fail a pre-launch gate — i.e. the policy-healable failures, excluding
+    the MONITORING_ONLY signals (which are surfaced but can't be patched away)."""
+    return [f for f in failures if f.id not in MONITORING_ONLY]
 
 
 def worst(failures: list[FailureInstance]) -> FailureInstance | None:

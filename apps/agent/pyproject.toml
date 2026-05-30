@@ -16,7 +16,8 @@ dependencies = [
   # Ceiling at <1.0: the 1.x line renamed import paths bot.py relies on (services.riva.tts
   # -> services.nvidia.tts, openai_llm_context -> LLMContext). Migrate deliberately — don't
   # let a fresh `uv sync` pull 1.x the morning of the demo. Commit apps/agent/uv.lock too.
-  "pipecat-ai[daily,openai,deepgram,cartesia,silero,elevenlabs,nvidia,aws]>=0.0.96,<1.0",
+  "pipecat-ai[daily,openai,deepgram,cartesia,silero,elevenlabs,nvidia,aws,webrtc]>=0.0.96,<1.0",
+  "pipecat-ai-small-webrtc-prebuilt>=2.5.0",  # local browser dev UI (not needed for cloud/Daily)
 ]
 
 [tool.uv.sources]

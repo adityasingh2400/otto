@@ -1,0 +1,61 @@
+# Render blueprint — Otto orchestrator + UI (FastAPI container, serves landing + dashboard + API).
+# Deploy: push to GitHub → Render → New → Blueprint → pick this repo. Set the `sync:false`
+# secrets in the dashboard once (they're never committed). The agent deploys separately to
+# Pipecat Cloud (see apps/agent/pcc-deploy.toml) and points ORCH_BASE_URL at this service's URL.
+services:
+  - type: web
+    name: otto-orchestrator
+    runtime: docker
+    dockerfilePath: ./apps/orchestrator/Dockerfile
+    dockerContext: .                 # repo root — the Dockerfile COPYs packages/spec + apps/web
+    plan: starter                    # Starter ($7/mo) is required for a persistent disk; free has none
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: otto-data                # onboarded businesses survive restarts/redeploys
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      # ── persistence ──
+      - key: OTTO_DATA_DIR
+        value: /data
+      # ── server-side reasoning: NVIDIA Nemotron (open-weights theme) ──
+      - key: LLM_PROVIDER
+        value: nvidia
+      - key: NVIDIA_BASE_URL
+        value: http://nemotron-fleet-alb-1322439314.us-west-2.elb.amazonaws.com/v1
+      - key: NVIDIA_MODEL
+        value: nvidia/nemotron-3-super
+      # ── swarm / gate ──
+      - key: SWARM_MODE
+        value: static                # flip to cekura once the agent is reachable by Cekura
+      - key: PASS_GATE
+        value: "0.85"
+      - key: SWARM_PERSONAS
+        value: "12"
+      # ── secrets: set these in the Render dashboard (never committed) ──
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: CARTESIA_API_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
+      - key: OWNER_PHONE
+        sync: false
+      - key: DEMO_RESERVER_PHONE
+        sync: false
+      - key: CEKURA_API_KEY
+        sync: false
+      - key: CEKURA_AGENT_ID
+        sync: false
+      - key: CEKURA_SCENARIO_MAP
+        sync: false
+      # PUBLIC_BASE_URL is this service's own URL — set it after the first deploy gives you the host.
+      - key: PUBLIC_BASE_URL
+        sync: false
