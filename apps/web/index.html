@@ -163,6 +163,7 @@
     <span class="lab">Instant demos:</span>
     <div class="chip" data-cached="piccino">▶ <b>Piccino</b> · restaurant</div>
     <div class="chip" data-cached="contractor">▶ <b>Bayview Builders</b> · contractor</div>
+    <div class="chip" data-cached="clinic">▶ <b>Dogpatch Family Health</b> · clinic</div>
     <span class="hint">Extract the rules → attack the agent with synthetic callers → patch every failure → put the line live. Sandbox demo, public info.</span>
   </div>
 
@@ -227,9 +228,10 @@ const cards={}, prevPass={}, shown={};
 }catch{$("#health").textContent="orchestrator offline (:8000)";}})();
 
 $("#go").onclick=()=>run({url:$("#url").value.trim()});
+const DEMO_URLS={piccino:"https://www.piccino.com/",contractor:"https://example-bayviewbuilders.com/",clinic:"https://example-dogpatchhealth.com/"};
 document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
   const cached=c.dataset.cached;
-  $("#url").value = cached==="contractor" ? "https://example-bayviewbuilders.com/" : "https://www.piccino.com/";
+  $("#url").value=DEMO_URLS[cached]||DEMO_URLS.piccino;
   run({cached});
 });
 

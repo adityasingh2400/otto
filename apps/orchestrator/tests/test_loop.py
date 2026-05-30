@@ -57,6 +57,15 @@ def test_contractor_pipeline_uses_right_archetype_and_heals():
     assert "severe_allergy" not in ids, "restaurant persona leaked into contractor swarm"
 
 
+def test_clinic_pipeline_heals_and_routes():
+    _run(run_pipeline("t-clinic", None, False, "clinic"))
+    reports = [e["report"] for e in bus.history("t-clinic") if e.get("type") == "swarm_report"]
+    assert reports and reports[-1]["pass_rate"] >= config.PASS_GATE
+    ids = {r["persona"] for r in reports[0]["results"]}
+    assert "symptom_no_advice" in ids, "clinic archetype not used"
+    assert "severe_allergy" not in ids, "restaurant persona leaked into clinic swarm"
+
+
 def test_observe_targeted_heal_rewrites_policy():
     spec = _spec("piccino")
     store.set_spec("t-obs", spec)
