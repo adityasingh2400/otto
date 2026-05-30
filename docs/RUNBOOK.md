@@ -89,7 +89,8 @@ the same arena. If anything's missing it falls back to local sim automatically.
 - [ ] **Cekura** — `SWARM_MODE=cekura` + scenario map (§3).
 - [ ] **Twilio** — number live + webhook (§2).
 - [ ] **NVIDIA** — `STT_PROVIDER=nvidia` `TTS_PROVIDER=nvidia` (Parakeet + Magpie via NIM).
-- [ ] **AWS** — `LLM_PROVIDER=bedrock` (Nova), and/or deploy the agent on Bedrock AgentCore.
+- [ ] **AWS** — `LLM_PROVIDER=bedrock` (Nova), and/or deploy the agent on Bedrock AgentCore:
+  `./scripts/deploy-agentcore.sh` (ARM64 image → ECR → AgentCore). **Set a budget alarm first.**
 
 ## 5. Demo-day fallbacks (already wired)
 
