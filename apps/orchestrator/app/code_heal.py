@@ -102,6 +102,57 @@ def _is_failure_result(result: dict) -> bool:
     return str((result or {}).get("status", "")).lower() in _FAIL_STATUS or bool((result or {}).get("error"))
 
 
+def _seed_from_trace(trace_dict: dict) -> Optional[Callable[[dict], None]]:
+    """Reconstruct backend PRECONDITIONS from a live trace's own recorded results, so a state-dependent
+    failure reproduces on replay against a fresh backend (a live trace has no persona.setup to seed from).
+
+    We seed only SCARCITY signals — a slot that was full, an item out of stock, a taken appointment —
+    never success EFFECTS, which the replayed calls recreate themselves. And we suppress force_unavailable
+    when the call actually DID reserve a table: if a booking succeeded, 'the place was full' wasn't the
+    binding precondition. This keeps self-contained failures (duplicate_side_effect, whose precondition is
+    its own first call) pristine — _seed_from_trace returns None for them."""
+    events = trace_dict.get("events", []) or []
+    force_unavailable = had_confirmed_reserve = False
+    deplete: set[str] = set()
+    appt_times: set[str] = set()
+    last_call: dict = {}
+    for ev in events:
+        if ev.get("kind") == "tool_call":
+            last_call = ev
+            continue
+        if ev.get("kind") != "tool_result":
+            continue
+        name, res, args = ev.get("name"), (ev.get("result") or {}), (last_call.get("args") or {})
+        status = str(res.get("status", "")).lower()
+        if name in ("check_availability", "reserve_table"):
+            if res.get("available") is False or res.get("tables_left") == 0 or status == "unavailable":
+                force_unavailable = True
+            if res.get("reservation_id") or status == "confirmed":
+                had_confirmed_reserve = True
+        elif name in ("get_inventory", "order_item"):
+            if status == "out_of_stock" or res.get("in_stock") is False or res.get("qty") == 0:
+                item = str(args.get("item") or res.get("item") or "").lower().strip()
+                if item:
+                    deplete.add(item)
+        elif name == "book_appointment" and status == "unavailable":
+            t = str(args.get("time") or "")
+            if t:
+                appt_times.add(t)
+        last_call = {}
+    force_unavailable = force_unavailable and not had_confirmed_reserve
+    if not (force_unavailable or deplete or appt_times):
+        return None
+
+    def seed(st: dict) -> None:
+        if force_unavailable:
+            st["force_unavailable"] = True
+        for item in deplete:
+            st["inventory"][item] = 0
+        for t in appt_times:
+            st["appointments"].append({"id": f"SEED-{t}", "name": "seed", "time": t, "detail": "precondition"})
+    return seed
+
+
 async def replay(spec: AgentSpec, trace_dict: dict, persona: Optional[Persona], services_mod) -> list:
     """Re-execute the recorded tool_call events against `services_mod` (a fresh mock_services), rebuild
     the trace, and return the failures the SAME detectors find. say/hear events carry through unchanged;
@@ -109,7 +160,9 @@ async def replay(spec: AgentSpec, trace_dict: dict, persona: Optional[Persona], 
     Deterministic and LLM-free."""
     src_events = trace_dict.get("events", []) or []
     orig_results = [e for e in src_events if e.get("kind") == "tool_result"]
-    seed = getattr(persona, "setup", None) if persona else None
+    # Pre-launch personas carry an authoritative setup seed; a live trace (persona=None, or no setup)
+    # has none, so derive the precondition from the trace's own recorded results.
+    seed = (persona.setup if persona and getattr(persona, "setup", None) else None) or _seed_from_trace(trace_dict)
     events: list[CallEvent] = []
     orig_mod = tool_engine.mock_services
     tool_engine.mock_services = services_mod   # route execute() through the patched implementation
@@ -142,7 +195,9 @@ async def replay(spec: AgentSpec, trace_dict: dict, persona: Optional[Persona], 
                                         result=result if isinstance(result, dict) else {}, latency_ms=latency))
     finally:
         tool_engine.mock_services = orig_mod
-        sys.modules.pop(getattr(services_mod, "__name__", ""), None)
+        name = getattr(services_mod, "__name__", "")
+        if name.startswith("app._codeheal_mock_"):  # only evict throwaway patched modules, never the real one
+            sys.modules.pop(name, None)
     trace = CallTrace(call_id=trace_dict.get("call_id", "replay"),
                       persona=trace_dict.get("persona", ""), events=events)
     return failure.evaluate(spec, trace)
