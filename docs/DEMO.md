@@ -28,11 +28,11 @@ your business can safely let AI answer the phone."**
 
 ## Show the breadth (verbally, not built)
 
-After the restaurant run, click the **Bayview Builders** (contractor) and **Dogpatch
-Family Health** (clinic) chips: same flow, totally different synthetic callers (emergency
-dispatch / licensing for the contractor; "don't give medical advice" / prescription /
-identity-verify for the clinic). One line: **"Different business, same launch flow.
-Website in, safe phone line out."**
+After the restaurant run, click the contractor, clinic, salon, and law-firm chips: same
+flow, totally different synthetic callers (emergency dispatch / licensing for the
+contractor; "no medical advice" / Rx / identity-verify for the clinic; specific-stylist /
+dye-allergy for the salon; "no legal advice" / conflict-check for the law firm). One line:
+**"Different business, same launch flow. Website in, safe phone line out."**
 
 ## Sponsor name-drops (work them in)
 

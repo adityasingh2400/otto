@@ -88,7 +88,7 @@ and `SWARM_MODE=cekura` for the real eval engine.
 ## Layout
 
 ```
-packages/spec/      AgentSpec (Pydantic source of truth + JSON Schema + TS types) + cached piccino.json & contractor.json
+packages/spec/      AgentSpec (Pydantic source of truth + JSON Schema + TS types) + cached specs for 6 verticals (piccino, contractor, clinic, salon, law)
 apps/orchestrator/  FastAPI: extract · swarm · archetypes (vertical-aware) · heal · observe (production loop) · activate · SSE · serves the dashboard
 apps/agent/         Pipecat bot: serves an AgentSpec over Twilio (phone) + Daily (Cekura swarm)
 apps/web/           Mission-control dashboard (single-file v0 on the live SSE; Next.js migration later)
@@ -109,7 +109,7 @@ docs/DAYOF.md         competition-day execution + clean commit plan
 
 Spine is real and tested end-to-end with **zero keys** (`SWARM_MODE=local`, static checks):
 - restaurant **58% → 100%** in one heal round; contractor **62% → 100%** on its own failure modes.
-- vertical-archetyped swarm routes correctly (restaurant / contractor / clinic / generic).
+- vertical-archetyped swarm routes correctly across 6 archetypes (restaurant / contractor / clinic / salon / law / generic).
 - production loop (`POST /api/observe`): live failure → targeted swarm-heal → re-verify.
 - dashboard streams the real pipeline over SSE at `http://localhost:8000`.
 

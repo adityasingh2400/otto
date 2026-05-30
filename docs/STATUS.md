@@ -15,8 +15,8 @@ Built overnight, autonomously, no keys required. Everything below **runs right n
 ## What runs with no keys
 
 - The whole loop in `SWARM_MODE=local` (static policy-coverage checks; honest, not faked).
-- 4 verticals, archetyped swarms: **restaurant 58→100%**, **contractor 62→100%**,
-  **clinic 62→100%**, generic fallback.
+- 6 verticals, archetyped swarms: **restaurant / contractor / clinic / salon / law**
+  (each ~58–62% → 100% after self-heal) + a generic fallback.
 - Both loops: pre-launch gate + production `/api/observe` (replay a hero = "already
   hardened"; replay an uncovered edge case = real targeted heal).
 - The "website + extra info" field on the launch screen (folds an owner note into the agent).
