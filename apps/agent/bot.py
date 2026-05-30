@@ -54,6 +54,8 @@ from pipecat.runner.utils import create_transport
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.transports.daily.transport import DailyParams
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
+from pipecat.frames.frames import InterimTranscriptionFrame, TranscriptionFrame
+from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 
 # ── tool schemas from the spec ───────────────────────────────────────────────
@@ -86,7 +88,18 @@ def _stt():
             strip_interim_prefix=True,  # the fleet emits cumulative interims
         )
     from pipecat.services.deepgram.stt import DeepgramSTTService
-    return DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+    # VERBATIM transcription on purpose: filler_words=true keeps "uh"/"um", smart_format=false stops
+    # the cleaner from rewriting hesitations/false-starts into a tidy sentence, and interim_results
+    # gives the per-word stream the live view renders. The disfluency is signal (a struggling caller),
+    # so we keep it rather than letting the ASR scrub it. (NVIDIA-fleet path above can't be configured
+    # this way — switch STT_PROVIDER=deepgram if you need the guaranteed verbatim capture.)
+    try:
+        from deepgram import LiveOptions
+        return DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"), live_options=LiveOptions(
+            model="nova-2", language="en-US", interim_results=True,
+            smart_format=False, punctuate=True, filler_words=True))
+    except Exception:
+        return DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
 
 
 def _tts(spec: AgentSpec):
@@ -158,9 +171,22 @@ async def run_bot(transport: BaseTransport, spec: AgentSpec) -> None:
     for t in spec.tools:
         llm.register_function(t.name, _handler(spec, t.name, rec))
 
-    pipeline = Pipeline([
-        transport.input(), stt, aggregator.user(), llm, tts, transport.output(), aggregator.assistant(),
-    ])
+    # Live mirror: stream the caller's transcription to the dashboard word-by-word as the call
+    # happens (the live view + real-time detection). Best-effort + wrapped — if anything about the
+    # tap fails, we fall back to the plain pipeline so the call itself is never at risk.
+    orch = os.getenv("ORCH_BASE_URL", "http://localhost:8000")
+    session = os.getenv("OTTO_SESSION", "") or await _active_session(orch)  # auto: the deployed business
+    tap = None
+    if session:
+        asyncio.create_task(_live_post(orch, session, {"kind": "call_start", "call_id": "live",
+                                                       "scenario": f"live call · {spec.business.name}"}))
+        try:
+            tap = _LiveTap(session, orch)
+        except Exception:
+            tap = None
+    stages = [transport.input(), stt] + ([tap] if tap else []) + \
+             [aggregator.user(), llm, tts, transport.output(), aggregator.assistant()]
+    pipeline = Pipeline(stages)
     # Telephony (Twilio Media Streams) is genuinely 8kHz; WebRTC/Daily are wideband. NVIDIA's
     # Parakeet ASR requires 16kHz and the STT service forwards raw transport audio un-resampled,
     # so an 8kHz pipeline silently breaks transcription. Pick the rate from the transport.
@@ -216,13 +242,84 @@ def _handler(spec: AgentSpec, name: str, rec: "_Recorder"):
     return handler
 
 
+import re as _re
+_FILLER = _re.compile(r"\b(u+h+|u+m+|e+r+m?|e+h+m?|h+m+|mm+|err+)\b|—|\.\.\.|\b\w+—", _re.I)
+
+
+def _disf(text: str) -> float:
+    """Verbatim disfluency density of a caller turn (fillers/elongations/false-starts per ~6 words).
+    We KEEP these (Deepgram filler_words=true) because a hesitant 'uhh… ehm…' caller is real signal."""
+    words = max(1, len((text or "").split()))
+    return round(min(1.0, len(_FILLER.findall(text or "")) / (words / 6 + 1)), 2)
+
+
+async def _active_session(orch: str) -> str:
+    """The currently-deployed business's session id, so the agent's live stream lands where the
+    dashboard is watching — no OTTO_SESSION needed. Empty string if nothing is deployed yet."""
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as c:
+            r = await c.get(f"{orch}/api/active-session")
+            if r.status_code == 200:
+                return (r.json() or {}).get("session_id") or ""
+    except Exception:
+        pass
+    return ""
+
+
+async def _live_post(orch: str, session: str, ev: dict) -> None:
+    """Fire-and-forget one live event to the orchestrator's /api/live (the real-time dashboard
+    stream). Best-effort: a slow/absent orchestrator must never affect the call."""
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as c:
+            await c.post(f"{orch}/api/live/{session}", json=ev)
+    except Exception:
+        pass
+
+
+class _LiveTap(FrameProcessor):
+    """Mirror the CALLER's transcription to the dashboard live, word by word. Sits right after STT,
+    forwards every frame untouched, and on the side POSTs interim/final transcripts (with confidence
+    + verbatim disfluency) to /api/live so the live view streams + fires detection as the caller
+    speaks. Defensive by construction — it pushes the frame first and swallows any tap error, so it
+    can never block or break the voice pipeline."""
+
+    def __init__(self, session: str, orch: str) -> None:
+        super().__init__()
+        self._session, self._orch = session, orch
+
+    async def process_frame(self, frame, direction: "FrameDirection") -> None:
+        await super().process_frame(frame, direction)
+        try:
+            if isinstance(frame, InterimTranscriptionFrame) and frame.text:
+                self._send({"kind": "hear_partial", "text": frame.text, "asr_conf": _conf(frame)})
+            elif isinstance(frame, TranscriptionFrame) and frame.text:
+                self._send({"kind": "hear", "text": frame.text, "asr_conf": _conf(frame),
+                            "audio": {"disfluency": _disf(frame.text)}})
+        except Exception:
+            pass
+        await self.push_frame(frame, direction)
+
+    def _send(self, ev: dict) -> None:
+        if self._session:
+            asyncio.create_task(_live_post(self._orch, self._session, ev))
+
+
+def _conf(frame) -> float:
+    """Per-result ASR confidence if the STT frame carries it (Deepgram does), else 1.0."""
+    for attr in ("confidence", "stability"):
+        v = getattr(frame, attr, None)
+        if isinstance(v, (int, float)):
+            return float(v)
+    return 1.0
+
+
 async def _report_to_orchestrator(context: OpenAILLMContext, rec: "_Recorder") -> None:
     """Ship a structured CallTrace (dialogue + the real tool event stream) to /api/observe,
     which classifies it across the failure taxonomy and, on a failure, fires a targeted
     swarm-heal. The tool events carry real outcomes + latency; dialogue turns are interleaved
     by order (best-effort timing). Loop #2."""
-    session = os.getenv("OTTO_SESSION", "")
     orch = os.getenv("ORCH_BASE_URL", "http://localhost:8000")
+    session = os.getenv("OTTO_SESSION", "") or await _active_session(orch)
     if not session:
         return
     try:

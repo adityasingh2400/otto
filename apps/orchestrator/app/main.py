@@ -46,6 +46,11 @@ class ObserveReq(BaseModel):
     trace: dict | None = None      # or a full CallTrace the live agent emitted (event stream)
 
 
+class SimReq(BaseModel):
+    trace_id: str = "accent_struggle"  # which enriched trace to replay through the live channel
+    wps: float = 7.0                   # words/second of the streamed transcript (the per-word feel)
+
+
 @app.get("/api/health")
 async def health() -> dict:
     return {
@@ -83,6 +88,13 @@ async def get_spec(session_id: str) -> dict:
     return spec.model_dump()
 
 
+@app.get("/api/active-session")
+async def active_session_route() -> dict:
+    """The session id of the currently-deployed business. The live agent resolves this so its live
+    transcript stream lands on the same session the dashboard is watching — zero manual wiring."""
+    return {"session_id": store.active_session()}
+
+
 @app.get("/api/active-spec")
 async def active_spec() -> dict:
     """The most-recently-activated business's spec — the deployed voice agent fetches this so
@@ -117,6 +129,7 @@ async def observe_route(session_id: str, req: ObserveReq) -> dict:
 
     Three inputs, richest first: a structured `trace`/`trace_id` (full event stream → the
     multi-dimensional failure taxonomy), or a `persona` signal / `transcript` (voice-only)."""
+    from . import live
     from .observe import observe_call, observe_trace
     if req.trace or req.trace_id:
         from otto_spec import CallTrace
@@ -124,8 +137,45 @@ async def observe_route(session_id: str, req: ObserveReq) -> dict:
         tr = CallTrace.model_validate(req.trace) if req.trace else traces.get(req.trace_id)
         if tr is None:
             raise HTTPException(status_code=404, detail=f"unknown trace_id {req.trace_id}")
-        return await observe_trace(session_id, tr)
+        result = await observe_trace(session_id, tr)
+        label = (traces.TRACES.get(req.trace_id) or {}).get("label", req.trace_id) if req.trace_id else "live call"
+        total = live.record_call(session_id, {  # every finished call shows up in the feed
+            "call_id": tr.call_id, "scenario": label,
+            "turns": sum(1 for e in tr.events if e.kind in ("hear", "say")),
+            "failed": bool(result.get("failed")), "failures": [f.get("title") for f in (result.get("failures") or [])],
+            "pre_pass": result.get("pre_pass"), "post_pass": result.get("post_pass"), "spec_version": result.get("spec_version")})
+        from .events import bus
+        await bus.publish(session_id, {"type": "call_recorded", "call": {"scenario": label, "failed": bool(result.get("failed"))}, "total_calls": total})
+        return result
     return await observe_call(session_id, transcript=req.transcript, persona=req.persona)
+
+
+@app.post("/api/live/{session_id}")
+async def live_route(session_id: str, ev: dict = Body(default={})) -> dict:
+    """Ingest one LIVE event from the agent (or simulator) — streamed per turn / per word as the
+    call happens. Fans out to SSE + runs incremental failure detection. See app/live.py."""
+    from . import live
+    return await live.ingest(session_id, ev)
+
+
+@app.post("/api/simulate-live/{session_id}")
+async def simulate_live_route(session_id: str, req: SimReq) -> dict:
+    """Replay an enriched trace through the live channel word-by-word — the 'watch it live' demo
+    with no phone needed. Runs in the background so the HTTP call returns immediately."""
+    from . import live, traces
+    if not store.get_spec(session_id):
+        raise HTTPException(status_code=404, detail="no session — build/activate a business first")
+    if traces.get(req.trace_id) is None:
+        raise HTTPException(status_code=404, detail=f"unknown trace_id {req.trace_id}")
+    asyncio.create_task(live.simulate(session_id, req.trace_id, wps=req.wps))
+    return {"ok": True, "streaming": req.trace_id}
+
+
+@app.get("/api/calls/{session_id}")
+async def calls_route(session_id: str) -> dict:
+    """The finished-calls feed for a session — so every completed call shows up in the UI."""
+    from . import live
+    return {"calls": live.calls(session_id)}
 
 
 @app.get("/api/traces")

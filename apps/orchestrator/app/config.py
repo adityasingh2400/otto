@@ -62,6 +62,10 @@ MAX_HEAL_ROUNDS = _i("MAX_HEAL_ROUNDS", 3)
 HEAL_USE_LLM = os.getenv("HEAL_USE_LLM", "0").lower() in ("1", "true", "yes")
 # production loop: how many synthetic calls to throw at a failure detected on a live call
 PRODUCTION_SWARM_VOLUME = _i("PRODUCTION_SWARM_VOLUME", 30)
+# REQUIRE_APPROVAL (default ON): once the agent clears the gate, the pipeline does NOT self-deploy —
+# it emits `awaiting_deploy` and waits for the owner to press Deploy (POST /api/activate). The human
+# putting the line live is the trust beat. OFF = auto-activate the instant the gate clears (tests/smoke).
+REQUIRE_APPROVAL = os.getenv("REQUIRE_APPROVAL", "1").lower() in ("1", "true", "yes")
 
 # Code-heal: route CODE_SPACE failures (tool-layer invariants no prompt can fix) to a coding agent
 # that writes a real diff, verified by the trace-sim replay oracle. Sibling of the policy heal loop.
@@ -94,7 +98,8 @@ REDUNDANT_CALL_MAX = _i("REDUNDANT_CALL_MAX", 2) # same tool called more than th
 # paralinguistic / voice-anomaly thresholds (the signal-driven detectors plain observability misses).
 # All operate on CallEvent.audio (AudioFeatures) + asr_conf — absent → the detector no-ops.
 ACCENT_ASR_CONF = _f("ACCENT_ASR_CONF", 0.6)        # a hear below this = low intelligibility (accent/mumble/non-native)
-ACCENT_MIN_LOW = _i("ACCENT_MIN_LOW", 2)            # this many low-confidence hears = a sustained intelligibility gap
+ACCENT_MIN_LOW = _i("ACCENT_MIN_LOW", 2)            # this many STRUGGLING hears (low-conf / disfluent / repeat) = a sustained gap
+DISFLUENCY_MIN = _f("DISFLUENCY_MIN", 0.18)         # audio.disfluency >= this, OR >=2 verbatim fillers, = a disfluent (hesitant/struggling) turn
 DISTRESS_AROUSAL = _f("DISTRESS_AROUSAL", 0.7)      # arousal >= this = agitated / shouting
 DISTRESS_VOLUME_DBFS = _f("DISTRESS_VOLUME_DBFS", -6.0)  # louder than this (closer to 0) = shouting
 DISTRESS_SENTIMENT = _f("DISTRESS_SENTIMENT", -0.4) # sentiment <= this = upset

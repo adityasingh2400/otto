@@ -81,7 +81,15 @@ async def run_pipeline(session_id: str, url: str | None, use_cached: bool, cache
             await heal_code(session_id, spec, report, personas, round_no)
 
         if report["pass_rate"] >= config.PASS_GATE:
-            await activate(session_id, spec)
+            if config.REQUIRE_APPROVAL:
+                # Cleared the gate — hand to the owner. The Deploy button (POST /api/activate) puts it live.
+                await bus.publish(session_id, {"type": "awaiting_deploy", "pass_rate": report["pass_rate"],
+                                               "phone_number": config.TWILIO_PHONE_NUMBER or "+1 (555) 010-OTTO",
+                                               "spec_version": spec.meta.version})
+                await bus.publish(session_id, {"type": "stage", "stage": "activate", "status": "done",
+                                               "detail": f"cleared {report['pass_rate']*100:.0f}% — awaiting owner deploy"})
+            else:
+                await activate(session_id, spec)
         else:
             await bus.publish(session_id, {"type": "stage", "stage": "activate", "status": "done",
                                            "detail": f"BLOCKED — {report['pass_rate']*100:.0f}% < gate {config.PASS_GATE*100:.0f}%"})
@@ -100,18 +108,40 @@ async def _build(session_id: str, spec: AgentSpec) -> None:
 
 
 async def activate(session_id: str, spec: AgentSpec) -> None:
+    """Owner pressed Deploy: mark this the active business AND auto-point the Twilio number's webhook
+    at the live agent, so an inbound call just works — no console step."""
     await bus.publish(session_id, {"type": "stage", "stage": "activate", "status": "start",
                                    "detail": "provisioning inbound line"})
-    number = _provision_twilio(spec)
-    store.set_active(session_id, number, spec.meta.version)
+    number = config.TWILIO_PHONE_NUMBER or "+1 (555) 010-OTTO"
+    try:
+        wh = await _point_twilio_webhook()
+    except Exception as e:
+        wh = f"webhook not auto-set ({str(e)[:70]})"
+    store.set_active(session_id, number, spec.meta.version)  # the agent serves THIS business now
+    await bus.publish(session_id, {"type": "fact", "topic": "deploy", "content": f"Twilio webhook: {wh}"})
     await bus.publish(session_id, {"type": "activated", "phone_number": number})
     await bus.publish(session_id, {"type": "stage", "stage": "activate", "status": "done",
-                                   "detail": f"inbound line live on v{spec.meta.version}"})
+                                   "detail": f"inbound line live on v{spec.meta.version} · {number}"})
 
 
-def _provision_twilio(spec: AgentSpec) -> str:
-    # D2 TODO(team): point the Twilio number's voice webhook at PUBLIC_BASE_URL/twiml
-    # (apps/agent/twilio_server.py) via the Twilio REST API. Guarded best-effort here.
-    if config.TWILIO_PHONE_NUMBER:
-        return config.TWILIO_PHONE_NUMBER
-    return "+1 (555) 010-OTTO"
+async def _point_twilio_webhook() -> str:
+    """Best-effort: set the Twilio number's Voice webhook to PUBLIC_BASE_URL/twiml via the REST API,
+    so a real call reaches the live agent automatically. Returns a short status for the deploy log."""
+    sid, tok = config.TWILIO_ACCOUNT_SID, config.TWILIO_AUTH_TOKEN
+    num, base = config.TWILIO_PHONE_NUMBER, config.PUBLIC_BASE_URL
+    if not (sid and tok and num and base):
+        return "skipped — set PUBLIC_BASE_URL (run scripts/golive.sh) to auto-point it"
+    import httpx
+    api = f"https://api.twilio.com/2010-04-01/Accounts/{sid}"
+    voice_url = base.rstrip("/") + "/twiml"
+    async with httpx.AsyncClient(timeout=8.0, auth=(sid, tok)) as c:
+        r = await c.get(f"{api}/IncomingPhoneNumbers.json", params={"PhoneNumber": num})
+        r.raise_for_status()
+        items = r.json().get("incoming_phone_numbers", [])
+        if not items:
+            return f"{num} not found on this account"
+        nsid = items[0]["sid"]
+        u = await c.post(f"{api}/IncomingPhoneNumbers/{nsid}.json",
+                         data={"VoiceUrl": voice_url, "VoiceMethod": "POST"})
+        u.raise_for_status()
+    return f"→ {voice_url}"

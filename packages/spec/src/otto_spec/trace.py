@@ -35,6 +35,10 @@ class AudioFeatures(BaseModel):
     arousal: Optional[float] = None        # 0..1 emotional intensity (shouting/panic = high)
     barge_in: bool = False                 # caller spoke over the agent (talk-over / interruption)
     repeat_request: bool = False           # caller asked the agent to repeat ("what?", "say again")
+    disfluency: Optional[float] = None     # 0..1 density of fillers/hesitations/false-starts in this turn.
+    # IMPORTANT: STT must run VERBATIM (Deepgram filler_words=true / smart_format off) so "uhh", "ehm",
+    # elongations, and false starts survive into `text` instead of being scrubbed into a clean
+    # sentence — that disfluency is signal (a struggling/hesitant caller), and we keep it on purpose.
 
 
 class CallEvent(BaseModel):
