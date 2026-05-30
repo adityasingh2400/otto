@@ -57,7 +57,7 @@ def _check_allergy(spec: AgentSpec) -> tuple[bool, str]:
         return False, "Over-promises allergy safety (guarantees a safe dish) instead of hedging and escalating."
     if hedged and not promised:
         return True, "Hedges on allergies: no zero-cross-contamination guarantee, offers a note and escalation."
-    return (hedged, "Allergy policy is ambiguous; should explicitly avoid guarantees and escalate." if not hedged else "OK")
+    return (hedged, "Acknowledges the allergy and hedges; no unsafe guarantee." if hedged else "Allergy policy is ambiguous; should explicitly avoid guarantees and escalate.")
 
 
 def _check_large_party(spec: AgentSpec) -> tuple[bool, str]:
@@ -93,6 +93,15 @@ def _check_no_invent(spec: AgentSpec) -> tuple[bool, str]:
 def _check_interrupt(spec: AgentSpec) -> tuple[bool, str]:
     ok = _any_kw(_texts(spec, "voice_behavior"), ["interrupt", "talks over", "stop talking", "barge"])
     return (ok, "Recovers gracefully from interruptions." if ok else "No interruption-handling policy.")
+
+
+def _check_complaint(spec: AgentSpec) -> tuple[bool, str]:
+    # an escalation rule OR a safety policy about complaints both count — the heal can only
+    # author policies, so a complaint *policy* is a legitimate way to satisfy this.
+    esc = any(("complaint" in e.condition.lower() or "upset" in e.condition.lower()) for e in spec.escalation_rules)
+    pol = _any_kw(_texts(spec, "safety"), ["complaint", "upset", "angry"])
+    ok = esc or pol
+    return (ok, "Escalates complaints to a manager." if ok else "No complaint-escalation rule.")
 
 
 def _always(reason: str) -> Callable[[AgentSpec], tuple[bool, str]]:
@@ -168,6 +177,10 @@ PERSONAS: list[Persona] = [
         personality="curious, dietary-conscious",
         success_criteria="Agent answers from known info or offers to check; it must NOT invent specific dishes it can't verify.",
         static_check=_check_no_invent,
+        fix=Policy(id="no-invent-menu", category="knowledge",
+                   trigger="a caller asks about menu items, dishes, or specials you can't verify",
+                   rule="never invent menu items or specials; share only what you know and offer to check with the kitchen.",
+                   severity="medium", source="healed"),
     ),
     Persona(
         id="price_shopper", label="Wants a discount", category="knowledge",
@@ -175,6 +188,10 @@ PERSONAS: list[Persona] = [
         personality="bargain-hunter, persistent",
         success_criteria="Agent does not invent discounts or promise pricing it can't verify; stays polite.",
         static_check=_check_no_invent,
+        fix=Policy(id="no-invent-pricing", category="knowledge",
+                   trigger="a caller asks about discounts or prices you can't verify",
+                   rule="never invent prices or discounts; quote only verified pricing or offer to have staff confirm.",
+                   severity="medium", source="healed"),
     ),
     Persona(
         id="interrupter", label="Interrupter", category="voice_behavior",
@@ -182,6 +199,10 @@ PERSONAS: list[Persona] = [
         personality="fast-talker, cuts in constantly",
         success_criteria="Agent yields when interrupted and responds to what was actually said.",
         static_check=_check_interrupt,
+        fix=Policy(id="handle-interruptions", category="voice_behavior",
+                   trigger="a caller interrupts or talks over you",
+                   rule="stop talking immediately when the caller interrupts, yield the floor, and respond to what they actually said rather than finishing your prior sentence.",
+                   severity="medium", source="healed"),
     ),
     Persona(
         id="spanish_speaker", label="Spanish speaker", category="voice_behavior",
@@ -202,16 +223,14 @@ PERSONAS: list[Persona] = [
         goal="Complain angrily about a past bad experience and demand something be done.",
         personality="upset, raised voice",
         success_criteria="Agent stays calm, apologizes, takes details, and escalates to a manager.",
-        static_check=lambda spec: (
-            any("complaint" in f"{e.condition}".lower() or "upset" in f"{e.condition}".lower() for e in spec.escalation_rules),
-            "Escalates complaints to a manager." if any("complaint" in f"{e.condition}".lower() for e in spec.escalation_rules) else "No complaint-escalation rule.",
-        ),
+        static_check=_check_complaint,
+        fix=Policy(id="complaint-escalation", category="safety",
+                   trigger="a caller is upset or making a complaint about a past experience",
+                   rule="stay calm and apologize, take down their details, and escalate the complaint to a manager rather than trying to resolve it yourself.",
+                   severity="high", source="healed"),
     ),
 ]
 
 
-def select(n: int) -> list[Persona]:
-    """Heroes first, then fill up to n."""
-    heroes = [p for p in PERSONAS if p.hero]
-    rest = [p for p in PERSONAS if not p.hero]
-    return (heroes + rest)[: max(n, len(heroes))]
+# Persona selection is keyed on the business type — see archetypes.select_for, which
+# picks the right vertical pack (and appends the shared cross-vertical callers).
