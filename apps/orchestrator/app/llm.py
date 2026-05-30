@@ -22,7 +22,9 @@ async def complete(system: str, user: str, *, json_mode: bool = False, temperatu
         return await _openai(system, user, json_mode, temperature)
     if provider == "anthropic":
         return await _anthropic(system, user, json_mode, temperature)
-    # TODO(team): bedrock (AWS track) + gemini. For now fall back to OpenAI if keyed.
+    if provider == "gemini":  # Gemma 4 / Gemini via OpenAI-compatible endpoint (DeepMind track)
+        return await _gemini(system, user, json_mode, temperature)
+    # bedrock (AWS) runs in the agent via boto3; server-side here falls back to OpenAI if keyed.
     if config.OPENAI_API_KEY:
         return await _openai(system, user, json_mode, temperature)
     raise LLMUnavailable(f"no LLM configured for provider={provider}")
@@ -48,6 +50,28 @@ async def _openai(system: str, user: str, json_mode: bool, temperature: float) -
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
+    }
+    if json_mode:
+        kwargs["response_format"] = {"type": "json_object"}
+    resp = await client.chat.completions.create(**kwargs)
+    return resp.choices[0].message.content or ""
+
+
+async def _gemini(system: str, user: str, json_mode: bool, temperature: float) -> str:
+    # Gemma 4 (the hackathon's featured open model) for non-latency-critical server-side
+    # reasoning. Uses Google's OpenAI-compatible endpoint, so no extra dependency.
+    if not config.GEMINI_API_KEY:
+        raise LLMUnavailable("GEMINI_API_KEY not set")
+    try:
+        from openai import AsyncOpenAI
+    except ImportError as e:  # pragma: no cover
+        raise LLMUnavailable("openai SDK not installed") from e
+    client = AsyncOpenAI(api_key=config.GEMINI_API_KEY,
+                         base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+    kwargs: dict[str, Any] = {
+        "model": config.GEMINI_MODEL,
+        "temperature": temperature,
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
     }
     if json_mode:
         kwargs["response_format"] = {"type": "json_object"}

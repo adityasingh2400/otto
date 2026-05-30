@@ -34,6 +34,7 @@ LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemma-4-31b-it")  # Gemma 4 for server-side reasoning
 
 # Swarm / eval
 SWARM_MODE = os.getenv("SWARM_MODE", "local")  # local | cekura
