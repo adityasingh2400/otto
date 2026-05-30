@@ -1,68 +1,51 @@
-"""Twilio Media Streams → Pipecat (the live phone call).
+"""Explicit Twilio Media Streams server — the MANUAL alternative.
 
-Point the Twilio number's Voice webhook at  POST {PUBLIC_BASE_URL}/twiml.
-Run:  uv run --python 3.12 uvicorn twilio_server:app --port 7860
-      ngrok http 7860   # set PUBLIC_BASE_URL to the https URL
+Primary path is simpler (Pipecat's runner gives you the server + TwiML):
+    uv run --python 3.12 bot.py --transport twilio --proxy <ngrok-host>
 
-D2 TODO(team): confirm transport/serializer import paths against the pinned Pipecat +
-the pipecat-quickstart-phone-bot repo, and parse the Twilio `start` event for
-streamSid/callSid before constructing the serializer.
+Use this file only if you need custom FastAPI routes alongside the call websocket:
+    uv run --python 3.12 uvicorn twilio_server:app --port 7860
+    # then point the Twilio number's Voice webhook at POST {PUBLIC_BASE_URL}/twiml
 """
 
 from __future__ import annotations
 
 import os
-import pathlib
 
-import httpx
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import HTMLResponse
-from lineforge_spec import AgentSpec
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.runner.utils import parse_telephony_websocket
+from pipecat.serializers.twilio import TwilioFrameSerializer
+from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams, FastAPIWebsocketTransport
 
 import bot
 
 app = FastAPI()
-ORCH = os.getenv("ORCH_BASE_URL", "http://localhost:8000")
 PUBLIC = os.getenv("PUBLIC_BASE_URL", "")
-SESSION = os.getenv("LINEFORGE_SESSION", "")  # which built session's spec to serve
 
 
 @app.post("/twiml")
 async def twiml(_request: Request) -> HTMLResponse:
-    ws_url = PUBLIC.replace("https://", "wss://").replace("http://", "ws://") + "/ws"
-    xml = (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        f'<Response><Connect><Stream url="{ws_url}"/></Connect></Response>'
-    )
+    ws = PUBLIC.replace("https://", "wss://").replace("http://", "ws://") + "/ws"
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+           f'<Response><Connect><Stream url="{ws}"/></Connect></Response>')
     return HTMLResponse(content=xml, media_type="application/xml")
 
 
 @app.websocket("/ws")
 async def ws(websocket: WebSocket) -> None:
     await websocket.accept()
-    spec = await _load_spec()
-    # TODO(team): read the Twilio start frames, then:
-    from pipecat.serializers.twilio import TwilioFrameSerializer
-    from pipecat.transports.network.fastapi_websocket import (
-        FastAPIWebsocketParams,
-        FastAPIWebsocketTransport,
+    _type, call = await parse_telephony_websocket(websocket)
+    serializer = TwilioFrameSerializer(
+        stream_sid=call["stream_id"], call_sid=call["call_id"],
+        account_sid=os.getenv("TWILIO_ACCOUNT_SID"), auth_token=os.getenv("TWILIO_AUTH_TOKEN"),
     )
-
     transport = FastAPIWebsocketTransport(
         websocket=websocket,
-        params=FastAPIWebsocketParams(serializer=TwilioFrameSerializer(stream_sid="TODO")),
+        params=FastAPIWebsocketParams(
+            audio_in_enabled=True, audio_out_enabled=True, add_wav_header=False,
+            vad_analyzer=SileroVADAnalyzer(), serializer=serializer,
+        ),
     )
-    await bot.run_bot(transport, spec)
-
-
-async def _load_spec() -> AgentSpec:
-    if SESSION:
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as c:
-                r = await c.get(f"{ORCH}/api/spec/{SESSION}")
-                if r.status_code == 200:
-                    return AgentSpec.model_validate(r.json())
-        except Exception:
-            pass
-    cached = pathlib.Path(__file__).resolve().parents[2] / "packages" / "spec" / "piccino.json"
-    return AgentSpec.model_validate_json(cached.read_text())
+    await bot.run_bot(transport, await bot.load_spec())

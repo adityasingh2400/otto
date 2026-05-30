@@ -24,7 +24,7 @@ import bot
 
 
 async def main() -> None:
-    spec = await _load_spec()
+    spec = await bot.load_spec()
     from pipecat.transports.services.daily import DailyParams, DailyTransport
 
     transport = DailyTransport(
@@ -34,21 +34,6 @@ async def main() -> None:
         params=DailyParams(audio_in_enabled=True, audio_out_enabled=True),
     )
     await bot.run_bot(transport, spec)
-
-
-async def _load_spec() -> AgentSpec:
-    session = os.getenv("LINEFORGE_SESSION", "")
-    orch = os.getenv("ORCH_BASE_URL", "http://localhost:8000")
-    if session:
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as c:
-                r = await c.get(f"{orch}/api/spec/{session}")
-                if r.status_code == 200:
-                    return AgentSpec.model_validate(r.json())
-        except Exception:
-            pass
-    cached = pathlib.Path(__file__).resolve().parents[2] / "packages" / "spec" / "piccino.json"
-    return AgentSpec.model_validate_json(cached.read_text())
 
 
 if __name__ == "__main__":

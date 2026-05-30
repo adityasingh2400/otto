@@ -36,15 +36,16 @@ sims. Everything else lights up the live phone path + sponsor tracks.
 # terminal 1 — orchestrator + dashboard
 ./scripts/dev.sh
 
-# terminal 2 — the Pipecat phone agent
-cd apps/agent && uv sync --python 3.12
-LINEFORGE_SESSION=<sid-from-dashboard> uv run --python 3.12 uvicorn twilio_server:app --port 7860
+# terminal 2 — expose a port for Twilio
+ngrok http 7860          # note the ngrok host (e.g. abc123.ngrok.app)
 
-# terminal 3 — expose it
-ngrok http 7860          # copy the https URL into PUBLIC_BASE_URL in .env
+# terminal 3 — the Pipecat phone agent (the runner serves the webhook + TwiML)
+cd apps/agent && uv sync --python 3.12
+LINEFORGE_SESSION=<sid-from-dashboard> uv run --python 3.12 bot.py --transport twilio --proxy abc123.ngrok.app
 ```
 
-In the Twilio console, set the number's **Voice webhook** to `POST {PUBLIC_BASE_URL}/twiml`.
+In the Twilio console, set the number's **Voice webhook** to your ngrok HTTPS URL (the
+runner serves the TwiML). For a custom server instead, use `twilio_server.py` (see its docstring).
 Call the number. The dashboard's live-call console + Cekura observability log every call;
 a failure triggers the production swarm-heal.
 

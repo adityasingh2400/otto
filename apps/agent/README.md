@@ -22,10 +22,13 @@ cp ../../.env.example ../../.env   # fill STT/LLM/TTS + Twilio + Daily keys
 ## Phone path (D2)
 
 ```bash
-uv run --python 3.12 uvicorn twilio_server:app --port 7860
-ngrok http 7860                       # PUBLIC_BASE_URL = the https URL
-# Twilio console: set the number's Voice webhook → POST {PUBLIC_BASE_URL}/twiml
+ngrok http 7860                       # note the ngrok host
+# the runner serves the webhook + TwiML + serializer for you:
+LINEFORGE_SESSION=<sid> uv run --python 3.12 bot.py --transport twilio --proxy <ngrok-host>
+# Twilio console: set the number's Voice webhook → your ngrok HTTPS URL
 ```
+
+`twilio_server.py` is the manual alternative if you need custom FastAPI routes.
 
 ## Swarm path (D3)
 
