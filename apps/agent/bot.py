@@ -14,6 +14,7 @@ are top-level because the agent venv installs pipecat; the orchestrator never im
 
 from __future__ import annotations
 
+import asyncio
 import os
 import pathlib
 import time

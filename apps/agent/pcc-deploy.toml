@@ -12,4 +12,5 @@ agent_profile = "agent-1x"
 	audio_filter = "tel"          # noise suppression tuned for phone calls
 
 [scaling]
-	min_agents = 1                # keep one warm so the judge's call connects instantly
+	min_agents = 5                # pre-warm 5 so concurrent Cekura phone calls don't wait on cold starts
+	max_agents = 10
