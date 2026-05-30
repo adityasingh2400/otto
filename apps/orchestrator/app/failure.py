@@ -37,6 +37,16 @@ _SEV_RANK = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 # Production (observe.py) still reports them — that's where they belong: live observability.
 MONITORING_ONLY = frozenset({"slow_action", "dead_air", "low_confidence_write"})
 
+# CODE-SPACE failures: ones a prompt can't fix because the gap is a TOOL-LAYER invariant, not the
+# agent's judgment. You can't instruct a model into idempotency, a tool that always returns, or a
+# secure boundary — those are guarantees code makes, not rules a prompt follows. These route to the
+# coding agent (code_heal.py) instead of the policy healer; its fix is a real diff to the tool layer,
+# verified by the SAME trace-sim oracle (replay the recorded tool calls → re-evaluate → must be gone).
+# `fix_space` is a PRIOR: the heal loop may promote a "policy" failure to "code" if healing it never
+# converges (a gap no rule could close is, empirically, structural).
+CODE_SPACE = frozenset({"duplicate_side_effect", "orphaned_action", "pii_in_action",
+                        "slow_action", "dead_air"})
+
 
 @dataclass
 class FailureInstance:
@@ -52,6 +62,7 @@ class FailureInstance:
     persona_hint: str = ""      # which scenario to swarm-heal against, if known
     discovered: bool = False    # found by the anomaly detector, not a built-in named class
     signature: str = ""         # stable signature for discovery de-dup / promotion
+    fix_space: str = "policy"   # "policy" → prompt healer (heal.py) · "code" → coding agent (code_heal.py)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -432,6 +443,9 @@ def evaluate(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:
                     found[f.id] = f
         except Exception:
             continue  # a detector bug must never break the eval
+    for f in found.values():  # stamp the routing prior centrally (detectors stay agnostic)
+        if f.id in CODE_SPACE:
+            f.fix_space = "code"
     return sorted(found.values(), key=lambda f: -_SEV_RANK[f.severity])
 
 
@@ -439,6 +453,12 @@ def gating(failures: list[FailureInstance]) -> list[FailureInstance]:
     """The subset that should fail a pre-launch gate — i.e. the policy-healable failures, excluding
     the MONITORING_ONLY signals (which are surfaced but can't be patched away)."""
     return [f for f in failures if f.id not in MONITORING_ONLY]
+
+
+def code_space(failures: list[FailureInstance]) -> list[FailureInstance]:
+    """The subset whose fix is a code diff, not a policy — routed to the coding agent (code_heal.py).
+    These are exactly the failures naming a tool-layer invariant no prompt can guarantee."""
+    return [f for f in failures if f.fix_space == "code"]
 
 
 def worst(failures: list[FailureInstance]) -> FailureInstance | None:

@@ -63,6 +63,27 @@ HEAL_USE_LLM = os.getenv("HEAL_USE_LLM", "0").lower() in ("1", "true", "yes")
 # production loop: how many synthetic calls to throw at a failure detected on a live call
 PRODUCTION_SWARM_VOLUME = _i("PRODUCTION_SWARM_VOLUME", 30)
 
+# Code-heal: route CODE_SPACE failures (tool-layer invariants no prompt can fix) to a coding agent
+# that writes a real diff, verified by the trace-sim replay oracle. Sibling of the policy heal loop.
+# Default ON when an LLM key is present (same posture as the trace sim); the loop is a strict no-op
+# when there are no code-space failures, so it's safe to leave enabled.
+CODE_HEAL = os.getenv("CODE_HEAL", "1").lower() in ("1", "true", "yes")
+# CODE_HEAL_APPLY=1 writes the verified patch back to the file (and the pipeline can open a PR).
+# Default OFF: produce the verified diff + red→green proof, but DON'T mutate the working tree —
+# shipping code has a bigger blast radius than hot-swapping one agent's policy, so a human/CI merges.
+CODE_HEAL_APPLY = os.getenv("CODE_HEAL_APPLY", "0").lower() in ("1", "true", "yes")
+CODE_HEAL_MAX_HOPS = _i("CODE_HEAL_MAX_HOPS", 2)  # author→verify→retry rounds per failure (budget cap)
+CODE_HEAL_MODEL = os.getenv("CODE_HEAL_MODEL", "claude-haiku-4-5")  # cheap by default ($50 budget)
+# Escalation: if the cheap model can't produce a VERIFIED fix within CODE_HEAL_MAX_HOPS, take one more
+# attempt on a stronger model. Set empty to disable escalation. Costs more only when the cheap model fails.
+CODE_HEAL_ESCALATE_MODEL = os.getenv("CODE_HEAL_ESCALATE_MODEL", "claude-sonnet-4-6")
+# CODE_HEAL_MERGE=1 turns on the LIVE-LINE merge path (production loop): a locally-verified fix is gated
+# a SECOND time by the conversational harness (Cekura when keyed, else the local sim) against the full
+# pre-launch suite; only if THAT passes is the fix written to the tool layer, hot-reloaded into the
+# running line, and committed. If the harness regresses, the fix is rolled back. Default OFF.
+CODE_HEAL_MERGE = os.getenv("CODE_HEAL_MERGE", "0").lower() in ("1", "true", "yes")
+CODE_HEAL_COMMIT = os.getenv("CODE_HEAL_COMMIT", "1").lower() in ("1", "true", "yes")  # git-commit a merged fix
+
 # failure-taxonomy thresholds (the event-stream eval engine, app/failure.py)
 ACTION_SLA_MS = _i("ACTION_SLA_MS", 1500)        # a tool slower than this = a slow_action failure
 ACTION_SLA_HIGH_MS = _i("ACTION_SLA_HIGH_MS", 3000)  # ... slower than this = high severity
