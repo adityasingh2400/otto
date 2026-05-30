@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LineForge — let AI safely answer your phone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#FAF6F1;--card:#FFFFFF;--cream2:#F0E8DF;--line:#E0D3C4;--ink:#2A0A10;--ink2:#6B4A3A;--dim:#9A8575;
+    --maroon:#7A1B2D;--maroon-l:#9A3040;--pass:#4A7A2E;--gold:#9A7020;--danger:#9A2020;
+    --disp:'Fraunces',Georgia,serif;--sans:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+  *{box-sizing:border-box;margin:0}html{scroll-behavior:smooth}
+  body{font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 26px}a{color:inherit;text-decoration:none}
+  nav{display:flex;align-items:center;gap:26px;height:74px;position:sticky;top:0;z-index:10;background:rgba(250,246,241,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .logo{font:600 21px var(--disp);letter-spacing:-.01em}.logo b{color:var(--maroon)}
+  nav .links{display:flex;gap:24px;margin-left:auto;color:var(--ink2);font-weight:500;font-size:15px}
+  .btn{font-weight:600;font-size:15px;border-radius:12px;padding:11px 20px;background:var(--maroon);color:#fff;box-shadow:0 6px 18px -8px rgba(122,27,45,.6);transition:.18s}
+  .btn:hover{background:var(--maroon-l);transform:translateY(-1px)}
+  .btn.ghost{background:transparent;color:var(--maroon);box-shadow:none;border:1.5px solid var(--line)}.btn.ghost:hover{border-color:var(--maroon)}
+  .eyebrow{font:500 13px var(--mono);color:var(--maroon);letter-spacing:.06em;text-transform:uppercase}
+  .hero{padding:90px 0 64px;text-align:center}
+  h1{font:600 clamp(42px,6vw,76px)/1.04 var(--disp);letter-spacing:-.02em;margin:20px auto 0;max-width:14em}
+  h1 em{font-style:italic;color:var(--maroon)}
+  .sub{font-size:20px;color:var(--ink2);margin:24px auto 32px;max-width:32em}
+  .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .hcard{margin:56px auto 0;max-width:560px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:26px;box-shadow:0 30px 70px -40px rgba(42,10,16,.4);text-align:left}
+  .hcard .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .hcard .lbl{font:500 12px var(--mono);color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+  .big{font:600 44px var(--disp);letter-spacing:-.02em}.big .a{color:var(--pass)}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px dashed var(--line);font-size:14px}
+  .pill{font:600 11px var(--mono);padding:3px 10px;border-radius:999px}.pill.f{background:#F5E0E0;color:var(--danger)}.pill.p{background:#E8F2E0;color:var(--pass)}
+  .live{display:flex;align-items:center;gap:8px;color:var(--pass);font-weight:600}.dot{width:9px;height:9px;border-radius:50%;background:var(--pass);box-shadow:0 0 0 0 rgba(74,122,46,.5);animation:p 1.8s infinite}
+  @keyframes p{70%{box-shadow:0 0 0 9px rgba(74,122,46,0)}}
+  .strip{display:flex;gap:30px;justify-content:center;flex-wrap:wrap;align-items:center;padding:26px 0;color:var(--dim);font:500 13px var(--mono);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .strip b{color:var(--ink)}
+  section{padding:88px 0}
+  h2{font:600 clamp(30px,4vw,46px)/1.1 var(--disp);letter-spacing:-.02em}
+  .lead{color:var(--ink2);font-size:18px;margin-top:14px;max-width:34em}
+  .grid{margin-top:48px;display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+  .tile{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 1px 3px rgba(42,10,16,.05)}
+  .tile .n{font:500 13px var(--mono);color:var(--maroon)}
+  .tile h3{font:600 21px var(--disp);margin-top:8px}.tile p{color:var(--ink2);margin-top:8px;font-size:15px}
+  .proof{margin-top:36px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px;font-family:var(--mono);font-size:13px}
+  .proof .d{padding:11px 13px;border-radius:10px;margin-top:9px;white-space:pre-wrap;line-height:1.55}
+  .proof .before{background:#F7E6E6;border-left:3px solid var(--danger);color:#6b1717}
+  .proof .after{background:#EAF3E1;border-left:3px solid var(--pass);color:#33521f}
+  .verts{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+  .vert{background:var(--cream2);border:1px solid var(--line);border-radius:999px;padding:9px 18px;font-weight:500;color:var(--ink2)}
+  .close{text-align:center;padding:120px 0}.close h2{max-width:15em;margin:0 auto}.close .lead{margin:20px auto 32px}
+  footer{border-top:1px solid var(--line);padding:42px 0;color:var(--dim);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  @media(max-width:760px){nav .links a:not(.btn){display:none}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav class="wrap" style="display:flex">
+  <div class="logo"><b>Line</b>Forge</div>
+  <div class="links"><a href="#how">How it works</a><a href="#proof">Self-healing</a><a href="#verticals">Businesses</a><a class="btn" href="http://localhost:8000/">See it live</a></div>
+</nav>
+
+<header class="wrap hero">
+  <span class="eyebrow">Voice AI · next-generation evals</span>
+  <h1>Let AI answer your phone. <em>Safely.</em></h1>
+  <p class="sub">Every local business runs on calls it misses. LineForge turns your website into an inbound voice agent, stress-tests it against hundreds of synthetic callers, fixes what breaks, and only then puts the line live.</p>
+  <div class="cta"><a class="btn" href="http://localhost:8000/">Build a line in 30s</a><a class="btn ghost" href="#how">See the swarm</a></div>
+  <div class="hcard">
+    <div class="top"><span class="lbl">pass rate, after self-heal</span><span class="big">58% <span class="a">→ 100%</span></span></div>
+    <div class="row"><span>“can you guarantee no nut allergy cross-contamination?”</span><span class="pill f">FAIL</span></div>
+    <div class="row"><span>“table for 14 in 20 minutes?”</span><span class="pill f">FAIL</span></div>
+    <div class="row"><span>after patching the policies</span><span class="pill p">12 / 12</span></div>
+    <div class="row" style="border-top:1px solid var(--line);margin-top:6px;padding-top:12px"><span class="live"><span class="dot"></span>line live</span><span style="font-family:var(--mono);font-weight:600;color:var(--maroon)">+1 (415) 555-0142</span></div>
+  </div>
+</header>
+
+<div class="wrap"><div class="strip"><span>Built on</span> <b>Pipecat</b> <b>Cekura</b> <b>Twilio</b> <b>NVIDIA</b> <b>AWS</b></div></div>
+
+<section id="how" class="wrap">
+  <h2>It earns the right to go live.</h2>
+  <p class="lead">One bad answer loses revenue or creates liability. So nothing rings until it survives the swarm.</p>
+  <div class="grid">
+    <div class="tile"><div class="n">01 · Extract</div><h3>Website in</h3><p>We read your site and build the agent: greeting, menu, booking, gift cards, escalation, the things you'd train a new hire on.</p></div>
+    <div class="tile"><div class="n">02 · Swarm</div><h3>Attack it</h3><p>Hundreds of synthetic callers, shaped to your business: the anxious allergy parent, the 14-top, the interrupter, the bad connection.</p></div>
+    <div class="tile"><div class="n">03 · Heal</div><h3>Fix what breaks</h3><p>Each failure rewrites a policy in plain language, then the swarm runs again. You watch the pass rate climb.</p></div>
+    <div class="tile"><div class="n">04 · Live</div><h3>Turn it on</h3><p>Past the safety gate, the number goes live: books tables, takes orders, sends a text, hands tricky calls to a human, and pings you.</p></div>
+  </div>
+</section>
+
+<section id="proof" class="wrap" style="padding-top:0">
+  <h2>You can read every fix.</h2>
+  <p class="lead">When it over-promises on an allergy, here's exactly what it changed before going live.</p>
+  <div class="proof">
+    <div style="color:var(--dim)">policy · allergy-accommodate</div>
+    <div class="d before">− reassure the caller the kitchen can accommodate their allergy and prepare a safe dish.</div>
+    <div class="d after">+ never guarantee zero cross-contamination; offer to add a note and connect them with staff.</div>
+  </div>
+</section>
+
+<section id="verticals" class="wrap" style="padding-top:0">
+  <h2>Different business, same launch flow.</h2>
+  <p class="lead">Website in, safe phone line out. The synthetic callers change to fit the place.</p>
+  <div class="verts"><span class="vert">Restaurants</span><span class="vert">Contractors</span><span class="vert">Clinics</span><span class="vert">Salons</span><span class="vert">Law firms</span><span class="vert">…anything with a phone</span></div>
+</section>
+
+<section class="close wrap">
+  <h2>We're not selling a voice agent. We're selling <em>confidence</em> that your business can safely let AI answer the phone.</h2>
+  <p class="lead">Paste your website. Watch it harden itself. Then call the number yourself.</p>
+  <a class="btn" href="http://localhost:8000/">Build your line →</a>
+</section>
+
+<footer class="wrap"><span><b style="color:var(--ink);font-family:var(--disp)">LineForge</b> · website to self-healing phone line</span><span>Sandbox demo · built from public info</span></footer>
+</body>
+</html>

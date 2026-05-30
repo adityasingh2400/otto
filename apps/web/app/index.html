@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LineForge · Mission Control</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%23FF6B5C'/%3E%3Ctext%20x='16'%20y='24'%20font-family='Arial%20Black,sans-serif'%20font-size='21'%20font-weight='900'%20text-anchor='middle'%20fill='%233C1F15'%3EL%3C/text%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Fraunces:ital,opsz,wght@1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* ── LineForge "Sunset Mission Control" — design language from cracked (Sunset
+     Arcade) + ReRoute/swarma (warm cream + ink). Arcade hard-shadows, foil hero
+     numbers, riso texture, stamp/count-up motion. Custom tactile components. ── */
+  :root{
+    --paper:#FFF6EC; --cream:#FFFAF2; --cream-dim:#F5EBD9; --cream-muted:#E7D5BC;
+    --ink:#3C1F15; --ink-soft:#6E3F2E; --ink-fade:#9C7560;
+    --blush:#FFE4D6; --peach:#FFCFA8; --apricot:#FFB07A; --mango:#FFA532;
+    --cherry:#FF6B5C; --cherry-d:#E03E2D; --marigold:#FFC53D; --marigold-d:#E0A41F;
+    --amber:#E8B547; --gold-light:#FFE5A8; --amber-deep:#B98A2E; --maroon:#7A1B2D;
+    --pass:#2FA45E; --pass-d:#1E7A43;
+    --line:rgba(60,31,21,.16); --line2:rgba(60,31,21,.28);
+    --display:'Bowlby One',system-ui,sans-serif; --sans:'Inter',system-ui,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,monospace; --serif:'Fraunces',Georgia,serif;
+    --sh-sm:3px 3px 0 var(--ink); --sh-md:5px 5px 0 var(--ink); --sh-lg:7px 7px 0 var(--ink);
+    --sh-cherry:5px 5px 0 var(--cherry); --sh-pass:5px 5px 0 var(--pass); --sh-gold:5px 5px 0 var(--marigold);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    font-family:var(--sans); color:var(--ink); font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased; min-height:100vh; position:relative;
+    background:linear-gradient(180deg,var(--blush) 0%,var(--peach) 42%,var(--apricot) 84%,var(--mango) 100%);
+    background-attachment:fixed;
+  }
+  /* riso dot texture (cracked signature) */
+  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;mix-blend-mode:multiply;opacity:.5;
+    background-image:radial-gradient(circle at 0 0,rgba(255,107,92,.10) 1px,transparent 1.5px),
+      radial-gradient(circle at 4px 4px,rgba(60,31,21,.06) 1px,transparent 1.5px);
+    background-size:8px 8px,8px 8px;}
+  ::selection{background:var(--marigold);color:var(--ink)}
+  ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--cream-muted);border-radius:8px}
+
+  header{position:sticky;top:0;z-index:9;display:flex;align-items:center;gap:14px;padding:14px 26px;
+    background:rgba(255,246,236,.82);backdrop-filter:blur(10px);border-bottom:2px solid var(--ink)}
+  .word{font-family:var(--display);font-size:24px;letter-spacing:.5px;color:var(--ink);line-height:1}
+  .word .lf{color:var(--cherry);-webkit-text-stroke:1px var(--ink)}
+  .tag{font-family:var(--serif);font-style:italic;color:var(--ink-soft);font-size:15px}
+  .vbadge{font:600 12px var(--mono);color:var(--ink);background:var(--marigold);border:2px solid var(--ink);
+    border-radius:999px;padding:4px 12px;box-shadow:var(--sh-sm);display:none}.vbadge.on{display:inline-block}
+  .health{margin-left:auto;font:500 11px var(--mono);color:var(--ink-soft);background:var(--cream);
+    border:1.5px solid var(--line2);border-radius:999px;padding:6px 12px}
+  main{max-width:1200px;margin:0 auto;padding:24px 26px 90px;position:relative;z-index:1}
+
+  /* ── launch (custom tactile input + arcade button) ── */
+  .launch{display:flex;gap:12px;align-items:center}
+  .launch input{flex:1;background:var(--cream);border:2px solid var(--ink);border-radius:14px;padding:14px 16px;
+    font:500 14px var(--mono);color:var(--ink);box-shadow:var(--sh-sm);outline:none;transition:.15s}
+  .launch input:focus{box-shadow:var(--sh-md);transform:translate(-2px,-2px)}
+  .extra{width:100%;margin-top:10px;background:var(--cream);border:2px solid var(--ink);border-radius:12px;padding:11px 14px;font:500 13px var(--sans);color:var(--ink);box-shadow:var(--sh-sm);outline:none}
+  .extra:focus{box-shadow:var(--sh-md);transform:translate(-2px,-2px)}
+  .extra::placeholder{color:var(--ink-fade);font-style:italic;font-family:var(--serif)}
+  .btn{font-family:var(--display);font-size:15px;letter-spacing:.5px;color:var(--cream);background:var(--cherry);
+    border:2px solid var(--ink);border-radius:14px;padding:0 24px;height:52px;cursor:pointer;box-shadow:var(--sh-md);
+    transition:transform .08s,box-shadow .08s;animation:ctaPulse 2.8s ease-out infinite}
+  .btn:hover{transform:translate(-1px,-1px);box-shadow:var(--sh-lg)}
+  .btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink);animation:none}
+  .btn:disabled{opacity:.55;cursor:default;animation:none;box-shadow:var(--sh-sm)}
+  @keyframes ctaPulse{0%{box-shadow:var(--sh-md),0 0 0 0 rgba(255,107,92,.5)}70%{box-shadow:var(--sh-md),0 0 0 14px rgba(255,107,92,0)}100%{box-shadow:var(--sh-md),0 0 0 0 rgba(255,107,92,0)}}
+  .chips{display:flex;gap:9px;margin:12px 2px 0;flex-wrap:wrap;align-items:center}
+  .lab{font:600 12px var(--mono);color:var(--ink-soft);text-transform:uppercase;letter-spacing:.5px}
+  .chip{font:600 13px var(--sans);color:var(--ink);background:var(--cream);border:2px solid var(--ink);border-radius:999px;
+    padding:7px 14px;cursor:pointer;box-shadow:var(--sh-sm);transition:transform .08s,box-shadow .08s}
+  .chip:hover{transform:translate(-1px,-1px);box-shadow:var(--sh-md)}.chip:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .chip b{color:var(--cherry-d)}
+  .hint{font-family:var(--serif);font-style:italic;color:var(--ink-soft);font-size:13px;margin-top:9px}
+
+  /* ── stepper ── */
+  .steps{display:flex;gap:10px;margin:22px 0 6px}
+  .step{flex:1;background:var(--cream);border:2px solid var(--ink);border-radius:12px;padding:11px 13px;font:600 13px var(--sans);
+    color:var(--ink-fade);box-shadow:var(--sh-sm);transition:.25s}
+  .step .n{font:700 11px var(--mono);opacity:.55;display:block}
+  .step.active{color:var(--ink);background:var(--gold-light);box-shadow:var(--sh-gold);transform:translate(-2px,-2px)}
+  .step.done{color:var(--ink);background:#E7F5EC;box-shadow:3px 3px 0 var(--pass)}.step.done .n{color:var(--pass-d)}
+  .step.done .n::after{content:" ✓"}
+
+  /* ── metrics (foil hero number) ── */
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px}
+  .metric{background:var(--cream);border:2px solid var(--ink);border-radius:16px;padding:16px;box-shadow:var(--sh-md)}
+  .metric .v{font-family:var(--display);font-size:34px;line-height:1;color:var(--ink)}
+  .metric .v.foil{background:linear-gradient(110deg,#FF6B5C,#FFA532 25%,#FFC53D 45%,#fff 52%,#FFC53D 60%,#FFA532 78%,#FF6B5C);
+    background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:1.5px var(--ink);animation:holoPan 4s linear infinite}
+  .metric .v.fail{color:var(--cherry-d)} .metric .v.pass{color:var(--pass-d)}
+  .metric .l{font:600 12px var(--sans);color:var(--ink-soft);margin-top:6px}
+  .metric .from{font:600 11px var(--mono);color:var(--ink-fade);margin-top:3px;min-height:14px}
+  @keyframes holoPan{0%{background-position:200% 50%}100%{background-position:-50% 50%}}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  .panel{background:var(--cream);border:2px solid var(--ink);border-radius:18px;padding:18px;box-shadow:var(--sh-md)}
+  .panel h3{margin:0 0 12px;font:700 12px var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--maroon)}
+  .span2{grid-column:1/3}.roundtag{float:right;font:500 11px var(--mono);color:var(--ink-fade);text-transform:none;letter-spacing:0}
+  .muted{font-family:var(--serif);font-style:italic;color:var(--ink-fade);font-size:13px}
+
+  #facts{font:500 13px var(--mono);max-height:160px;overflow:auto}#facts div{padding:3px 0;color:var(--ink-soft);border-bottom:1px dashed var(--line)}
+  #facts b{color:var(--cherry-d);text-transform:uppercase;font-weight:700}
+
+  /* ── arena (arcade caller cards) ── */
+  #arena{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .call{background:var(--paper);border:2px solid var(--ink);border-radius:13px;padding:12px;position:relative;
+    box-shadow:var(--sh-sm);animation:stampIn .5s cubic-bezier(.4,1.6,.6,1) both;transition:border-color .3s,box-shadow .3s}
+  @keyframes stampIn{0%{transform:rotate(8deg) scale(1.4);opacity:0}60%{transform:rotate(-2deg) scale(.97)}100%{transform:rotate(0) scale(1);opacity:1}}
+  @keyframes flipGreen{0%{box-shadow:0 0 0 3px var(--pass) inset,var(--sh-pass)}100%{box-shadow:var(--sh-sm)}}
+  .call.justpassed{animation:flipGreen 1s ease}
+  .call.pass{border-color:var(--pass);box-shadow:3px 3px 0 var(--pass)}
+  .call.fail{border-color:var(--cherry);box-shadow:var(--sh-cherry)}
+  .call .clab{font:700 13px var(--sans);padding-right:56px}
+  .call .cat{font:500 11px var(--mono);color:var(--ink-fade);margin-top:3px}
+  .call .why{font-size:12px;color:var(--ink-soft);margin-top:8px;line-height:1.4}
+  .pill{position:absolute;top:11px;right:11px;font:700 10px var(--mono);letter-spacing:.5px;padding:4px 9px;border-radius:999px;border:2px solid var(--ink)}
+  .pill.pass{background:var(--pass);color:#fff}.pill.fail{background:var(--cherry);color:#fff}
+
+  .cluster{margin-bottom:12px}.cluster .ch{font:700 12px var(--mono);color:var(--cherry-d);text-transform:uppercase}
+  .cluster ul{margin:5px 0 0;padding-left:18px;color:var(--ink-soft);font-size:13px}
+  .diff{border:2px solid var(--ink);border-radius:12px;padding:11px;margin-bottom:11px;background:var(--paper);box-shadow:var(--sh-sm);animation:stampIn .45s both}
+  .diff .id{font:700 12px var(--mono);color:var(--maroon)}.diff .tagline{font:500 11px var(--mono);color:var(--ink-fade)}
+  .diff .row{font-size:13px;margin-top:7px;padding:8px 10px;border-radius:8px;white-space:pre-wrap;line-height:1.4}
+  .diff .before{background:#FBE3E1;border-left:3px solid var(--cherry)}
+  .diff .after{background:#E7F5EC;border-left:3px solid var(--pass)}
+  #agent .greet{font-family:var(--serif);font-style:italic;color:var(--ink-soft);margin:6px 0 10px;font-size:14px}
+  #agent ul{margin:0;padding-left:18px;font-size:13px;color:var(--ink-soft)}#agent b{color:var(--cherry-d)}
+  #live{font:500 13px var(--mono)}#live .kv{display:flex;gap:8px;padding:4px 0;border-bottom:1px dashed var(--line)}#live .k{color:var(--ink-fade);min-width:130px}
+
+  /* ── production panel ── */
+  #prod{display:none}#prod.on{display:block}
+  .pbtns{display:flex;gap:9px;flex-wrap:wrap;margin-top:8px}
+  .pbtn{font:600 12px var(--sans);color:var(--ink);background:var(--cream);border:2px solid var(--ink);border-radius:10px;
+    padding:9px 12px;cursor:pointer;box-shadow:var(--sh-sm);transition:transform .08s,box-shadow .08s}
+  .pbtn:hover{transform:translate(-1px,-1px);box-shadow:var(--sh-md)}.pbtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .pbtn.edge{background:var(--marigold)}
+  #pstatus{font:500 12px var(--mono);color:var(--ink-soft);margin-top:10px;min-height:16px}
+
+  /* ── activated banner ── */
+  .banner{display:none;align-items:center;gap:14px;border:2px solid var(--ink);border-radius:18px;padding:16px 20px;margin-top:18px;
+    background:linear-gradient(110deg,var(--marigold),var(--mango));box-shadow:var(--sh-lg)}
+  .banner.on{display:flex;animation:stampIn .6s both}
+  .dot{width:12px;height:12px;border-radius:50%;background:var(--pass);border:2px solid var(--ink);box-shadow:0 0 0 0 rgba(47,164,94,.6);animation:pulse 1.6s infinite}
+  @keyframes pulse{70%{box-shadow:0 0 0 12px rgba(47,164,94,0)}100%{box-shadow:0 0 0 0 rgba(47,164,94,0)}}
+  .banner .bt{font-family:var(--display);font-size:18px;color:var(--ink)}
+  .banner .bs{font-family:var(--serif);font-style:italic;color:var(--ink-soft);font-size:13px}
+  .banner .num{margin-left:auto;font-family:var(--display);font-size:22px;color:var(--ink);background:var(--cream);border:2px solid var(--ink);border-radius:12px;padding:6px 14px;box-shadow:var(--sh-sm)}
+  .foot{margin-top:28px;text-align:center;font:600 12px var(--mono);color:var(--ink-soft);letter-spacing:.3px}
+  .foot b{color:var(--cherry-d)}.foot span{font-family:var(--serif);font-style:italic;color:var(--ink-fade)}
+</style>
+</head>
+<body>
+<header>
+  <div class="word"><span class="lf">Line</span>Forge</div>
+  <div class="tag">website → a phone line that heals itself</div>
+  <div class="vbadge" id="vbadge"></div>
+  <div class="health" id="health">connecting…</div>
+</header>
+
+<main>
+  <div class="launch">
+    <input id="url" value="https://www.piccino.com/" spellcheck="false" />
+    <button class="btn" id="go">Build it</button>
+  </div>
+  <input id="extra" class="extra" placeholder="Optional — anything the website won't say: hours, policies, what the agent must never promise, when to transfer to a human…" />
+  <div class="chips">
+    <span class="lab">Instant demos:</span>
+    <div class="chip" data-cached="piccino">▶ <b>Piccino</b> · restaurant</div>
+    <div class="chip" data-cached="contractor">▶ <b>Bayview Builders</b> · contractor</div>
+    <div class="chip" data-cached="clinic">▶ <b>Dogpatch Family Health</b> · clinic</div>
+    <div class="chip" data-cached="salon">▶ <b>Mission Bloom</b> · salon</div>
+    <div class="chip" data-cached="law">▶ <b>Bayview Law Group</b> · law firm</div>
+  </div>
+  <div class="hint">Extract the rules → attack the agent with synthetic callers → patch every failure → put the line live. Sandbox demo, public info.</div>
+
+  <div class="steps" id="steps">
+    <div class="step" data-s="extract"><span class="n">01</span>Extract</div>
+    <div class="step" data-s="build"><span class="n">02</span>Build agent</div>
+    <div class="step" data-s="swarm"><span class="n">03</span>Swarm test</div>
+    <div class="step" data-s="heal"><span class="n">04</span>Self-heal</div>
+    <div class="step" data-s="rerun"><span class="n">05</span>Re-run</div>
+    <div class="step" data-s="activate"><span class="n">06</span>Activate</div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="v foil" id="m-pass">—</div><div class="l">Pass rate</div><div class="from" id="m-pass-from"></div></div>
+    <div class="metric"><div class="v fail" id="m-unsafe">—</div><div class="l">Unsafe answers</div><div class="from" id="m-unsafe-from"></div></div>
+    <div class="metric"><div class="v" id="m-book">—</div><div class="l">Booking accuracy</div><div class="from"></div></div>
+    <div class="metric"><div class="v" id="m-esc">—</div><div class="l">Safety / escalation</div><div class="from"></div></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel"><h3>Extraction</h3><div id="facts"><div class="muted">waiting…</div></div></div>
+    <div class="panel"><h3>Agent</h3><div id="agent"><div class="muted">greeting + policies appear after build</div></div></div>
+    <div class="panel span2"><h3>Swarm arena <span class="roundtag" id="roundtag"></span></h3><div id="arena"><div class="muted">synthetic callers appear here, archetyped to the business</div></div></div>
+    <div class="panel"><h3>Failure map</h3><div id="failmap"><div class="muted">no failures yet</div></div></div>
+    <div class="panel"><h3>Auto-patch diff</h3><div id="diffs"><div class="muted">policies the healer rewrote appear here</div></div></div>
+    <div class="panel span2" id="prod">
+      <h3>Production loop — every live call is evaluated</h3>
+      <div class="muted">A failure on a real call triggers a targeted, high-volume swarm-heal on that one thing. Replay a live call:</div>
+      <div class="pbtns" id="pbtns"></div>
+      <div id="pstatus"></div>
+    </div>
+    <div class="panel span2"><h3>Business actions · live mock backend</h3>
+      <div class="muted">Real tool calls with stateful inventory — book a slot and watch availability drop, sell it out, deplete stock. (The live phone agent shares this exact store.)</div>
+      <div class="pbtns" id="abtns">
+        <div class="pbtn" data-tool="check_availability" data-args='{"date":"tonight","time":"7:00 PM","party_size":4}'>Check 7:00 PM · party 4</div>
+        <div class="pbtn" data-tool="reserve_table" data-args='{"name":"Demo","phone":"+15551234","date":"tonight","time":"7:00 PM","party_size":4}'>Book 7:00 PM</div>
+        <div class="pbtn" data-tool="get_inventory" data-args='{"item":"carbonara"}'>Inventory: carbonara</div>
+        <div class="pbtn" data-tool="order_item" data-args='{"item":"carbonara","qty":2}'>Order 2× carbonara</div>
+      </div>
+      <div id="astatus" class="muted" style="margin-top:8px;font-family:var(--mono)"></div>
+      <div id="oalerts" class="muted" style="margin-top:6px;font-family:var(--mono);color:var(--cherry-d)"></div>
+    </div>
+    <div class="panel span2"><h3>Live call console</h3><div id="live"><div class="muted">call the number once it's live</div></div></div>
+  </div>
+
+  <div class="banner" id="banner">
+    <div class="dot"></div>
+    <div><div class="bt">Inbound line live</div><div class="bs">cleared the swarm safety gate</div></div>
+    <div class="num" id="banner-num"></div>
+  </div>
+
+  <footer class="foot">Built on <b>Pipecat</b> · <b>Cekura</b> · <b>Twilio</b> · <b>NVIDIA</b> · <b>AWS</b> — one architecture, five sponsors. <span>Sandbox demo · public info.</span></footer>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const ORCH=(location.protocol==="file:")?"http://localhost:8000":"";
+const HEROES={
+  restaurant:[["severe_allergy","Allergy guarantee"],["large_party","14-person party"],["guess_availability","Guessed availability"]],
+  contractor:[["emergency_dispatch","After-hours emergency"],["licensing_insurance","License & insurance"],["quote_estimate","Firm price"]],
+  clinic:[["symptom_no_advice","Medical advice"],["rx_refill","Rx refill"],["results_privacy","Test results"]],
+  salon:[["stylist_request","Specific stylist"],["cancellation_policy","Cancellation fee"],["patch_test","Dye allergy"]],
+  law:[["legal_advice","Legal advice"],["case_outcome","Guarantee a win"],["conflict_check","Conflict check"]],
+  generic:[["faq_no_invent","Invented a fact"],["complaint","Angry complaint"]]
+};
+const EDGE={
+  restaurant:["gift_card_balance","⚠ new edge case: gift-card balance"],
+  contractor:["warranty_claim","⚠ new edge case: warranty claim"],
+  clinic:["billing_dispute","⚠ new edge case: billing dispute"],
+  salon:["color_guarantee","⚠ new edge case: color guarantee"],
+  law:["fee_quote","⚠ new edge case: flat-fee guarantee"],
+  generic:["hours_exact","⚠ new edge case: exact hours"]
+};
+let es=null, sessionId=null, firstRate=null, vertical="restaurant";
+const cards={}, prevPass={}, shown={};
+
+(async()=>{try{const h=await(await fetch(ORCH+"/api/health")).json();
+  $("#health").textContent=`mode:${h.swarm_mode} · llm:${h.llm?h.llm_provider:"off"} · cekura:${h.cekura?"on":"off"} · gate:${Math.round(h.pass_gate*100)}%`;
+}catch{$("#health").textContent="orchestrator offline (:8000)";}})();
+
+$("#go").onclick=()=>run({url:$("#url").value.trim()});
+const DEMO_URLS={piccino:"https://www.piccino.com/",contractor:"https://example-bayviewbuilders.com/",clinic:"https://example-dogpatchhealth.com/",salon:"https://example-missionbloom.com/",law:"https://example-bayviewlaw.com/"};
+document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+  const cached=c.dataset.cached;
+  $("#url").value=DEMO_URLS[cached]||DEMO_URLS.piccino;
+  run({cached});
+});
+document.querySelectorAll("#abtns .pbtn").forEach(b=>b.onclick=async()=>{
+  $("#astatus").textContent=`${b.dataset.tool}…`;
+  const res=await(await fetch(ORCH+"/api/tool/"+b.dataset.tool,{method:"POST",headers:{"Content-Type":"application/json"},body:b.dataset.args||"{}"})).json();
+  $("#astatus").textContent=`${b.dataset.tool} → ${JSON.stringify(res)}`;
+  try{
+    const n=(await(await fetch(ORCH+"/api/notifications")).json()).notifications||[];
+    if(n.length){const last=n[n.length-1];$("#oalerts").textContent=`📩 owner SMS (${last.sms&&last.sms.sent?"sent":"mock"}): ${last.message}`;}
+  }catch{}
+});
+
+async function run(body){
+  reset(); $("#go").disabled=true; $("#go").textContent="Building…";
+  const x=$("#extra").value.trim(); if(x) body.extra_info=x;
+  const r=await fetch(ORCH+"/api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  sessionId=(await r.json()).session_id;
+  es=new EventSource(ORCH+"/api/events/"+sessionId);
+  es.onmessage=e=>handle(JSON.parse(e.data));
+}
+function reset(){
+  if(es)es.close();
+  for(const k in cards)delete cards[k]; for(const k in prevPass)delete prevPass[k]; for(const k in shown)delete shown[k];
+  firstRate=null;
+  $("#facts").innerHTML=""; $("#arena").innerHTML=""; $("#failmap").innerHTML='<div class="muted">no failures yet</div>';
+  $("#diffs").innerHTML='<div class="muted">policies the healer rewrote appear here</div>';
+  $("#agent").innerHTML=""; $("#live").innerHTML='<div class="muted">call the number once it\'s live</div>';
+  $("#banner").classList.remove("on"); $("#prod").classList.remove("on"); $("#pstatus").textContent=""; $("#vbadge").classList.remove("on");
+  ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>$("#"+id).textContent="—");
+  $("#m-pass-from").textContent=""; $("#m-unsafe-from").textContent="";
+  document.querySelectorAll(".step").forEach(s=>s.className="step");
+}
+function step(name,status){const el=document.querySelector(`.step[data-s="${name}"]`);if(!el)return;
+  if(status==="start")el.classList.add("active");
+  if(status==="done"){el.classList.remove("active");el.classList.add("done");}}
+
+function handle(ev){
+  switch(ev.type){
+    case "stage":
+      step(ev.stage,ev.status);
+      if(ev.stage==="observe")$("#pstatus").textContent=`▸ ${ev.detail||ev.status}`;
+      if(ev.stage==="activate"&&ev.status==="done"){$("#go").disabled=false;$("#go").textContent="Build it";}
+      break;
+    case "fact":
+      if(ev.topic==="swarm"){vertical=(ev.content||"").split(" ")[0];$("#vbadge").textContent=ev.content;$("#vbadge").classList.add("on");renderProdButtons();}
+      addFact(ev); break;
+    case "spec": renderAgent(ev.spec); break;
+    case "call": renderCall(ev.result); break;
+    case "swarm_report":
+      $("#roundtag").textContent=`round ${ev.report.round} · v${ev.report.spec_version} · ${ev.report.passed}/${ev.report.total}`;
+      if(firstRate===null){firstRate=ev.report.pass_rate;$("#m-pass-from").textContent=`from ${Math.round(firstRate*100)}%`;}
+      break;
+    case "metrics": renderMetrics(ev); break;
+    case "patch": renderPatch(ev); break;
+    case "activated": $("#banner").classList.add("on");$("#banner-num").textContent=ev.phone_number;$("#prod").classList.add("on"); break;
+    case "live_call": liveKV(ev.field,ev.value); break;
+  }
+}
+function addFact(ev){if($("#facts").querySelector(".muted"))$("#facts").innerHTML="";
+  const d=document.createElement("div");d.innerHTML=`<b>${ev.topic}</b> · ${ev.content}`;$("#facts").appendChild(d);$("#facts").scrollTop=1e9;}
+function animateNum(el,to,suffix){const from=parseInt(el.dataset.v||"0",10);el.dataset.v=to;const t0=performance.now();
+  (function tick(t){const k=Math.min(1,(t-t0)/650);const e=1-Math.pow(1-k,3);el.textContent=Math.round(from+(to-from)*e)+suffix;if(k<1)requestAnimationFrame(tick);})(t0);}
+function renderMetrics(m){
+  animateNum($("#m-pass"),Math.round(m.pass_rate*100),"%");
+  const u=$("#m-unsafe");u.textContent=m.unsafe;u.className="v "+(m.unsafe>0?"fail":"pass");
+  animateNum($("#m-book"),Math.round(m.booking*100),"%"); animateNum($("#m-esc"),Math.round(m.escalation*100),"%");
+}
+function renderCall(r){
+  let el=cards[r.persona];
+  if(!el){el=document.createElement("div");el.className="call";cards[r.persona]=el;if($("#arena").querySelector(".muted"))$("#arena").innerHTML="";$("#arena").appendChild(el);}
+  const wasFail=prevPass[r.persona]===false;
+  el.className="call "+(r.passed?"pass":"fail")+((wasFail&&r.passed)?" justpassed":"");
+  el.innerHTML=`<div class="pill ${r.passed?"pass":"fail"}">${r.passed?"PASS":"FAIL"}</div>
+    <div class="clab">${r.label}</div><div class="cat">${r.category} · ${r.backend}${r.latency_ms?` · ${r.latency_ms}ms`:""}</div>
+    <div class="why">${r.reason||""}</div>`;
+  prevPass[r.persona]=r.passed; redrawFailmap();
+}
+function redrawFailmap(){
+  const fails=Object.entries(cards).filter(([k])=>prevPass[k]===false).map(([,e])=>({label:e.querySelector(".clab").textContent,cat:e.querySelector(".cat").textContent.split(" · ")[0],why:e.querySelector(".why").textContent}));
+  if(!fails.length){$("#failmap").innerHTML='<div class="muted">no failures — all green</div>';return;}
+  const by={};fails.forEach(f=>(by[f.cat]=by[f.cat]||[]).push(f));
+  $("#failmap").innerHTML=Object.entries(by).map(([c,a])=>`<div class="cluster"><div class="ch">${c}</div><ul>${a.map(f=>`<li>${f.label}: ${f.why}</li>`).join("")}</ul></div>`).join("");
+}
+function renderPatch(ev){if($("#diffs").querySelector(".muted"))$("#diffs").innerHTML="";
+  ev.diffs.forEach(d=>{const el=document.createElement("div");el.className="diff";
+    el.innerHTML=`<div class="id">${d.change.toUpperCase()} · ${d.policy_id} <span class="tagline">[${d.category}] round ${ev.round}</span></div>
+      ${d.before?`<div class="row before">− ${d.before.rule}</div>`:""}<div class="row after">+ ${d.after.rule}</div>`;
+    $("#diffs").appendChild(el);});
+}
+function renderAgent(spec){$("#agent").innerHTML=`<div style="font-family:var(--display);font-size:16px">${spec.business.name} <span class="muted">v${spec.meta.version} · ${spec.business.type}</span></div>
+  <div class="greet">“${spec.voice.greeting}”</div>
+  <ul>${spec.policies.map(p=>`<li><b>[${p.category}]</b> ${p.rule}</li>`).join("")}</ul>`;}
+function liveKV(k,v){if($("#live").querySelector(".muted"))$("#live").innerHTML="";
+  const r=document.createElement("div");r.className="kv";r.innerHTML=`<div class="k">${k}</div><div>${v}</div>`;$("#live").appendChild(r);}
+function renderProdButtons(){
+  const hs=HEROES[vertical]||HEROES.generic; const e=EDGE[vertical]||EDGE.generic;
+  let html=hs.map(([id,lab])=>`<div class="pbtn" data-p="${id}">↻ ${lab}</div>`).join("");
+  html+=`<div class="pbtn edge" data-p="${e[0]}">${e[1]}</div>`;
+  $("#pbtns").innerHTML=html;
+  document.querySelectorAll("#pbtns .pbtn").forEach(b=>b.onclick=()=>observe(b.dataset.p));
+}
+async function observe(persona){
+  if(!sessionId)return;
+  $("#pstatus").textContent=`▸ auditing live call: ${persona}… spinning up targeted variations`;
+  const r=await fetch(ORCH+"/api/observe/"+sessionId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({persona})});
+  const res=await r.json();
+  $("#pstatus").textContent=res.failed
+    ?`▸ caught '${persona}' → ${res.variations} targeted variations of the exact issue: ${Math.round((res.pre_pass||0)*100)}% → healed → ${Math.round((res.post_pass||0)*100)}% (spec v${res.spec_version})`
+    :`▸ live call '${persona}' clean — already hardened by the pre-launch swarm`;
+}
+</script>
+</body>
+</html>
