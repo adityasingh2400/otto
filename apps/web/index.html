@@ -205,6 +205,16 @@
       <div class="pbtns" id="pbtns"></div>
       <div id="pstatus"></div>
     </div>
+    <div class="panel span2"><h3>Business actions · live mock backend</h3>
+      <div class="muted">Real tool calls with stateful inventory — book a slot and watch availability drop, sell it out, deplete stock. (The live phone agent shares this exact store.)</div>
+      <div class="pbtns" id="abtns">
+        <div class="pbtn" data-tool="check_availability" data-args='{"date":"tonight","time":"7:00 PM","party_size":4}'>Check 7:00 PM · party 4</div>
+        <div class="pbtn" data-tool="reserve_table" data-args='{"name":"Demo","phone":"+15551234","date":"tonight","time":"7:00 PM","party_size":4}'>Book 7:00 PM</div>
+        <div class="pbtn" data-tool="get_inventory" data-args='{"item":"carbonara"}'>Inventory: carbonara</div>
+        <div class="pbtn" data-tool="order_item" data-args='{"item":"carbonara","qty":2}'>Order 2× carbonara</div>
+      </div>
+      <div id="astatus" class="muted" style="margin-top:8px;font-family:var(--mono)"></div>
+    </div>
     <div class="panel span2"><h3>Live call console</h3><div id="live"><div class="muted">call the number once it's live</div></div></div>
   </div>
 
@@ -249,6 +259,11 @@ document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
   const cached=c.dataset.cached;
   $("#url").value=DEMO_URLS[cached]||DEMO_URLS.piccino;
   run({cached});
+});
+document.querySelectorAll("#abtns .pbtn").forEach(b=>b.onclick=async()=>{
+  $("#astatus").textContent=`${b.dataset.tool}…`;
+  const res=await(await fetch(ORCH+"/api/tool/"+b.dataset.tool,{method:"POST",headers:{"Content-Type":"application/json"},body:b.dataset.args||"{}"})).json();
+  $("#astatus").textContent=`${b.dataset.tool} → ${JSON.stringify(res)}`;
 });
 
 async function run(body){
@@ -338,7 +353,7 @@ function renderProdButtons(){
   let html=hs.map(([id,lab])=>`<div class="pbtn" data-p="${id}">↻ ${lab}</div>`).join("");
   html+=`<div class="pbtn edge" data-p="${e[0]}">${e[1]}</div>`;
   $("#pbtns").innerHTML=html;
-  document.querySelectorAll(".pbtn").forEach(b=>b.onclick=()=>observe(b.dataset.p));
+  document.querySelectorAll("#pbtns .pbtn").forEach(b=>b.onclick=()=>observe(b.dataset.p));
 }
 async function observe(persona){
   if(!sessionId)return;

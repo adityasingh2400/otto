@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from lineforge_spec import AgentSpec
 
-from . import archetypes, config, extract, store
+from . import archetypes, config, extract, mock_services, store
 from .events import bus
 from .heal import heal
 from .swarm import run_swarm
@@ -17,6 +17,7 @@ from .swarm import run_swarm
 async def run_pipeline(session_id: str, url: str | None, use_cached: bool, cached: str | None = None,
                        extra_info: str | None = None) -> None:
     try:
+        mock_services.reset()  # fresh stateful backend per build (inventory, bookings)
         spec = await extract.extract(session_id, url, use_cached, cached, extra_info)
         store.set_spec(session_id, spec)
         await _build(session_id, spec)

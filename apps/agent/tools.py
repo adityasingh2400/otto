@@ -7,8 +7,10 @@ these for real integrations (POS, reservation system, Twilio SMS) post-hackathon
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
+import httpx
 from lineforge_spec import AgentSpec
 
 
@@ -50,6 +52,17 @@ DISPATCH = {
 
 
 async def dispatch(spec: AgentSpec, name: str, args: dict[str, Any]) -> dict:
+    # Prefer the orchestrator's shared stateful backend so the agent's bookings/orders
+    # mutate the same inventory the dashboard shows. Fall back to the spec's mock.
+    orch = os.getenv("ORCH_BASE_URL", "")
+    if orch:
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as c:
+                r = await c.post(f"{orch}/api/tool/{name}", json=args or {})
+                if r.status_code == 200:
+                    return r.json()
+        except Exception:
+            pass
     fn = DISPATCH.get(name)
     if not fn:
         return {"error": f"unknown tool {name}"}

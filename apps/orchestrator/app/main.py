@@ -13,7 +13,7 @@ import asyncio
 import pathlib
 import uuid
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -95,6 +95,19 @@ async def observe_route(session_id: str, req: ObserveReq) -> dict:
     """Production loop: audit a live call; on failure, targeted swarm-heal + re-verify."""
     from .observe import observe_call
     return await observe_call(session_id, transcript=req.transcript, persona=req.persona)
+
+
+@app.post("/api/tool/{name}")
+async def tool_route(name: str, args: dict = Body(default={})) -> dict:
+    """Stateful mock business actions (booking, inventory, payment) — shared by the agent + dashboard."""
+    from . import mock_services
+    return mock_services.call(name, args)
+
+
+@app.get("/api/state")
+async def state_route() -> dict:
+    from . import mock_services
+    return mock_services.snapshot()
 
 
 # Serve the mission-control dashboard (apps/web) at / when present. Mounted last so

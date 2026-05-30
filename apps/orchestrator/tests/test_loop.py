@@ -110,6 +110,21 @@ def test_observe_edge_case_triggers_real_heal():
     assert res["pre_pass"] < res["post_pass"]
 
 
+def test_mock_services_are_stateful():
+    from app import mock_services as m
+    m.reset()
+    assert m.check_availability(date="d", time="7", party_size=2)["tables_left"] == 6
+    for _ in range(6):
+        m.reserve_table(name="x", date="d", time="7", party_size=2)
+    assert m.check_availability(date="d", time="7")["available"] is False  # sold out
+    assert m.reserve_table(name="y", date="d", time="7")["status"] == "unavailable"
+    assert m.book_appointment(name="a", time="9")["status"] == "scheduled"
+    assert m.book_appointment(name="b", time="9")["status"] == "unavailable"  # double-book guard
+    before = m.get_inventory(item="tiramisu")["qty"]
+    m.order_item(item="tiramisu", qty=2)
+    assert m.get_inventory(item="tiramisu")["qty"] == before - 2
+
+
 def test_salon_pipeline_heals_and_routes():
     _run(run_pipeline("t-salon", None, False, "salon"))
     reports = [e["report"] for e in bus.history("t-salon") if e.get("type") == "swarm_report"]
