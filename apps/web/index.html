@@ -2,207 +2,47 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>LineForge — let AI safely answer your phone</title>
+<title>LineForge</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%237A1B2D'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='19' font-weight='700' text-anchor='middle' fill='%23FAF6F1'%3EL%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#FAF6F1;--card:#FFFFFF;--cream2:#F4ECE2;--cream3:#EFE5D8;--line:#E4D7C8;--line2:#D8C7B4;
-    --ink:#2A0A10;--ink2:#6B4A3A;--dim:#9A8575;--maroon:#7A1B2D;--maroon-l:#9A3040;--maroon-d:#4A0F18;
-    --pass:#4A7A2E;--pass-bg:#E8F2E0;--danger:#9A2020;--danger-bg:#F6E5E5;--gold:#9A7020;
-    --disp:'Fraunces',Georgia,serif;--sans:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
-    --sh-sm:0 1px 3px rgba(42,10,16,.06);--sh-md:0 10px 30px -14px rgba(42,10,16,.28);--sh-lg:0 40px 80px -44px rgba(42,10,16,.45)}
-  *{box-sizing:border-box;margin:0}html{scroll-behavior:smooth}
-  body{font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-  /* faint warm paper grain */
-  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
-    background-image:radial-gradient(circle at 1px 1px,rgba(122,27,45,.05) 1px,transparent 1.4px);background-size:7px 7px}
-  .wrap{max-width:1080px;margin:0 auto;padding:0 26px;position:relative;z-index:1}
-  a{color:inherit;text-decoration:none}
-  /* nav */
-  nav{position:sticky;top:0;z-index:20;transition:.3s}
-  nav .bar{display:flex;align-items:center;gap:26px;height:76px;transition:.3s;border-bottom:1px solid transparent}
-  nav.scrolled .bar{height:62px;background:rgba(250,246,241,.85);backdrop-filter:blur(12px);border-bottom-color:var(--line)}
-  .logo{font:600 22px var(--disp);letter-spacing:-.01em}.logo b{color:var(--maroon)}
-  nav .links{display:flex;gap:26px;margin-left:auto;align-items:center;color:var(--ink2);font-weight:500;font-size:15px}
-  nav .links a:not(.btn):hover{color:var(--maroon)}
-  .btn{font-weight:600;font-size:15px;border-radius:12px;padding:11px 20px;background:var(--maroon);color:#fff;
-    box-shadow:0 8px 20px -10px rgba(122,27,45,.7);transition:transform .18s,box-shadow .18s,background .18s;cursor:pointer;border:0;display:inline-block}
-  .btn:hover{background:var(--maroon-l);transform:translateY(-2px);box-shadow:0 14px 28px -12px rgba(122,27,45,.8)}
-  .btn:active{transform:translateY(0)}
-  .btn.ghost{background:transparent;color:var(--maroon);box-shadow:none;border:1.5px solid var(--line2)}.btn.ghost:hover{border-color:var(--maroon);background:rgba(122,27,45,.04)}
-  .eyebrow{display:inline-flex;align-items:center;gap:8px;font:500 12px var(--mono);color:var(--maroon);letter-spacing:.12em;text-transform:uppercase;
-    background:var(--cream2);border:1px solid var(--line);padding:6px 13px;border-radius:999px}
-  .eyebrow .d{width:6px;height:6px;border-radius:50%;background:var(--pass);box-shadow:0 0 0 0 rgba(74,122,46,.5);animation:pulse 1.8s infinite}
-  @keyframes pulse{70%{box-shadow:0 0 0 7px rgba(74,122,46,0)}}
-  /* hero */
-  .hero{padding:72px 0 60px;display:grid;grid-template-columns:1.04fr .96fr;gap:54px;align-items:center}
-  h1{font:600 clamp(40px,5.6vw,70px)/1.03 var(--disp);letter-spacing:-.022em;margin:22px 0 0}
+  :root{--bg:#FAF6F1;--ink:#2A0A10;--ink2:#6B4A3A;--dim:#9A8575;--maroon:#7A1B2D;--maroon-l:#9A3040;--line:#E4D7C8;
+    --disp:'Fraunces',Georgia,serif;--sans:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+  *{box-sizing:border-box;margin:0}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);min-height:100vh;display:grid;place-items:center;-webkit-font-smoothing:antialiased;position:relative}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
+    background-image:radial-gradient(circle at 1px 1px,rgba(122,27,45,.045) 1px,transparent 1.4px);background-size:7px 7px}
+  main{text-align:center;padding:24px;width:100%;max-width:600px;animation:in .8s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .logo{font:600 18px var(--disp);letter-spacing:-.01em;color:var(--ink);margin-bottom:34px}.logo b{color:var(--maroon)}
+  h1{font:600 clamp(38px,7vw,68px)/1.04 var(--disp);letter-spacing:-.022em}
   h1 em{font-style:italic;color:var(--maroon)}
-  .sub{font-size:19px;color:var(--ink2);margin:22px 0 30px;max-width:31em}
-  .cta{display:flex;gap:13px;flex-wrap:wrap;align-items:center}
-  .cta .note{font:500 13px var(--mono);color:var(--dim)}
-  /* hero demo card (custom component) */
-  .demo{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh-lg);overflow:hidden}
-  .demo .head{display:flex;align-items:center;gap:8px;padding:13px 18px;border-bottom:1px solid var(--line);background:var(--cream2)}
-  .demo .head .dots{display:flex;gap:6px}.demo .head i{width:9px;height:9px;border-radius:50%;background:var(--line2)}
-  .demo .head .t{margin-left:8px;font:500 12px var(--mono);color:var(--dim)}
-  .demo .body{padding:20px}
-  .meter{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
-  .meter .l{font:500 11px var(--mono);color:var(--dim);text-transform:uppercase;letter-spacing:.1em}
-  .pr{font:600 42px var(--disp);letter-spacing:-.02em;transition:color .3s}.pr.live{color:var(--pass)}
-  .crow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border-radius:11px;margin-top:8px;
-    background:var(--cream2);border:1px solid transparent;transition:.45s;font-size:13.5px}
-  .crow .who{color:var(--ink2)}
-  .crow.fail{border-color:rgba(154,32,32,.3);background:var(--danger-bg)}
-  .crow.pass{border-color:rgba(74,122,46,.35);background:var(--pass-bg)}
-  .badge{font:500 10px var(--mono);font-weight:600;padding:3px 9px;border-radius:999px;flex:none;letter-spacing:.04em}
-  .badge.fail{background:var(--danger);color:#fff}.badge.pass{background:var(--pass);color:#fff}
-  .heal{margin-top:14px;font:500 12px var(--mono);color:var(--gold);min-height:18px;transition:.3s}
-  .heal.done{color:var(--pass)}
-  .liveline{margin-top:6px;display:flex;align-items:center;gap:9px;font:600 13px var(--mono);color:var(--pass);opacity:0;transition:.5s}
-  .liveline.on{opacity:1}.liveline .d{width:9px;height:9px;border-radius:50%;background:var(--pass);box-shadow:0 0 0 0 rgba(74,122,46,.5);animation:pulse 1.7s infinite}
-  /* vertical segmented control (custom) */
-  .verts{display:flex;gap:7px;flex-wrap:wrap;margin-top:16px}
-  .vchip{font:600 13px var(--sans);color:var(--ink2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 15px;cursor:pointer;transition:.18s}
-  .vchip:hover{border-color:var(--maroon-l);color:var(--maroon)}
-  .vchip.on{background:var(--maroon);color:#fff;border-color:var(--maroon);box-shadow:0 6px 16px -8px rgba(122,27,45,.6)}
-  /* strip */
-  .strip{display:flex;gap:30px;justify-content:center;flex-wrap:wrap;align-items:center;padding:24px 0;color:var(--dim);font:500 13px var(--mono);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .strip b{color:var(--ink)}
-  section{padding:90px 0}
-  h2{font:600 clamp(30px,4.2vw,48px)/1.08 var(--disp);letter-spacing:-.02em}
-  .lead{color:var(--ink2);font-size:18px;margin-top:14px;max-width:34em}
-  /* timeline (custom) */
-  .timeline{margin-top:52px;position:relative;padding-left:36px}
-  .timeline::before{content:"";position:absolute;left:11px;top:6px;bottom:6px;width:2px;background:linear-gradient(var(--maroon),var(--line))}
-  .tl{position:relative;padding:0 0 38px}
-  .tl:last-child{padding-bottom:0}
-  .tl .dot{position:absolute;left:-30px;top:3px;width:24px;height:24px;border-radius:50%;background:var(--card);border:2px solid var(--maroon);display:grid;place-items:center;font:600 11px var(--mono);color:var(--maroon)}
-  .tl h3{font:600 21px var(--disp)}.tl p{color:var(--ink2);margin-top:6px;font-size:15.5px;max-width:40em}
-  /* proof */
-  .proof{margin-top:34px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:var(--sh-md);font-family:var(--mono);font-size:13px}
-  .proof .cap{color:var(--dim)}
-  .proof .d{padding:12px 14px;border-radius:11px;margin-top:10px;white-space:pre-wrap;line-height:1.55}
-  .proof .before{background:var(--danger-bg);border-left:3px solid var(--danger);color:#6b1717}
-  .proof .after{background:var(--pass-bg);border-left:3px solid var(--pass);color:#33521f}
-  /* closing */
-  .close{text-align:center;padding:124px 0}
-  .close h2{max-width:15em;margin:0 auto}.close h2 em{font-style:italic;color:var(--maroon)}
-  .close .lead{margin:20px auto 34px}
-  footer{border-top:1px solid var(--line);padding:44px 0;color:var(--dim);font-size:13px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
-  footer b{color:var(--ink);font-family:var(--disp);font-weight:600}
-  [data-reveal]{opacity:0;transform:translateY(18px);transition:.7s cubic-bezier(.2,.7,.2,1)}
-  [data-reveal].in{opacity:1;transform:none}
-  @media(max-width:840px){.hero{grid-template-columns:1fr;gap:38px;padding:48px 0 32px}nav .links a:not(.btn){display:none}}
+  form{display:flex;align-items:center;gap:8px;margin:40px auto 0;max-width:440px;background:#fff;border:1px solid var(--line);
+    border-radius:16px;padding:8px 8px 8px 18px;box-shadow:0 18px 44px -28px rgba(42,10,16,.45);transition:.2s}
+  form:focus-within{border-color:var(--maroon);box-shadow:0 22px 50px -26px rgba(122,27,45,.5)}
+  input{flex:1;border:0;outline:0;background:transparent;font:500 15px var(--mono);color:var(--ink)}
+  input::placeholder{color:var(--dim)}
+  button{flex:none;width:46px;height:46px;border:0;border-radius:11px;background:var(--maroon);color:#fff;font-size:20px;cursor:pointer;transition:.18s;display:grid;place-items:center}
+  button:hover{background:var(--maroon-l);transform:translateY(-1px)}button:active{transform:none}
+  .hint{margin-top:18px;font:400 13px var(--mono);color:var(--dim)}
+  @media(max-width:560px){.logo{margin-bottom:24px}}
 </style>
 </head>
 <body>
-<nav id="nav"><div class="wrap bar">
-  <div class="logo"><b>Line</b>Forge</div>
-  <div class="links"><a href="#how">How it works</a><a href="#heal">Self-healing</a><a href="#biz">Businesses</a><a class="btn" href="/app/">See it live</a></div>
-</div></nav>
-
-<header class="wrap hero">
-  <div>
-    <span class="eyebrow"><span class="d"></span>Voice AI · next-generation evals</span>
-    <h1>Let AI answer your phone. <em>Safely.</em></h1>
-    <p class="sub">Every local business runs on calls it misses. LineForge turns your website into an inbound voice agent, stress-tests it against hundreds of synthetic callers, fixes what breaks, and only then puts the line live.</p>
-    <div class="cta"><a class="btn" href="/app/">Build a line in 30s</a><a class="btn ghost" href="#how">See the swarm</a></div>
-    <div class="verts" id="verts"></div>
-  </div>
-
-  <div class="demo" data-reveal>
-    <div class="head"><div class="dots"><i></i><i></i><i></i></div><span class="t" id="d-site">swarm · piccino.com</span></div>
-    <div class="body">
-      <div class="meter"><span class="l">pass rate, after self-heal</span><span class="pr" id="d-pr">58%</span></div>
-      <div class="crow fail" id="r0"><span class="who"></span><span class="badge fail">FAIL</span></div>
-      <div class="crow fail" id="r1"><span class="who"></span><span class="badge fail">FAIL</span></div>
-      <div class="crow fail" id="r2"><span class="who"></span><span class="badge fail">FAIL</span></div>
-      <div class="heal" id="d-heal">&nbsp;</div>
-      <div class="liveline" id="d-live"><span class="d"></span>inbound line live · <span id="d-num"></span></div>
-    </div>
-  </div>
-</header>
-
-<div class="wrap"><div class="strip"><span>Built on</span> <b>Pipecat</b> <b>Cekura</b> <b>Twilio</b> <b>NVIDIA</b> <b>AWS</b></div></div>
-
-<section id="how" class="wrap">
-  <div data-reveal><h2>It earns the right to go live.</h2>
-  <p class="lead">One bad answer loses revenue or creates liability. So nothing rings until it survives the swarm.</p></div>
-  <div class="timeline">
-    <div class="tl" data-reveal><div class="dot">1</div><h3>Extract</h3><p>We read your website and build the agent: greeting, menu, booking, gift cards, escalation — the things you'd train a new hire on.</p></div>
-    <div class="tl" data-reveal><div class="dot">2</div><h3>Swarm</h3><p>Hundreds of synthetic callers, shaped to your business: the anxious allergy parent, the 14-top, the interrupter, the bad connection, the person yelling.</p></div>
-    <div class="tl" data-reveal><div class="dot">3</div><h3>Self-heal</h3><p>Each failure rewrites a policy in plain language, then the swarm runs again. You watch the pass rate climb from "not safe" to "ship it."</p></div>
-    <div class="tl" data-reveal><div class="dot">4</div><h3>Activate</h3><p>Past the safety gate, the number goes live: books tables, takes orders, sends a text, hands tricky calls to a human, and pings you when something happens.</p></div>
-    <div class="tl" data-reveal><div class="dot">5</div><h3>Never stop</h3><p>Every real call is evaluated. A new failure spins up a thousand variations of that exact issue, patches it, and redeploys — the line keeps getting safer.</p></div>
-  </div>
-</section>
-
-<section id="heal" class="wrap" style="padding-top:0">
-  <div data-reveal><h2>You can read every fix.</h2>
-  <p class="lead">When it over-promises on an allergy, here's exactly what it changed before going live.</p></div>
-  <div class="proof" data-reveal>
-    <div class="cap">policy · allergy-accommodate · v1 → v2</div>
-    <div class="d before">− reassure the caller the kitchen can accommodate their allergy and prepare a safe dish.</div>
-    <div class="d after">+ never guarantee zero cross-contamination; offer to add a note and connect them with staff.</div>
-  </div>
-</section>
-
-<section id="biz" class="wrap" style="padding-top:0">
-  <div data-reveal><h2>Different business, same launch flow.</h2>
-  <p class="lead">Website in, safe phone line out. Try a business type in the hero above — the synthetic callers change to fit.</p></div>
-</section>
-
-<section class="close wrap">
-  <h2 data-reveal>We're not selling a voice agent. We're selling <em>confidence</em> that your business can safely let AI answer the phone.</h2>
-  <p class="lead" data-reveal>Paste your website. Watch it harden itself. Then call the number yourself.</p>
-  <div data-reveal><a class="btn" href="/app/" style="font-size:16px;padding:14px 24px">Build your line →</a></div>
-</section>
-
-<footer class="wrap"><span><b>LineForge</b> · website to self-healing phone line</span><span>Sandbox demo · built from public info</span></footer>
-
+<main>
+  <div class="logo">Line<b>Forge</b></div>
+  <h1>Let AI answer your phone. <em>Safely.</em></h1>
+  <form id="f">
+    <input id="u" value="https://www.piccino.com/" spellcheck="false" autocomplete="off" aria-label="Your business website" />
+    <button aria-label="Build the line">→</button>
+  </form>
+  <p class="hint">paste a website · a stress-tested phone line in ~30s</p>
+</main>
 <script>
-const $=s=>document.querySelector(s);
-// nav condense
-addEventListener('scroll',()=>document.getElementById('nav').classList.toggle('scrolled',scrollY>16));
-// scroll reveal
-const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.15});
-document.querySelectorAll('[data-reveal]').forEach(el=>io.observe(el));
-
-// ── hero live demo (custom): cycle fail → heal → pass per vertical ──
-const V={
-  restaurant:{label:'Restaurant',site:'piccino.com',num:'+1 (415) 555-0142',c:['“guarantee no nut cross-contamination?”','“table for 14 in 20 minutes?”','“is 7:30 open tonight?”']},
-  contractor:{label:'Contractor',site:'bayviewbuilders.com',num:'+1 (415) 555-0188',c:['“burst pipe — basement flooding now”','“what’s your license #? am I insured?”','“flat price for a full remodel?”']},
-  clinic:{label:'Clinic',site:'dogpatchhealth.com',num:'+1 (415) 555-0123',c:['“chest pain — what should I take?”','“refill my prescription”','“read me my test results”']},
-  salon:{label:'Salon',site:'missionbloom.com',num:'+1 (415) 555-0177',c:['“book Maria, 2pm Saturday”','“no fee if I cancel in an hour?”','“guarantee no reaction to the dye?”']},
-  law:{label:'Law firm',site:'bayviewlaw.com',num:'+1 (415) 555-0199',c:['“should I sue them?”','“guarantee we win — how much?”','“take my case vs BigCo right now”']}
-};
-const order=Object.keys(V);let idx=0,auto,seq=[];
-const vbox=$('#verts');
-order.forEach(k=>{const b=document.createElement('div');b.className='vchip';b.textContent=V[k].label;b.dataset.k=k;
-  b.onclick=()=>{clearInterval(auto);select(k);auto=setInterval(next,7000);};vbox.appendChild(b);});
-
-function clearSeq(){seq.forEach(clearTimeout);seq=[];}
-function countUp(to){const el=$('#d-pr');let v=58;el.classList.remove('live');const t=setInterval(()=>{v+=4;if(v>=to){v=to;clearInterval(t);el.textContent=to+'%';el.classList.add('live');}else el.textContent=v+'%';},26);}
-function select(k){
-  idx=order.indexOf(k);clearSeq();
-  document.querySelectorAll('.vchip').forEach(c=>c.classList.toggle('on',c.dataset.k===k));
-  const v=V[k];$('#d-site').textContent='swarm · '+v.site;$('#d-num').textContent=v.num;
-  for(let i=0;i<3;i++){const r=$('#r'+i);r.className='crow fail';r.querySelector('.who').textContent=v.c[i];r.querySelector('.badge').className='badge fail';r.querySelector('.badge').textContent='FAIL';}
-  $('#d-pr').textContent='58%';$('#d-pr').classList.remove('live');
-  $('#d-heal').textContent=' ';$('#d-heal').classList.remove('done');$('#d-live').classList.remove('on');
-  // sequence
-  seq.push(setTimeout(()=>{$('#d-heal').textContent='▸ rewriting policies…';},1100));
-  seq.push(setTimeout(()=>{
-    for(let i=0;i<3;i++){const r=$('#r'+i);r.className='crow pass';r.querySelector('.badge').className='badge pass';r.querySelector('.badge').textContent='PASS';}
-    $('#d-heal').textContent='✓ patched · re-ran the swarm';$('#d-heal').classList.add('done');countUp(100);
-  },2300));
-  seq.push(setTimeout(()=>$('#d-live').classList.add('on'),3200));
-}
-function next(){idx=(idx+1)%order.length;select(order[idx]);}
-select('restaurant');
-auto=setInterval(next,7000);
+  document.getElementById('f').onsubmit=e=>{e.preventDefault();
+    const u=document.getElementById('u').value.trim();
+    location.href='/app/'+(u?('?url='+encodeURIComponent(u)):'');};
 </script>
 </body>
 </html>

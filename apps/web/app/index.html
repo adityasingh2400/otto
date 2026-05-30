@@ -327,6 +327,10 @@ async function observe(persona){
     ?`▸ caught '${persona}' → ${res.variations} targeted variations of the exact issue: ${Math.round((res.pre_pass||0)*100)}% → healed → ${Math.round((res.post_pass||0)*100)}% (spec v${res.spec_version})`
     :`▸ live call '${persona}' clean — already hardened by the pre-launch swarm`;
 }
+
+// deep-link from the minimal landing: /app/?url=... pre-fills and auto-builds
+const _qurl=new URLSearchParams(location.search).get("url");
+if(_qurl){$("#url").value=_qurl;run({url:_qurl});}
 </script>
 </body>
 </html>
