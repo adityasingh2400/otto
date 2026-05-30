@@ -134,6 +134,9 @@ def test_mock_services_are_stateful():
     before = m.get_inventory(item="tiramisu")["qty"]
     m.order_item(item="tiramisu", qty=2)
     assert m.get_inventory(item="tiramisu")["qty"] == before - 2
+    # owner notifications fire on bookings; mock SMS without Twilio creds
+    assert any(n["kind"] == "reservation" for n in m.get_notifications())
+    assert all(n["sms"]["sent"] is False for n in m.get_notifications())
 
 
 def test_salon_pipeline_heals_and_routes():

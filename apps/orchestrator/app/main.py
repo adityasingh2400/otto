@@ -110,6 +110,12 @@ async def state_route() -> dict:
     return mock_services.snapshot()
 
 
+@app.get("/api/notifications")
+async def notifications_route() -> dict:
+    from . import mock_services
+    return {"notifications": mock_services.get_notifications()}
+
+
 # Serve the mission-control dashboard (apps/web) at / when present. Mounted last so
 # /api/* routes above take precedence.
 _WEB = pathlib.Path(__file__).resolve().parents[2] / "web"

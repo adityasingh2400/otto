@@ -214,6 +214,7 @@
         <div class="pbtn" data-tool="order_item" data-args='{"item":"carbonara","qty":2}'>Order 2× carbonara</div>
       </div>
       <div id="astatus" class="muted" style="margin-top:8px;font-family:var(--mono)"></div>
+      <div id="oalerts" class="muted" style="margin-top:6px;font-family:var(--mono);color:var(--cherry-d)"></div>
     </div>
     <div class="panel span2"><h3>Live call console</h3><div id="live"><div class="muted">call the number once it's live</div></div></div>
   </div>
@@ -264,6 +265,10 @@ document.querySelectorAll("#abtns .pbtn").forEach(b=>b.onclick=async()=>{
   $("#astatus").textContent=`${b.dataset.tool}…`;
   const res=await(await fetch(ORCH+"/api/tool/"+b.dataset.tool,{method:"POST",headers:{"Content-Type":"application/json"},body:b.dataset.args||"{}"})).json();
   $("#astatus").textContent=`${b.dataset.tool} → ${JSON.stringify(res)}`;
+  try{
+    const n=(await(await fetch(ORCH+"/api/notifications")).json()).notifications||[];
+    if(n.length){const last=n[n.length-1];$("#oalerts").textContent=`📩 owner SMS (${last.sms&&last.sms.sent?"sent":"mock"}): ${last.message}`;}
+  }catch{}
 });
 
 async function run(body){

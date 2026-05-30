@@ -63,6 +63,7 @@ TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "")
+OWNER_PHONE = os.getenv("OWNER_PHONE", "")  # business owner's number for event SMS alerts
 
 # Daily (Cekura WebRTC swarm joins this room; also the agent's WebRTC transport)
 DAILY_API_KEY = os.getenv("DAILY_API_KEY", "")
