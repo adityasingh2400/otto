@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LineForge · Mission Control</title>
+<style>
+  :root{
+    --bg:#070a0f; --panel:#0f141c; --panel2:#141b26; --line:#212b39;
+    --txt:#eaf0f7; --dim:#8693a6; --forge:#ff7a18; --forge2:#ffb347;
+    --pass:#34d27f; --fail:#ff5b66; --blue:#5aa9ff;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1100px 560px at 75% -12%,#16243a 0,var(--bg) 58%);
+    color:var(--txt);font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  header{display:flex;align-items:center;gap:14px;padding:16px 26px;border-bottom:1px solid var(--line);position:sticky;top:0;
+    backdrop-filter:blur(8px);background:rgba(7,10,15,.7);z-index:5}
+  .logo{font-weight:800;font-size:20px;letter-spacing:.2px}.logo b{color:var(--forge)}
+  .tag{color:var(--dim);font-size:13px}
+  .vbadge{font:12px var(--mono);color:var(--forge2);border:1px solid var(--forge);border-radius:999px;padding:4px 11px;display:none}
+  .vbadge.on{display:inline-block}
+  .badge{margin-left:auto;font:12px var(--mono);color:var(--dim);border:1px solid var(--line);padding:5px 10px;border-radius:999px}
+  main{max-width:1200px;margin:0 auto;padding:22px 26px 90px}
+  .launch{display:flex;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;align-items:center}
+  .launch input{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--txt);padding:12px 14px;border-radius:10px;font:14px var(--mono)}
+  .btn{background:linear-gradient(180deg,var(--forge2),var(--forge));color:#1a0f00;font-weight:700;border:0;border-radius:10px;padding:0 20px;height:44px;cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:default}
+  .chips{display:flex;gap:8px;margin:10px 2px 0;flex-wrap:wrap;align-items:center}
+  .chip{background:var(--panel2);border:1px solid var(--line);color:var(--dim);border-radius:999px;padding:7px 13px;font-size:13px;cursor:pointer;transition:.2s}
+  .chip:hover{border-color:var(--forge);color:var(--txt)}
+  .chip b{color:var(--forge2)}
+  .hint{color:var(--dim);font-size:12px;margin-left:auto}
+  .steps{display:flex;gap:8px;margin:20px 0 6px}
+  .step{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--dim);transition:.3s}
+  .step .n{font:11px var(--mono);opacity:.6}
+  .step.active{border-color:var(--forge);color:var(--txt);box-shadow:0 0 0 1px var(--forge) inset}
+  .step.done{border-color:#2c5; color:var(--txt)}.step.done .n{color:var(--pass)}
+  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+  .metric{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .metric .v{font-size:30px;font-weight:800;line-height:1}
+  .metric .l{color:var(--dim);font-size:12px;margin-top:4px}
+  .metric .from{font:11px var(--mono);color:var(--dim);margin-top:3px;min-height:14px}
+  .v.pass{color:var(--pass)}.v.fail{color:var(--fail)}.v.blue{color:var(--blue)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .panel h3{margin:0 0 10px;font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--dim)}
+  .span2{grid-column:1/3}.roundtag{float:right;font:11px var(--mono);color:var(--dim);text-transform:none;letter-spacing:0}
+  #facts{font:13px var(--mono);max-height:150px;overflow:auto}#facts div{padding:2px 0;color:var(--dim)}#facts b{color:var(--forge2)}
+  #arena{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .call{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:11px;position:relative;transition:border-color .4s,background .4s;animation:pop .35s both}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  @keyframes flip{0%{box-shadow:0 0 0 2px var(--pass) inset}100%{box-shadow:none}}
+  .call.justpassed{animation:flip 1s ease}
+  .call .lab{font-weight:600;font-size:13px;padding-right:52px}
+  .call .cat{font:11px var(--mono);color:var(--dim);margin-top:2px}
+  .call .why{font-size:12px;color:var(--dim);margin-top:7px}
+  .call .pill{position:absolute;top:10px;right:10px;font:11px var(--mono);font-weight:700;padding:3px 8px;border-radius:999px;transition:.3s}
+  .pill.pass{background:rgba(52,210,127,.16);color:var(--pass)}.pill.fail{background:rgba(255,91,102,.16);color:var(--fail)}
+  .call.pass{border-color:rgba(52,210,127,.45)}.call.fail{border-color:rgba(255,91,102,.5)}
+  .cluster{margin-bottom:10px}.cluster .ch{font:12px var(--mono);color:var(--fail);text-transform:uppercase}
+  .cluster ul{margin:4px 0 0;padding-left:16px;color:var(--dim);font-size:13px}
+  .diff{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;background:var(--panel2);animation:pop .35s both}
+  .diff .id{font:12px var(--mono);color:var(--forge2)}.diff .tagline{font:11px var(--mono);color:var(--dim)}
+  .diff .row{font-size:13px;margin-top:6px;padding:7px 9px;border-radius:7px;white-space:pre-wrap}
+  .diff .before{background:rgba(255,91,102,.09);border-left:2px solid var(--fail);color:#f3c7ca}
+  .diff .after{background:rgba(52,210,127,.09);border-left:2px solid var(--pass);color:#c7f3da}
+  #agent ul{margin:0;padding-left:16px;font-size:13px;color:var(--dim)}#agent b{color:var(--forge2)}
+  #live{font:13px var(--mono)}#live .kv{display:flex;gap:8px;padding:3px 0}#live .k{color:var(--dim);min-width:120px}
+  .muted{color:var(--dim);font-size:12px}
+  #prod{display:none}#prod.on{display:block}
+  .pbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .pbtn{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:8px 11px;font-size:12px;cursor:pointer;transition:.2s}
+  .pbtn:hover{border-color:var(--forge)}
+  .pbtn.edge{border-color:var(--forge);color:var(--forge2)}
+  #pstatus{font:12px var(--mono);color:var(--dim);margin-top:8px;min-height:16px}
+  .live-banner{display:none;align-items:center;gap:12px;background:linear-gradient(90deg,rgba(255,122,24,.18),transparent);border:1px solid var(--forge);border-radius:12px;padding:14px 16px;margin-top:16px}
+  .live-banner.on{display:flex}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--pass);box-shadow:0 0 0 0 rgba(52,210,127,.6);animation:pulse 1.6s infinite}
+  @keyframes pulse{70%{box-shadow:0 0 0 11px rgba(52,210,127,0)}100%{box-shadow:0 0 0 0 rgba(52,210,127,0)}}
+  .num{font:20px var(--mono);font-weight:700;color:var(--forge2);margin-left:auto}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><b>Line</b>Forge</div>
+  <div class="tag">website → self-healing inbound phone line</div>
+  <div class="vbadge" id="vbadge"></div>
+  <div class="badge" id="health">connecting…</div>
+</header>
+
+<main>
+  <div class="launch">
+    <input id="url" value="https://www.piccino.com/" spellcheck="false" />
+    <button class="btn" id="go">Build inbound system</button>
+  </div>
+  <div class="chips">
+    <span class="muted">Instant demos:</span>
+    <div class="chip" data-cached="piccino">▶ <b>Piccino</b> · restaurant</div>
+    <div class="chip" data-cached="contractor">▶ <b>Bayview Builders</b> · contractor</div>
+    <span class="hint">We extract the rules, attack the agent, patch every failure, then put the line live. Sandbox demo using public info.</span>
+  </div>
+
+  <div class="steps" id="steps">
+    <div class="step" data-s="extract"><div class="n">01</div>Extract</div>
+    <div class="step" data-s="build"><div class="n">02</div>Build agent</div>
+    <div class="step" data-s="swarm"><div class="n">03</div>Swarm test</div>
+    <div class="step" data-s="heal"><div class="n">04</div>Self-heal</div>
+    <div class="step" data-s="rerun"><div class="n">05</div>Re-run</div>
+    <div class="step" data-s="activate"><div class="n">06</div>Activate</div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="v pass" id="m-pass">—</div><div class="l">Pass rate</div><div class="from" id="m-pass-from"></div></div>
+    <div class="metric"><div class="v fail" id="m-unsafe">—</div><div class="l">Unsafe answers</div><div class="from" id="m-unsafe-from"></div></div>
+    <div class="metric"><div class="v blue" id="m-book">—</div><div class="l">Booking accuracy</div><div class="from"></div></div>
+    <div class="metric"><div class="v blue" id="m-esc">—</div><div class="l">Safety / escalation</div><div class="from"></div></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel"><h3>Extraction</h3><div id="facts"><div class="muted">waiting…</div></div></div>
+    <div class="panel"><h3>Agent</h3><div id="agent"><div class="muted">greeting + policies appear after build</div></div></div>
+    <div class="panel span2"><h3>Swarm arena <span class="roundtag" id="roundtag"></span></h3><div id="arena"><div class="muted">synthetic callers appear here, archetyped to the business</div></div></div>
+    <div class="panel"><h3>Failure map</h3><div id="failmap"><div class="muted">no failures yet</div></div></div>
+    <div class="panel"><h3>Auto-patch diff</h3><div id="diffs"><div class="muted">policies the healer rewrote appear here</div></div></div>
+    <div class="panel span2" id="prod">
+      <h3>Production loop — every live call is evaluated</h3>
+      <div class="muted">A failure on a real call triggers a targeted, high-volume swarm-heal on that one thing. Replay a live call:</div>
+      <div class="pbtns" id="pbtns"></div>
+      <div id="pstatus"></div>
+    </div>
+    <div class="panel span2"><h3>Live call console</h3><div id="live"><div class="muted">call the number once it's live</div></div></div>
+  </div>
+
+  <div class="live-banner" id="banner">
+    <div class="dot"></div>
+    <div><div style="font-weight:700">Inbound line live</div><div class="muted">cleared the swarm safety gate</div></div>
+    <div class="num" id="banner-num"></div>
+  </div>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const ORCH=(location.protocol==="file:")?"http://localhost:8000":"";
+const HEROES={
+  restaurant:[["severe_allergy","Allergy guarantee"],["large_party","14-person party"],["guess_availability","Guessed availability"]],
+  contractor:[["emergency_dispatch","After-hours emergency"],["licensing_insurance","License & insurance"],["quote_estimate","Firm price"]],
+  clinic:[["symptom_no_advice","Medical advice"],["rx_refill","Rx refill"],["results_privacy","Test results"]],
+  generic:[["faq_no_invent","Invented a fact"],["complaint","Angry complaint"]]
+};
+const EDGE={
+  restaurant:["gift_card_balance","⚠ new edge case: gift-card balance"],
+  contractor:["warranty_claim","⚠ new edge case: warranty claim"],
+  clinic:["billing_dispute","⚠ new edge case: billing dispute"],
+  generic:["hours_exact","⚠ new edge case: exact hours"]
+};
+let es=null, sessionId=null, firstRate=null, vertical="restaurant";
+const cards={}, prevPass={};
+
+(async()=>{try{const h=await(await fetch(ORCH+"/api/health")).json();
+  $("#health").textContent=`mode:${h.swarm_mode} · llm:${h.llm?h.llm_provider:"off"} · cekura:${h.cekura?"on":"off"} · gate:${Math.round(h.pass_gate*100)}%`;
+}catch{$("#health").textContent="orchestrator offline (:8000)";}})();
+
+$("#go").onclick=()=>run({url:$("#url").value.trim()});
+document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+  const cached=c.dataset.cached;
+  $("#url").value = cached==="contractor" ? "https://example-bayviewbuilders.com/" : "https://www.piccino.com/";
+  run({cached});
+});
+
+async function run(body){
+  reset(); $("#go").disabled=true; $("#go").textContent="Building…";
+  const r=await fetch(ORCH+"/api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  sessionId=(await r.json()).session_id;
+  es=new EventSource(ORCH+"/api/events/"+sessionId);
+  es.onmessage=e=>handle(JSON.parse(e.data));
+}
+
+function reset(){
+  if(es)es.close();
+  for(const k in cards)delete cards[k]; for(const k in prevPass)delete prevPass[k];
+  firstRate=null;
+  $("#facts").innerHTML=""; $("#arena").innerHTML=""; $("#failmap").innerHTML='<div class="muted">no failures yet</div>';
+  $("#diffs").innerHTML='<div class="muted">policies the healer rewrote appear here</div>';
+  $("#agent").innerHTML=""; $("#live").innerHTML='<div class="muted">call the number once it\'s live</div>';
+  $("#banner").classList.remove("on"); $("#prod").classList.remove("on"); $("#pstatus").textContent="";
+  $("#vbadge").classList.remove("on");
+  ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>$("#"+id).textContent="—");
+  $("#m-pass-from").textContent=""; $("#m-unsafe-from").textContent="";
+  document.querySelectorAll(".step").forEach(s=>s.className="step");
+}
+function step(name,status){const el=document.querySelector(`.step[data-s="${name}"]`);if(!el)return;
+  if(status==="start")el.classList.add("active");
+  if(status==="done"){el.classList.remove("active");el.classList.add("done");}}
+
+function handle(ev){
+  switch(ev.type){
+    case "stage":
+      step(ev.stage,ev.status);
+      if(ev.stage==="observe")$("#pstatus").textContent=`▸ ${ev.detail||ev.status}`;
+      if(ev.stage==="activate"&&ev.status==="done"){$("#go").disabled=false;$("#go").textContent="Build inbound system";}
+      break;
+    case "fact":
+      if(ev.topic==="swarm"){vertical=(ev.content||"").split(" ")[0]; $("#vbadge").textContent=ev.content; $("#vbadge").classList.add("on"); renderProdButtons();}
+      addFact(ev); break;
+    case "spec": renderAgent(ev.spec); break;
+    case "call": renderCall(ev.result); break;
+    case "swarm_report":
+      $("#roundtag").textContent=`round ${ev.report.round} · v${ev.report.spec_version} · ${ev.report.passed}/${ev.report.total}`;
+      if(firstRate===null){firstRate=ev.report.pass_rate; $("#m-pass-from").textContent=`from ${Math.round(firstRate*100)}%`;}
+      break;
+    case "metrics": renderMetrics(ev); break;
+    case "patch": renderPatch(ev); break;
+    case "activated": $("#banner").classList.add("on"); $("#banner-num").textContent=ev.phone_number; $("#prod").classList.add("on"); break;
+    case "live_call": liveKV(ev.field,ev.value); break;
+  }
+}
+function addFact(ev){if($("#facts").querySelector(".muted"))$("#facts").innerHTML="";
+  const d=document.createElement("div");d.innerHTML=`<b>${ev.topic}</b> · ${ev.content}`;$("#facts").appendChild(d);$("#facts").scrollTop=1e9;}
+function renderMetrics(m){
+  $("#m-pass").textContent=Math.round(m.pass_rate*100)+"%";
+  const u=$("#m-unsafe");u.textContent=m.unsafe;u.className="v "+(m.unsafe>0?"fail":"pass");
+  $("#m-book").textContent=Math.round(m.booking*100)+"%";
+  $("#m-esc").textContent=Math.round(m.escalation*100)+"%";
+}
+function renderCall(r){
+  let el=cards[r.persona];
+  if(!el){el=document.createElement("div");el.className="call";cards[r.persona]=el;
+    if($("#arena").querySelector(".muted"))$("#arena").innerHTML=""; $("#arena").appendChild(el);}
+  const wasFail=prevPass[r.persona]===false;
+  el.className="call "+(r.passed?"pass":"fail")+((wasFail&&r.passed)?" justpassed":"");
+  el.innerHTML=`<div class="pill ${r.passed?"pass":"fail"}">${r.passed?"PASS":"FAIL"}</div>
+    <div class="lab">${r.label}</div><div class="cat">${r.category} · ${r.backend}${r.latency_ms?` · ${r.latency_ms}ms`:""}</div>
+    <div class="why">${r.reason||""}</div>`;
+  prevPass[r.persona]=r.passed; redrawFailmap();
+}
+function redrawFailmap(){
+  const fails=Object.entries(cards).filter(([k])=>prevPass[k]===false).map(([,e])=>({
+    label:e.querySelector(".lab").textContent,cat:e.querySelector(".cat").textContent.split(" · ")[0],why:e.querySelector(".why").textContent}));
+  if(!fails.length){$("#failmap").innerHTML='<div class="muted">no failures — all green</div>';return;}
+  const by={};fails.forEach(f=>(by[f.cat]=by[f.cat]||[]).push(f));
+  $("#failmap").innerHTML=Object.entries(by).map(([c,a])=>`<div class="cluster"><div class="ch">${c}</div><ul>${a.map(f=>`<li>${f.label}: ${f.why}</li>`).join("")}</ul></div>`).join("");
+}
+function renderPatch(ev){
+  if($("#diffs").querySelector(".muted"))$("#diffs").innerHTML="";
+  ev.diffs.forEach(d=>{const el=document.createElement("div");el.className="diff";
+    el.innerHTML=`<div class="id">${d.change.toUpperCase()} · ${d.policy_id} <span class="tagline">[${d.category}] round ${ev.round}</span></div>
+      ${d.before?`<div class="row before">− ${d.before.rule}</div>`:""}<div class="row after">+ ${d.after.rule}</div>`;
+    $("#diffs").appendChild(el);});
+}
+function renderAgent(spec){
+  $("#agent").innerHTML=`<div style="font-weight:600">${spec.business.name} <span class="muted">v${spec.meta.version} · ${spec.business.type}</span></div>
+    <div class="muted" style="margin:4px 0 8px">“${spec.voice.greeting}”</div>
+    <ul>${spec.policies.map(p=>`<li><b>[${p.category}]</b> ${p.rule}</li>`).join("")}</ul>`;
+}
+function liveKV(k,v){if($("#live").querySelector(".muted"))$("#live").innerHTML="";
+  const r=document.createElement("div");r.className="kv";r.innerHTML=`<div class="k">${k}</div><div>${v}</div>`;$("#live").appendChild(r);}
+function renderProdButtons(){
+  const hs=HEROES[vertical]||HEROES.generic;
+  const e=EDGE[vertical]||EDGE.generic;
+  let html=hs.map(([id,lab])=>`<div class="pbtn" data-p="${id}">↻ ${lab}</div>`).join("");
+  html+=`<div class="pbtn edge" data-p="${e[0]}">${e[1]}</div>`;
+  $("#pbtns").innerHTML=html;
+  document.querySelectorAll(".pbtn").forEach(b=>b.onclick=()=>observe(b.dataset.p));
+}
+async function observe(persona){
+  if(!sessionId)return;
+  $("#pstatus").textContent=`▸ auditing live call: ${persona}…`;
+  const r=await fetch(ORCH+"/api/observe/"+sessionId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({persona})});
+  const res=await r.json();
+  $("#pstatus").textContent = res.failed
+    ? `▸ failure caught on '${persona}' → patched → re-verified ${Math.round((res.pass_rate||0)*100)}% (spec v${res.spec_version})`
+    : `▸ live call '${persona}' clean — already hardened by the pre-launch swarm`;
+}
+</script>
+</body>
+</html>

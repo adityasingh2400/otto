@@ -1,0 +1,23 @@
+[project]
+name = "lineforge-agent"
+version = "0.1.0"
+description = "LineForge voice agent — serves an AgentSpec over Twilio (phone) and Daily (Cekura swarm) via Pipecat."
+# Pipecat audio deps have best wheel coverage on 3.10–3.12; pin away from 3.14.
+requires-python = ">=3.10,<3.13"
+dependencies = [
+  "lineforge-spec",
+  "python-dotenv>=1.0",
+  "httpx>=0.27",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  # Pipecat + the reliability-first plugin set. Sponsor swaps (nvidia, aws) are
+  # extra plugins you enable per .env — see bot.py. Confirm exact extras against the
+  # pinned pipecat version + github.com/pipecat-ai/pipecat-quickstart-phone-bot.
+  "pipecat-ai[daily,openai,deepgram,cartesia,silero,elevenlabs]>=0.0.40",
+]
+
+[tool.uv.sources]
+lineforge-spec = { path = "../../packages/spec", editable = true }
+
+[tool.uv]
+package = false

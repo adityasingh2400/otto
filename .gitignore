@@ -1,0 +1,29 @@
+# env / secrets
+.env
+.env.local
+*.local
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.uv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# node
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# data / runtime
+data/
+*.log
+.DS_Store
+recordings/
+.lineforge/

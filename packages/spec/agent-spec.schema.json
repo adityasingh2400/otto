@@ -1,0 +1,330 @@
+{
+  "$defs": {
+    "Business": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "default": "restaurant",
+          "title": "Type",
+          "type": "string"
+        },
+        "location": {
+          "default": "",
+          "title": "Location",
+          "type": "string"
+        },
+        "timezone": {
+          "default": "America/Los_Angeles",
+          "title": "Timezone",
+          "type": "string"
+        },
+        "public_url": {
+          "default": "",
+          "title": "Public Url",
+          "type": "string"
+        },
+        "disclaimer": {
+          "default": "This is a sandbox AI assistant built from public website information for a demo. It is not the official phone line; reservations and orders are mocked.",
+          "title": "Disclaimer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Business",
+      "type": "object"
+    },
+    "EscalationRule": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "condition": {
+          "title": "Condition",
+          "type": "string"
+        },
+        "action": {
+          "default": "offer to connect to a staff member or take a message",
+          "title": "Action",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "condition"
+      ],
+      "title": "EscalationRule",
+      "type": "object"
+    },
+    "KnowledgeItem": {
+      "properties": {
+        "topic": {
+          "title": "Topic",
+          "type": "string"
+        },
+        "content": {
+          "title": "Content",
+          "type": "string"
+        },
+        "source_url": {
+          "default": "",
+          "title": "Source Url",
+          "type": "string"
+        },
+        "confidence": {
+          "default": 0.7,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "topic",
+        "content"
+      ],
+      "title": "KnowledgeItem",
+      "type": "object"
+    },
+    "Meta": {
+      "properties": {
+        "version": {
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "parent_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Version"
+        },
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        }
+      },
+      "title": "Meta",
+      "type": "object"
+    },
+    "Policy": {
+      "description": "A patchable business rule. The self-heal loop edits ONLY these.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "safety",
+            "booking",
+            "knowledge",
+            "voice_behavior"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "trigger": {
+          "title": "Trigger",
+          "type": "string"
+        },
+        "rule": {
+          "title": "Rule",
+          "type": "string"
+        },
+        "severity": {
+          "default": "medium",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "source": {
+          "default": "extracted",
+          "enum": [
+            "extracted",
+            "healed",
+            "seed"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "category",
+        "trigger",
+        "rule"
+      ],
+      "title": "Policy",
+      "type": "object"
+    },
+    "ToolParam": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "default": "string",
+          "title": "Type",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ToolParam",
+      "type": "object"
+    },
+    "ToolSpec": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "params": {
+          "items": {
+            "$ref": "#/$defs/ToolParam"
+          },
+          "title": "Params",
+          "type": "array"
+        },
+        "mock_behavior": {
+          "additionalProperties": true,
+          "title": "Mock Behavior",
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "description"
+      ],
+      "title": "ToolSpec",
+      "type": "object"
+    },
+    "Voice": {
+      "properties": {
+        "persona": {
+          "default": "warm, polished, local",
+          "title": "Persona",
+          "type": "string"
+        },
+        "greeting": {
+          "default": "Hi, thanks for calling. How can I help?",
+          "title": "Greeting",
+          "type": "string"
+        },
+        "tts_voice": {
+          "default": "",
+          "title": "Tts Voice",
+          "type": "string"
+        }
+      },
+      "title": "Voice",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "business": {
+      "$ref": "#/$defs/Business"
+    },
+    "voice": {
+      "$ref": "#/$defs/Voice"
+    },
+    "knowledge": {
+      "items": {
+        "$ref": "#/$defs/KnowledgeItem"
+      },
+      "title": "Knowledge",
+      "type": "array"
+    },
+    "capabilities": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "tools": {
+      "items": {
+        "$ref": "#/$defs/ToolSpec"
+      },
+      "title": "Tools",
+      "type": "array"
+    },
+    "policies": {
+      "items": {
+        "$ref": "#/$defs/Policy"
+      },
+      "title": "Policies",
+      "type": "array"
+    },
+    "escalation_rules": {
+      "items": {
+        "$ref": "#/$defs/EscalationRule"
+      },
+      "title": "Escalation Rules",
+      "type": "array"
+    },
+    "safety_rules": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Safety Rules",
+      "type": "array"
+    },
+    "out_of_scope": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Out Of Scope",
+      "type": "array"
+    },
+    "meta": {
+      "$ref": "#/$defs/Meta"
+    }
+  },
+  "required": [
+    "business"
+  ],
+  "title": "LineForge AgentSpec",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
