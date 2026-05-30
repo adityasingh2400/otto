@@ -532,3 +532,63 @@ def test_model_ladder_escalates_then_stops():
         assert code_heal._models() == ["haiku-x", "haiku-x"]
     finally:
         cfg.CODE_HEAL_MAX_HOPS, cfg.CODE_HEAL_MODEL, cfg.CODE_HEAL_ESCALATE_MODEL = saved
+
+
+# ── code-heal: trace-derived replay seeding (the live-trace precondition fix) ────────────────
+def test_seed_from_trace_reconstructs_scarcity_preconditions():
+    """A live trace has no persona.setup, so replay must rebuild the backend precondition from the
+    trace's OWN recorded results — a full slot, out-of-stock item, or taken appointment slot."""
+    from otto_spec import CallEvent, CallTrace
+    from app import code_heal, mock_services
+    oos = CallTrace(call_id="oos", events=[
+        CallEvent(kind="tool_call", t_ms=10, name="order_item", args={"item": "tiramisu", "qty": 1}),
+        CallEvent(kind="tool_result", t_ms=20, name="order_item", ok=False,
+                  result={"status": "out_of_stock", "item": "tiramisu", "qty_available": 0}),
+    ])
+    seed = code_heal._seed_from_trace(oos.model_dump())
+    assert seed is not None
+    st = mock_services._fresh(); seed(st)
+    assert st["inventory"]["tiramisu"] == 0
+
+    appt = CallTrace(call_id="appt", events=[
+        CallEvent(kind="tool_call", t_ms=10, name="book_appointment", args={"time": "9:00 AM"}),
+        CallEvent(kind="tool_result", t_ms=20, name="book_appointment", ok=False,
+                  result={"status": "unavailable", "reason": "already booked"}),
+    ])
+    seed2 = code_heal._seed_from_trace(appt.model_dump())
+    st2 = mock_services._fresh(); seed2(st2)
+    assert any(a["time"] == "9:00 AM" for a in st2["appointments"])
+
+
+def test_seed_from_trace_leaves_self_contained_failures_alone():
+    """Regression guard: duplicate_side_effect's precondition is its OWN first booking (recreated by
+    replay), and the call DID reserve successfully — so no scarcity seed is derived. Stays self-contained."""
+    from app import code_heal
+    spec = _spec("piccino")
+    trace, _found, _ = _dup_booking_report(spec)
+    assert code_heal._seed_from_trace(trace.model_dump()) is None
+
+
+def test_replay_seeding_makes_a_state_dependent_failure_reproduce():
+    """The seam, closed: a failure whose trigger is backend state (a booking the agent claimed after the
+    tool returned 'unavailable') reproduces on replay ONLY when the precondition is seeded from the trace.
+    Without the seed the fresh backend would book successfully and the failure would vanish (inconclusive)."""
+    from otto_spec import CallEvent, CallTrace
+    from app import code_heal, mock_services
+    from app.personas import Persona
+    spec = _spec("piccino")
+    masking = CallTrace(call_id="mask", persona="live", events=[
+        CallEvent(kind="hear", t_ms=1500, text="Book a table for two at 8 tonight."),
+        CallEvent(kind="tool_call", t_ms=1600, name="reserve_table",
+                  args={"name": "Lee", "date": "tonight", "time": "8:00 PM", "party_size": 2}),
+        CallEvent(kind="tool_result", t_ms=1900, name="reserve_table", ok=False, latency_ms=300,
+                  result={"status": "unavailable", "reason": "fully booked"}),
+        CallEvent(kind="say", t_ms=2200, text="Perfect, you're all set for two at eight!"),
+    ])
+    td = masking.model_dump()
+    noop = Persona(id="x", label="x", category="booking", goal="", personality="",
+                   success_criteria="", static_check=lambda s: (True, ""), setup=lambda st: None)
+    ctrl = _run(code_heal.replay(spec, td, noop, mock_services))
+    assert "failed_action_masked" not in {f.id for f in ctrl}, "control should NOT reproduce"
+    treat = _run(code_heal.replay(spec, td, None, mock_services))
+    assert "failed_action_masked" in {f.id for f in treat}, "seeded replay must reproduce the failure"
