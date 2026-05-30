@@ -172,6 +172,8 @@
     <div class="chip" data-cached="piccino">▶ <b>Piccino</b> · restaurant</div>
     <div class="chip" data-cached="contractor">▶ <b>Bayview Builders</b> · contractor</div>
     <div class="chip" data-cached="clinic">▶ <b>Dogpatch Family Health</b> · clinic</div>
+    <div class="chip" data-cached="salon">▶ <b>Mission Bloom</b> · salon</div>
+    <div class="chip" data-cached="law">▶ <b>Bayview Law Group</b> · law firm</div>
     <span class="hint">Extract the rules → attack the agent with synthetic callers → patch every failure → put the line live. Sandbox demo, public info.</span>
   </div>
 
@@ -222,12 +224,16 @@ const HEROES={
   restaurant:[["severe_allergy","Allergy guarantee"],["large_party","14-person party"],["guess_availability","Guessed availability"]],
   contractor:[["emergency_dispatch","After-hours emergency"],["licensing_insurance","License & insurance"],["quote_estimate","Firm price"]],
   clinic:[["symptom_no_advice","Medical advice"],["rx_refill","Rx refill"],["results_privacy","Test results"]],
+  salon:[["stylist_request","Specific stylist"],["cancellation_policy","Cancellation fee"],["patch_test","Dye allergy"]],
+  law:[["legal_advice","Legal advice"],["case_outcome","Guarantee a win"],["conflict_check","Conflict check"]],
   generic:[["faq_no_invent","Invented a fact"],["complaint","Angry complaint"]]
 };
 const EDGE={
   restaurant:["gift_card_balance","⚠ new edge case: gift-card balance"],
   contractor:["warranty_claim","⚠ new edge case: warranty claim"],
   clinic:["billing_dispute","⚠ new edge case: billing dispute"],
+  salon:["color_guarantee","⚠ new edge case: color guarantee"],
+  law:["fee_quote","⚠ new edge case: flat-fee guarantee"],
   generic:["hours_exact","⚠ new edge case: exact hours"]
 };
 let es=null, sessionId=null, firstRate=null, vertical="restaurant";
@@ -238,7 +244,7 @@ const cards={}, prevPass={}, shown={};
 }catch{$("#health").textContent="orchestrator offline (:8000)";}})();
 
 $("#go").onclick=()=>run({url:$("#url").value.trim()});
-const DEMO_URLS={piccino:"https://www.piccino.com/",contractor:"https://example-bayviewbuilders.com/",clinic:"https://example-dogpatchhealth.com/"};
+const DEMO_URLS={piccino:"https://www.piccino.com/",contractor:"https://example-bayviewbuilders.com/",clinic:"https://example-dogpatchhealth.com/",salon:"https://example-missionbloom.com/",law:"https://example-bayviewlaw.com/"};
 document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
   const cached=c.dataset.cached;
   $("#url").value=DEMO_URLS[cached]||DEMO_URLS.piccino;

@@ -37,6 +37,8 @@ def test_vertical_routing():
     assert archetypes.vertical_for("barber shop") == "generic"        # not "bar"
     assert archetypes.vertical_for("sports bar & grill") == "restaurant"
     assert archetypes.vertical_for("roofing contractor") == "contractor"
+    assert archetypes.vertical_for("hair salon") == "salon"
+    assert archetypes.vertical_for("law firm") == "law"
 
 
 def test_restaurant_pipeline_heals_and_activates():
@@ -103,3 +105,19 @@ def test_observe_edge_case_triggers_real_heal():
     res = _run(observe_call("t-edge", persona="gift_card_balance"))
     assert res["failed"] is True
     assert store.get_spec("t-edge").get_policy("gift-card-balance") is not None
+
+
+def test_salon_pipeline_heals_and_routes():
+    _run(run_pipeline("t-salon", None, False, "salon"))
+    reports = [e["report"] for e in bus.history("t-salon") if e.get("type") == "swarm_report"]
+    assert reports and reports[-1]["pass_rate"] >= config.PASS_GATE
+    ids = {r["persona"] for r in reports[0]["results"]}
+    assert "stylist_request" in ids and "severe_allergy" not in ids
+
+
+def test_law_pipeline_heals_and_routes():
+    _run(run_pipeline("t-law", None, False, "law"))
+    reports = [e["report"] for e in bus.history("t-law") if e.get("type") == "swarm_report"]
+    assert reports and reports[-1]["pass_rate"] >= config.PASS_GATE
+    ids = {r["persona"] for r in reports[0]["results"]}
+    assert "legal_advice" in ids and "severe_allergy" not in ids
