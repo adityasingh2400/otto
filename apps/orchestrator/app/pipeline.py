@@ -6,7 +6,7 @@ does not go live until the agent clears the bar, which is the whole point.
 
 from __future__ import annotations
 
-from lineforge_spec import AgentSpec
+from otto_spec import AgentSpec
 
 from . import archetypes, config, extract, mock_services, store
 from .events import bus
@@ -80,4 +80,4 @@ def _provision_twilio(spec: AgentSpec) -> str:
     # (apps/agent/twilio_server.py) via the Twilio REST API. Guarded best-effort here.
     if config.TWILIO_PHONE_NUMBER:
         return config.TWILIO_PHONE_NUMBER
-    return "+1 (555) 010-FORGE"
+    return "+1 (555) 010-OTTO"

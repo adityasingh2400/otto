@@ -1,7 +1,7 @@
 """Tiny async pub/sub for streaming pipeline events to the dashboard over SSE.
 
 Every stage of the pipeline publishes typed events (see packages/spec/types.ts
-`LineForgeEvent`) onto a per-session channel; the dashboard subscribes via
+`OttoEvent`) onto a per-session channel; the dashboard subscribes via
 GET /events/{session_id}.
 """
 

@@ -26,5 +26,5 @@ data/
 *.log
 .DS_Store
 recordings/
-.lineforge/
+.otto/
 .gstack/

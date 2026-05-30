@@ -6,7 +6,7 @@ can show the v1 → v2 → … progression and downstream activation reads the l
 
 from __future__ import annotations
 
-from lineforge_spec import AgentSpec
+from otto_spec import AgentSpec
 
 _SPECS: dict[str, AgentSpec] = {}
 _HISTORY: dict[str, list[AgentSpec]] = {}

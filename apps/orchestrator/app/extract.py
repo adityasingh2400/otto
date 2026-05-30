@@ -13,7 +13,7 @@ import asyncio
 from urllib.parse import urljoin, urlparse
 
 import httpx
-from lineforge_spec import AgentSpec, KnowledgeItem
+from otto_spec import AgentSpec, KnowledgeItem
 
 from . import config, llm
 from .events import bus
@@ -115,7 +115,7 @@ async def _crawl(base_url: str, max_pages: int) -> str:
     """Fetch the homepage + the most relevant internal pages; concatenate (capped)."""
     parts: list[str] = []
     async with httpx.AsyncClient(follow_redirects=True, timeout=15.0,
-                                 headers={"User-Agent": "LineForge/0.1 (+demo)"}) as c:
+                                 headers={"User-Agent": "Otto/0.1 (+demo)"}) as c:
         text, links = await _fetch_page(c, base_url)
         parts.append(f"[page] {base_url}\n{text}")
         for u in _rank_links(base_url, links)[: max(0, max_pages - 1)]:

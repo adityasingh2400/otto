@@ -62,7 +62,7 @@ ngrok http 7860          # note the ngrok host (e.g. abc123.ngrok.app)
 
 # terminal 3 — the Pipecat phone agent (the runner serves the webhook + TwiML)
 cd apps/agent && uv sync --python 3.12
-LINEFORGE_SESSION=<sid-from-dashboard> uv run --python 3.12 bot.py --transport twilio --proxy abc123.ngrok.app
+OTTO_SESSION=<sid-from-dashboard> uv run --python 3.12 bot.py --transport twilio --proxy abc123.ngrok.app
 ```
 
 In the Twilio console, set the number's **Voice webhook** to your ngrok HTTPS URL (the

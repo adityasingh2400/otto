@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy the LineForge Pipecat agent to AWS Bedrock AgentCore Runtime (Graviton/ARM64),
+# Deploy the Otto Pipecat agent to AWS Bedrock AgentCore Runtime (Graviton/ARM64),
 # which auto-scales 0 -> thousands of isolated microVM sessions, pay-per-active-reasoning.
 #
 # Prereqs: AWS CLI configured, an ECR repo, Docker. ⚠️ SET A BUDGET ALARM FIRST.
@@ -9,7 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 : "${AWS_REGION:=us-east-1}"
-: "${ECR_REPO:?set ECR_REPO=<account>.dkr.ecr.${AWS_REGION}.amazonaws.com/lineforge-agent}"
+: "${ECR_REPO:?set ECR_REPO=<account>.dkr.ecr.${AWS_REGION}.amazonaws.com/otto-agent}"
 TAG="${TAG:-latest}"
 
 echo "▸ build ARM64 image (AgentCore requires linux/arm64)"

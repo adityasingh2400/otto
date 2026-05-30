@@ -1,6 +1,6 @@
-# LineForge orchestrator + dashboard. Build from the REPO ROOT (needs packages/spec):
-#   docker build -f apps/orchestrator/Dockerfile -t lineforge-orchestrator .
-#   docker run -p 8000:8000 --env-file .env lineforge-orchestrator
+# Otto orchestrator + dashboard. Build from the REPO ROOT (needs packages/spec):
+#   docker build -f apps/orchestrator/Dockerfile -t otto-orchestrator .
+#   docker run -p 8000:8000 --env-file .env otto-orchestrator
 FROM python:3.12-slim
 
 RUN pip install --no-cache-dir uv

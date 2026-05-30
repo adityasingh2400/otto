@@ -5,7 +5,7 @@ caller; the agent runs the SAME pipeline as the phone path. Run one of these per
 scenario, or keep a pool warm.
 
 Run:  uv run --python 3.12 python daily_runner.py
-Env:  DAILY_ROOM_URL, DAILY_API_KEY, LINEFORGE_SESSION (or falls back to cached piccino)
+Env:  DAILY_ROOM_URL, DAILY_API_KEY, OTTO_SESSION (or falls back to cached piccino)
 
 D3 TODO(team): wire this to app/cekura.py run_suite (it passes DAILY_ROOM_URL as the
 agent websocket). Confirm DailyTransport params against the pinned Pipecat version.
@@ -18,7 +18,7 @@ import os
 import pathlib
 
 import httpx
-from lineforge_spec import AgentSpec
+from otto_spec import AgentSpec
 
 import bot
 

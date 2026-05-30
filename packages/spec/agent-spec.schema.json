@@ -324,7 +324,7 @@
   "required": [
     "business"
   ],
-  "title": "LineForge AgentSpec",
+  "title": "Otto AgentSpec",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

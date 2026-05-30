@@ -1,4 +1,4 @@
-"""AgentSpec Pydantic models — source of truth for the LineForge contract.
+"""AgentSpec Pydantic models — source of truth for the Otto contract.
 
 Regenerate JSON Schema + check drift with:  uv run python export_schema.py
 """

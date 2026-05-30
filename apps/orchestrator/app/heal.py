@@ -8,7 +8,7 @@ output is a clean before/after policy diff (see diff_specs) — never freeform p
 
 from __future__ import annotations
 
-from lineforge_spec import AgentSpec, Policy, diff_specs
+from otto_spec import AgentSpec, Policy, diff_specs
 
 from . import config, llm
 from .events import bus

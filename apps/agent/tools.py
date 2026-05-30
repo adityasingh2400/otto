@@ -11,7 +11,7 @@ import os
 from typing import Any
 
 import httpx
-from lineforge_spec import AgentSpec
+from otto_spec import AgentSpec
 
 
 def _mock(spec: AgentSpec, tool_name: str, fallback: dict) -> dict:

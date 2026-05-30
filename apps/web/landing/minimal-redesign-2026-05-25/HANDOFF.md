@@ -1,7 +1,7 @@
 # Landing redesign — minimal layout explorations (2026-05-25)
 
 Generated via `/design-shotgun`. Three **minimal** landing-page layout variations for
-**Otto.** (the LineForge product). Status: **awaiting the user's pick — no variant promoted yet.**
+**Otto.** (the Otto product). Status: **awaiting the user's pick — no variant promoted yet.**
 
 ## The ask
 "Redesign the landing page layout. Give me a few variations. Landing page only."
@@ -9,7 +9,7 @@ Then refined to: **"all concepts should be minimalism similar to the existing la
 just designed 10x better."**
 
 ## Hard constraint (do not violate)
-Brand is **locked** by `/Users/aditya/Desktop/callski/DESIGN.md` — "Warm Editorial":
+Brand is **locked** by `/Users/aditya/Desktop/otto/DESIGN.md` — "Warm Editorial":
 cream `#FAF6F1` + maroon `#7A1B2D`, Fraunces display, DM Sans body, JetBrains Mono for
 data/captions, faint maroon dot-grain, soft shadows. The user wanted **layout** variety,
 **not** a rebrand. All three variants share the identical brand/tokens; only the
@@ -46,7 +46,7 @@ Side-by-side board: `board.html` (open in a browser; it iframes the three at sca
 ## Next step (where to resume)
 1. **User picks A / B / C** (or asks to mix elements — e.g. C's poster type with B's centered
    input + live pill). The pick question was about to be asked when the session was handed off.
-2. **Promote the chosen variant** → copy it to `/Users/aditya/Desktop/callski/apps/web/index.html`
+2. **Promote the chosen variant** → copy it to `/Users/aditya/Desktop/otto/apps/web/index.html`
    (the live landing, served at `/`). It's a drop-in replacement; the current file is also
    49 lines of the same brand, so no other wiring is needed.
 3. Optional tweaks the user may want:

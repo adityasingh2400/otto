@@ -1,4 +1,4 @@
-# LineForge status
+# Otto status
 
 Runs right now with **no keys** (static mode); a single free key makes it fully live.
 

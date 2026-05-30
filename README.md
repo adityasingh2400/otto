@@ -1,4 +1,4 @@
-# LineForge
+# Otto
 
 **Paste a business website. Get a live, self-healing inbound phone line in 30 seconds.**
 
@@ -12,6 +12,56 @@ the swarm, and only activates the phone line once it clears a safety gate.
 Built for the **Gemma 4 Voice Agents Hackathon** (YC SF, May 30 2026) — theme:
 *Voice AI, open models, and next-generation evals.* Co-hosted by Daily/Pipecat and
 Cekura, with NVIDIA, AWS, and Twilio.
+
+---
+
+## What Otto provides
+
+Otto is an **AI front desk for local service businesses**. Connect your website (and,
+optionally, your Google Business Profile, booking/POS platform, menus, or a 60-second
+owner intake) and Otto stands up a phone line that:
+
+- **Answers every call**, 24/7, in a natural voice — no missed calls, no staff pulled off the floor.
+- **Takes the actual action, not just talk** — books the reservation or appointment, checks
+  real availability, takes the order, processes a payment, handles a refund, dispatches a job,
+  escalates to a human, texts a confirmation. The tool set is configured per business.
+- **Is proven safe before it ever goes live** — a swarm of synthetic callers, tailored to your
+  business type, attacks the agent; an eval engine scores every call on *did it say the right
+  thing* **and** *did it do the right thing*; the system patches its own policies, re-runs the
+  swarm, and activates the number only once it clears a safety gate.
+- **Keeps healing in production** — every real call is evaluated. A wrong answer or a
+  missed/incorrect action triggers a targeted, high-volume swarm-heal on that one thing →
+  patch → re-verify → redeploy. The line never stops getting safer.
+
+Two kinds of failure, both caught and healed: **what the agent says** (a hallucinated policy,
+a botched edge case) and **what the agent does** (the wrong booking, the action it never took).
+Most voice agents only ever test the first.
+
+## Why this niche — local service businesses
+
+We chose local service businesses — **restaurants, home-services contractors, clinics, salons,
+law offices** — deliberately. Three reasons they're the right wedge:
+
+1. **The phone is still the cash register.** These businesses run on calls: bookings, orders,
+   changes, availability, complaints. A missed or fumbled call is lost revenue *today* — and
+   owners miss calls constantly while staff get interrupted mid-service.
+
+2. **High stakes are exactly why AI scares them — and that's the opening.** One bad answer or
+   wrong action (an over-promised allergy guarantee, a hallucinated open table, a 14-top shoved
+   through the normal flow, a mishandled refund) costs money or creates liability. So owners
+   don't trust AI on their phone. That distrust *is* the market: Otto's whole product — tested,
+   self-healing, gated — is the proof that earns the trust no generic voice bot can offer.
+
+3. **The domain is bounded enough to actually test to safety.** A restaurant's calls, a
+   contractor's calls, a clinic's calls each form a finite, enumerable set of scenarios. That's
+   what makes the swarm-and-heal loop *tractable* here: we generate the right synthetic callers
+   per vertical, drive coverage high, and clear a real pass gate. The same method is hopeless
+   against an open-domain assistant; for a front desk it's achievable. **The niche and the
+   method fit each other.**
+
+Net: **high-pain, high-stakes, bounded-domain.** The businesses that most need their phone
+answered are the ones most afraid to let AI do it — and the bounded domain is precisely what
+lets Otto remove the fear.
 
 ---
 

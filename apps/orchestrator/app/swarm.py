@@ -16,7 +16,7 @@ import asyncio
 import time
 from dataclasses import asdict, dataclass, field
 
-from lineforge_spec import AgentSpec
+from otto_spec import AgentSpec
 
 from . import config, llm
 from .events import bus

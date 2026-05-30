@@ -335,7 +335,7 @@ wheels = [
 ]
 
 [[package]]
-name = "lineforge-orchestrator"
+name = "otto-orchestrator"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
@@ -343,7 +343,7 @@ dependencies = [
     { name = "beautifulsoup4" },
     { name = "fastapi" },
     { name = "httpx" },
-    { name = "lineforge-spec" },
+    { name = "otto-spec" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "python-dotenv" },
@@ -356,7 +356,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.12" },
     { name = "fastapi", specifier = ">=0.110" },
     { name = "httpx", specifier = ">=0.27" },
-    { name = "lineforge-spec", editable = "../../packages/spec" },
+    { name = "otto-spec", editable = "../../packages/spec" },
     { name = "openai", specifier = ">=1.30" },
     { name = "pydantic", specifier = ">=2.6" },
     { name = "python-dotenv", specifier = ">=1.0" },
@@ -364,7 +364,7 @@ requires-dist = [
 ]
 
 [[package]]
-name = "lineforge-spec"
+name = "otto-spec"
 version = "0.1.0"
 source = { editable = "../../packages/spec" }
 dependencies = [

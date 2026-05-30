@@ -17,7 +17,7 @@ import os
 import pathlib
 
 import httpx
-from lineforge_spec import AgentSpec
+from otto_spec import AgentSpec
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.pipeline.pipeline import Pipeline
@@ -151,7 +151,7 @@ def _handler(spec: AgentSpec, name: str):
 
 
 async def _report_to_orchestrator(context: OpenAILLMContext) -> None:
-    session = os.getenv("LINEFORGE_SESSION", "")
+    session = os.getenv("OTTO_SESSION", "")
     orch = os.getenv("ORCH_BASE_URL", "http://localhost:8000")
     if not session:
         return
@@ -169,7 +169,7 @@ async def _report_to_orchestrator(context: OpenAILLMContext) -> None:
 
 # ── spec loading (shared by the entrypoints) ─────────────────────────────────
 async def load_spec() -> AgentSpec:
-    session = os.getenv("LINEFORGE_SESSION", "")
+    session = os.getenv("OTTO_SESSION", "")
     orch = os.getenv("ORCH_BASE_URL", "http://localhost:8000")
     if session:
         try:

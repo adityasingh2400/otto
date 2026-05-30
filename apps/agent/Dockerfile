@@ -3,7 +3,7 @@
 # isolated microVM sessions (you pay for active reasoning, not I/O wait).
 #
 # Build from the REPO ROOT (needs packages/spec):
-#   docker build --platform linux/arm64 -f apps/agent/Dockerfile -t lineforge-agent .
+#   docker build --platform linux/arm64 -f apps/agent/Dockerfile -t otto-agent .
 # Deploy: see scripts/deploy-agentcore.sh and docs/TECH.md §AWS.
 FROM --platform=linux/arm64 python:3.12-slim
 

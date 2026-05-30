@@ -1,7 +1,7 @@
-"""LineForge orchestrator API.
+"""Otto orchestrator API.
 
   POST /api/run            {url?, use_cached?}  -> {session_id}; starts the pipeline
-  GET  /api/events/{sid}    Server-Sent Events stream of LineForgeEvent (the dashboard)
+  GET  /api/events/{sid}    Server-Sent Events stream of OttoEvent (the dashboard)
   GET  /api/spec/{sid}      current AgentSpec
   POST /api/activate/{sid}  manually (re)activate the line for a session
   GET  /api/health
@@ -23,7 +23,7 @@ from . import config, store
 from .events import sse_stream
 from .pipeline import activate, run_pipeline
 
-app = FastAPI(title="LineForge Orchestrator", version="0.1.0")
+app = FastAPI(title="Otto Orchestrator", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

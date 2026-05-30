@@ -1,5 +1,5 @@
-// LineForge AgentSpec — TS mirror of the Pydantic source of truth
-// (packages/spec/src/lineforge_spec/models.py). Keep in sync; the JSON Schema in
+// Otto AgentSpec — TS mirror of the Pydantic source of truth
+// (packages/spec/src/otto_spec/models.py). Keep in sync; the JSON Schema in
 // agent-spec.schema.json is the generated cross-language artifact.
 
 export type PolicyCategory = "safety" | "booking" | "knowledge" | "voice_behavior";
@@ -114,7 +114,7 @@ export interface PolicyDiff {
   after: Policy;
 }
 
-export type LineForgeEvent =
+export type OttoEvent =
   | { type: "stage"; stage: StageId; status: "start" | "done"; detail?: string }
   | { type: "fact"; topic: string; content: string } // extraction stream
   | { type: "call"; result: CallResult }

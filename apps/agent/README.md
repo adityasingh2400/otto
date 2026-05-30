@@ -1,4 +1,4 @@
-# LineForge agent (Pipecat)
+# Otto agent (Pipecat)
 
 Serves an `AgentSpec` as a live voice agent over two transports — Twilio (phone) and
 Daily (the Cekura swarm) — using the **same** pipeline, so the swarm tests exactly what
@@ -24,7 +24,7 @@ cp ../../.env.example ../../.env   # fill STT/LLM/TTS + Twilio + Daily keys
 ```bash
 ngrok http 7860                       # note the ngrok host
 # the runner serves the webhook + TwiML + serializer for you:
-LINEFORGE_SESSION=<sid> uv run --python 3.12 bot.py --transport twilio --proxy <ngrok-host>
+OTTO_SESSION=<sid> uv run --python 3.12 bot.py --transport twilio --proxy <ngrok-host>
 # Twilio console: set the number's Voice webhook → your ngrok HTTPS URL
 ```
 

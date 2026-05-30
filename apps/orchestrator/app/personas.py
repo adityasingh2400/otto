@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-from lineforge_spec import AgentSpec, Policy
+from otto_spec import AgentSpec, Policy
 
 
 @dataclass

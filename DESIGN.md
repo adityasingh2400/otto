@@ -1,4 +1,4 @@
-# LineForge — Design System
+# Otto — Design System
 
 **Warm Editorial.** Chosen via `/design-shotgun` (direction B) and implemented across the
 whole site. This supersedes the earlier "Sunset Arcade" direction — arcade was rejected.

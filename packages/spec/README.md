@@ -1,8 +1,8 @@
-# @lineforge/spec
+# @otto/spec
 
-The `AgentSpec` — the single contract every LineForge component reads and writes.
+The `AgentSpec` — the single contract every Otto component reads and writes.
 
-- **Source of truth:** `src/lineforge_spec/models.py` (Pydantic). Both Python apps
+- **Source of truth:** `src/otto_spec/models.py` (Pydantic). Both Python apps
   (`apps/orchestrator`, `apps/agent`) import it via an editable path dependency.
 - **Generated:** `agent-spec.schema.json` (`uv run python export_schema.py`).
 - **Mirror:** `types.ts` for the Next.js dashboard.

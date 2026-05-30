@@ -1,11 +1,11 @@
 [project]
-name = "lineforge-agent"
+name = "otto-agent"
 version = "0.1.0"
-description = "LineForge voice agent — serves an AgentSpec over Twilio (phone) and Daily (Cekura swarm) via Pipecat."
+description = "Otto voice agent — serves an AgentSpec over Twilio (phone) and Daily (Cekura swarm) via Pipecat."
 # Pipecat audio deps have best wheel coverage on 3.10–3.12; pin away from 3.14.
 requires-python = ">=3.10,<3.13"
 dependencies = [
-  "lineforge-spec",
+  "otto-spec",
   "python-dotenv>=1.0",
   "httpx>=0.27",
   "fastapi>=0.110",
@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-lineforge-spec = { path = "../../packages/spec", editable = true }
+otto-spec = { path = "../../packages/spec", editable = true }
 
 [tool.uv]
 package = false

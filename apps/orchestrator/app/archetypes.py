@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from lineforge_spec import AgentSpec, Policy
+from otto_spec import AgentSpec, Policy
 
 from . import personas as P
 from .personas import Persona, _any_kw, _texts, _check_interrupt, _check_no_invent, _always

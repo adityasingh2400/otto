@@ -1,11 +1,11 @@
-"""End-to-end tests for the LineForge loop. No keys needed (static mode).
+"""End-to-end tests for the Otto loop. No keys needed (static mode).
 
 Run:  cd apps/orchestrator && uv run --python 3.12 --with pytest python -m pytest tests -q
 """
 
 import asyncio
 
-from lineforge_spec import AgentSpec
+from otto_spec import AgentSpec
 
 from app import archetypes, config, store
 from app.events import bus

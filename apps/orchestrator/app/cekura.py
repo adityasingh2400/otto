@@ -25,7 +25,7 @@ import dataclasses
 
 import httpx
 
-from lineforge_spec import AgentSpec
+from otto_spec import AgentSpec
 
 from . import config
 from .events import bus
@@ -126,12 +126,12 @@ async def _ensure_scenarios(c: httpx.AsyncClient, personas: list[Persona]) -> di
     out: dict[str, int] = {}
     for p in personas:
         body: dict = {
-            "name": f"lineforge-{p.id}",
+            "name": f"otto-{p.id}",
             "scenario_type": "real_world_smart",
             "agent": int(config.CEKURA_AGENT_ID),
             "instructions": f"Caller goal: {p.goal}\nSuccess criteria: {p.success_criteria}",
             "scenario_language": "en",
-            "tags": ["lineforge", p.category],
+            "tags": ["otto", p.category],
         }
         if config.CEKURA_PERSONALITY_ID:
             body["personality"] = int(config.CEKURA_PERSONALITY_ID)

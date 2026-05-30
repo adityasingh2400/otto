@@ -1,4 +1,4 @@
-"""LineForge AgentSpec — the single contract shared across the orchestrator,
+"""Otto AgentSpec — the single contract shared across the orchestrator,
 the Pipecat agent, and (via JSON Schema / TS types) the dashboard.
 
 The self-heal loop only ever edits `AgentSpec.policies`. The live system prompt is

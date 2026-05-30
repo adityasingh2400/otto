@@ -1,7 +1,7 @@
 [project]
-name = "lineforge-orchestrator"
+name = "otto-orchestrator"
 version = "0.1.0"
-description = "LineForge orchestrator — extract, build, swarm, heal, activate."
+description = "Otto orchestrator — extract, build, swarm, heal, activate."
 requires-python = ">=3.10"
 dependencies = [
   "fastapi>=0.110",
@@ -10,14 +10,14 @@ dependencies = [
   "pydantic>=2.6",
   "python-dotenv>=1.0",
   "beautifulsoup4>=4.12",
-  "lineforge-spec",
+  "otto-spec",
   # LLM providers (optional at runtime; guarded imports). cost is not a concern.
   "openai>=1.30",
   "anthropic>=0.40",
 ]
 
 [tool.uv.sources]
-lineforge-spec = { path = "../../packages/spec", editable = true }
+otto-spec = { path = "../../packages/spec", editable = true }
 
 [tool.uv]
 package = false

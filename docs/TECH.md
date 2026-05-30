@@ -1,4 +1,4 @@
-# LineForge — Technology Deep Dive
+# Otto — Technology Deep Dive
 
 How we use each technology to the **fullest**, not just the happy path. Every layer is
 config-swappable; defaults favor reliability, sponsor swaps claim tracks. Five sponsors

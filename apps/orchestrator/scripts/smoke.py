@@ -48,7 +48,7 @@ async def main() -> None:
         print(f"  {bt:22} → {archetypes.vertical_for(bt):10} : {[p.id for p in ps if p.hero]}")
 
     # ── second vertical end-to-end (contractor, static) ──
-    from lineforge_spec import AgentSpec  # noqa: E402
+    from otto_spec import AgentSpec  # noqa: E402
     from app.heal import heal  # noqa: E402
     from app.swarm import run_swarm  # noqa: E402
     con = AgentSpec.model_validate_json((config.SPEC_DIR / "contractor.json").read_text())
