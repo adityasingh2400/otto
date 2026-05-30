@@ -48,7 +48,10 @@ from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
-from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.adapters.schemas.function_schema import FunctionSchema
+from pipecat.adapters.schemas.tools_schema import ToolsSchema
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
 from pipecat.runner.types import RunnerArguments
 from pipecat.runner.utils import create_transport
 from pipecat.transports.base_transport import BaseTransport, TransportParams
@@ -59,18 +62,18 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 
 # ── tool schemas from the spec ───────────────────────────────────────────────
-def build_tool_schemas(spec: AgentSpec) -> list[dict]:
-    out = []
+def build_tool_schemas(spec: AgentSpec) -> ToolsSchema | None:
+    """Pipecat 1.x ToolsSchema (provider-agnostic) built from the spec's tools."""
+    fns = []
     for t in spec.tools:
         props, required = {}, []
         for p in t.params:
             props[p.name] = {"type": _json_type(p.type), "description": p.description}
             if p.required:
                 required.append(p.name)
-        out.append({"type": "function", "function": {
-            "name": t.name, "description": t.description,
-            "parameters": {"type": "object", "properties": props, "required": required}}})
-    return out
+        fns.append(FunctionSchema(name=t.name, description=t.description,
+                                  properties=props, required=required))
+    return ToolsSchema(standard_tools=fns) if fns else None
 
 
 def _json_type(t: str) -> str:
@@ -162,11 +165,12 @@ async def run_bot(transport: BaseTransport, spec: AgentSpec) -> None:
         return await _run_bot_s2s(transport, spec)
     rec = _Recorder()  # per-call state — concurrency-safe across simultaneous calls
     stt, tts, llm = _stt(), _tts(spec), _llm()
-    context = OpenAILLMContext(
+    tools = build_tool_schemas(spec)
+    context = LLMContext(
         messages=[{"role": "system", "content": spec.compile_prompt() + _today_line(spec)}],
-        tools=build_tool_schemas(spec),
+        **({"tools": tools} if tools else {}),
     )
-    aggregator = llm.create_context_aggregator(context)
+    aggregator = LLMContextAggregatorPair(context)
 
     for t in spec.tools:
         llm.register_function(t.name, _handler(spec, t.name, rec))
@@ -215,8 +219,9 @@ async def _run_bot_s2s(transport: BaseTransport, spec: AgentSpec) -> None:
         region=os.getenv("AWS_REGION", "us-east-1"),
         settings=AWSNovaSonicLLMService.Settings(voice="matthew", system_instruction=spec.compile_prompt() + _today_line(spec)),
     )
-    context = OpenAILLMContext(messages=[], tools=build_tool_schemas(spec))
-    aggregator = llm.create_context_aggregator(context)
+    tools = build_tool_schemas(spec)
+    context = LLMContext(messages=[], **({"tools": tools} if tools else {}))
+    aggregator = LLMContextAggregatorPair(context)
     for t in spec.tools:
         llm.register_function(t.name, _handler(spec, t.name, rec))
 
@@ -313,7 +318,7 @@ def _conf(frame) -> float:
     return 1.0
 
 
-async def _report_to_orchestrator(context: OpenAILLMContext, rec: "_Recorder") -> None:
+async def _report_to_orchestrator(context: LLMContext, rec: "_Recorder") -> None:
     """Ship a structured CallTrace (dialogue + the real tool event stream) to /api/observe,
     which classifies it across the failure taxonomy and, on a failure, fires a targeted
     swarm-heal. The tool events carry real outcomes + latency; dialogue turns are interleaved
