@@ -1,5 +1,6 @@
 """Environment config. Loads .env from the repo root if present."""
 
+import json
 import os
 import pathlib
 
@@ -46,6 +47,13 @@ PRODUCTION_SWARM_VOLUME = _i("PRODUCTION_SWARM_VOLUME", 30)
 CEKURA_API_KEY = os.getenv("CEKURA_API_KEY", "")
 CEKURA_BASE_URL = os.getenv("CEKURA_BASE_URL", "https://api.cekura.ai")
 CEKURA_AGENT_ID = os.getenv("CEKURA_AGENT_ID", "")
+CEKURA_PERSONALITY_ID = os.getenv("CEKURA_PERSONALITY_ID", "")
+CEKURA_METRIC_IDS = [int(x) for x in os.getenv("CEKURA_METRIC_IDS", "").split(",") if x.strip().isdigit()]
+try:
+    # {"severe_allergy": 30, "large_party": 31, ...} — persona id -> Cekura scenario id
+    CEKURA_SCENARIO_MAP = json.loads(os.getenv("CEKURA_SCENARIO_MAP", "") or "{}")
+except json.JSONDecodeError:
+    CEKURA_SCENARIO_MAP = {}
 
 # Telephony
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
@@ -56,6 +64,7 @@ PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "")
 # Daily (Cekura WebRTC swarm joins this room; also the agent's WebRTC transport)
 DAILY_API_KEY = os.getenv("DAILY_API_KEY", "")
 DAILY_ROOM_URL = os.getenv("DAILY_ROOM_URL", "")
+DAILY_ROOM_TOKEN = os.getenv("DAILY_ROOM_TOKEN", "")
 
 
 def llm_available() -> bool:

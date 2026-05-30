@@ -1,16 +1,21 @@
 """Cekura integration — the real eval engine (sponsor / co-host).
 
-Endpoints confirmed from docs.cekura.ai/api-reference (auth: X-CEKURA-API-KEY):
-  test_framework/v1/scenarios/run_scenarios_with_websockets/   run a scenario suite
-  test_framework  get-evaluator / get-metric / get-test-profile / get-agent  (create/read)
-  test_framework  list-runs-with-ids / get-result                            (poll results)
-  observability/v1/observe/                                                   log live calls
+Contracts below are taken verbatim from docs.cekura.ai/api-reference (auth header
+`X-CEKURA-API-KEY`). Our agent exposes a Daily WebRTC room (apps/agent/daily_runner.py),
+so we use the **Pipecat/Daily** run path — Cekura's simulated caller joins our room:
 
-D3 task: this client is scaffolded against the documented routes. The exact request
-field names must be confirmed against the live API reference (marked TODO(team)) and a
-running agent reachable over a Daily WebRTC room (apps/agent/daily_runner.py) is
-required for `run_suite` to actually execute. Until then `run_suite` raises, and the
-swarm falls back to local sim/static automatically — the loop keeps working.
+  POST /test_framework/v1/scenarios-external/run_scenarios_pipecat/
+       body: {"scenarios": [{"scenario": <id>, "pipecat_room_url": <daily url>, "pipecat_token": <tok?>}]}
+       -> {"id": <result_id>, "status": ..., "runs": [...]}
+  GET  /test_framework/v1/results/{result_id}/
+       -> {"status": completed|failed|..., "runs": {runId: {scenario, scenario_name,
+            success: bool, expected_outcome:{score,explanation[]}, error_message, ...}}}
+  POST /observability/v1/observe/   (production monitoring of live calls)
+
+Plug-and-play: pre-create scenarios+personalities+metrics once in the Cekura dashboard
+and set CEKURA_AGENT_ID + CEKURA_SCENARIO_MAP (persona_id -> scenario_id) in .env. If
+that's missing, run_suite raises and the swarm falls back to local sim/static — the loop
+keeps working. `_ensure_scenarios` can also create them via the API (needs CEKURA_AGENT_ID).
 """
 
 from __future__ import annotations
@@ -26,123 +31,125 @@ from . import config
 from .events import bus
 from .personas import Persona
 
-_HEADERS = {"X-CEKURA-API-KEY": config.CEKURA_API_KEY, "Content-Type": "application/json"}
+_TERMINAL = {"completed", "failed", "timeout", "cancelled"}
 
 
 def _client() -> httpx.AsyncClient:
-    return httpx.AsyncClient(base_url=config.CEKURA_BASE_URL, headers=_HEADERS, timeout=30.0)
+    return httpx.AsyncClient(
+        base_url=config.CEKURA_BASE_URL,
+        headers={"X-CEKURA-API-KEY": config.CEKURA_API_KEY, "Content-Type": "application/json"},
+        timeout=30.0,
+    )
 
 
 async def run_suite(session_id: str, spec: AgentSpec, personas: list[Persona], round_no: int):
-    """Run the persona suite via Cekura against the live agent and return CallResults.
+    """Run the persona suite via Cekura against our live Daily room; return CallResults.
 
-    Publishes a {"type":"call"} event per result so the arena animates the same way as
-    local mode. Imports CallResult lazily to avoid a circular import with swarm.
+    Publishes a {"type":"call"} event per result so the arena animates like local mode.
+    Raises on any prerequisite gap so swarm.py can fall back to local eval.
     """
     from .swarm import CallResult
 
     if not config.cekura_available():
         raise RuntimeError("CEKURA_API_KEY not set")
-    agent_ws = _agent_websocket_url()
-    if not agent_ws:
-        raise RuntimeError("no agent websocket/Daily room configured for Cekura (set DAILY_ROOM_URL)")
+    if not config.DAILY_ROOM_URL:
+        raise RuntimeError("DAILY_ROOM_URL not set (the agent must expose a Daily room for Cekura to join)")
 
     async with _client() as c:
-        agent_id = await _ensure_agent(c, spec, agent_ws)
-        scenario_ids = await _ensure_scenarios(c, agent_id, personas)
-        run_ids = await _trigger_run(c, agent_id, scenario_ids, agent_ws)
-        raw = await _poll_results(c, run_ids)
+        scenario_map = dict(config.CEKURA_SCENARIO_MAP)
+        if not scenario_map:
+            scenario_map = await _ensure_scenarios(c, personas)  # may raise
 
-    by_persona = {r["persona_id"]: r for r in raw}
-    results: list[CallResult] = []
-    for p in personas:
-        r = by_persona.get(p.id)
-        if not r:
+        items, by_scenario = [], {}
+        for p in personas:
+            sid = scenario_map.get(p.id)
+            if sid is None:
+                continue
+            item = {"scenario": int(sid), "pipecat_room_url": config.DAILY_ROOM_URL}
+            if config.DAILY_ROOM_TOKEN:
+                item["pipecat_token"] = config.DAILY_ROOM_TOKEN
+            items.append(item)
+            by_scenario[int(sid)] = p
+        if not items:
+            raise RuntimeError("no Cekura scenarios mapped to personas (set CEKURA_SCENARIO_MAP)")
+
+        resp = await c.post("/test_framework/v1/scenarios-external/run_scenarios_pipecat/", json={"scenarios": items})
+        resp.raise_for_status()
+        result_id = resp.json().get("id")
+        runs = await _poll_results(c, result_id)
+
+    results = []
+    for run in runs:
+        p = by_scenario.get(run.get("scenario")) or _match_name(personas, run.get("scenario_name", ""))
+        if not p:
             continue
-        res = CallResult(p.id, p.label, p.category, bool(r["passed"]),
-                         str(r.get("reason", ""))[:300], r.get("transcript", []),
-                         int(r.get("latency_ms", 0)), backend="cekura")
+        res = CallResult(p.id, p.label, p.category, bool(run.get("success")),
+                         str(run.get("reason", ""))[:300], [], int(run.get("duration_ms", 0)), backend="cekura")
         await bus.publish(session_id, {"type": "call", "result": dataclasses.asdict(res)})
         results.append(res)
     return results
 
 
-def _agent_websocket_url() -> str:
-    # The Cekura simulated caller joins the agent here (Daily WebRTC room, manual mode).
-    return config.DAILY_ROOM_URL or ""
+async def _poll_results(c: httpx.AsyncClient, result_id, *, timeout: float = 240.0) -> list[dict]:
+    loop = asyncio.get_event_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        r = await c.get(f"/test_framework/v1/results/{result_id}/")
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("status") in _TERMINAL:
+                out = []
+                for _rid, run in (data.get("runs") or {}).items():
+                    eo = run.get("expected_outcome") or {}
+                    expl = eo.get("explanation")
+                    reason = (" ".join(expl) if isinstance(expl, list) else str(expl or "")) or run.get("error_message", "")
+                    out.append({
+                        "scenario": run.get("scenario"),
+                        "scenario_name": run.get("scenario_name", ""),
+                        "success": run.get("success", False),
+                        "reason": reason,
+                        "duration_ms": run.get("duration_ms", 0),
+                    })
+                return out
+        await asyncio.sleep(3.0)
+    raise RuntimeError(f"Cekura result {result_id} did not finish within {int(timeout)}s")
 
 
-async def _ensure_agent(c: httpx.AsyncClient, spec: AgentSpec, agent_ws: str) -> str:
-    if config.CEKURA_AGENT_ID:
-        return config.CEKURA_AGENT_ID
-    # TODO(team): confirm payload shape against api-reference/test_framework/get-agent
-    resp = await c.post("/test_framework/v1/agents/", json={
-        "name": f"lineforge-{spec.business.name}",
-        "type": "voice",
-        "connection": {"method": "manual", "websocket_url": agent_ws},
-    })
-    resp.raise_for_status()
-    return str(resp.json().get("id"))
+async def _ensure_scenarios(c: httpx.AsyncClient, personas: list[Persona]) -> dict[str, int]:
+    """Create one real_world_smart scenario per persona, linked to CEKURA_AGENT_ID.
 
-
-async def _ensure_scenarios(c: httpx.AsyncClient, agent_id: str, personas: list[Persona]) -> list[str]:
-    # TODO(team): confirm evaluator/scenario payload. Map our persona to Cekura's:
-    #   personality -> Cekura personality (tone/interruption/accent),
-    #   success_criteria -> an LLM-judge metric/rubric.
-    ids: list[str] = []
+    Returns {persona_id: scenario_id}. Optional env: CEKURA_PERSONALITY_ID, CEKURA_METRIC_IDS
+    (comma-separated). Prefer pre-creating in the dashboard + CEKURA_SCENARIO_MAP for the demo.
+    """
+    if not config.CEKURA_AGENT_ID:
+        raise RuntimeError("set CEKURA_SCENARIO_MAP or CEKURA_AGENT_ID so scenarios can be created")
+    out: dict[str, int] = {}
     for p in personas:
-        resp = await c.post("/test_framework/v1/evaluators/", json={
-            "agent": agent_id,
-            "name": p.label,
-            "scenario": p.goal,
-            "personality": {"description": p.personality},
-            "metrics": [{"type": "llm_judge", "name": p.id, "criteria": p.success_criteria}],
-        })
-        resp.raise_for_status()
-        ids.append(str(resp.json().get("id")))
-    return ids
-
-
-async def _trigger_run(c: httpx.AsyncClient, agent_id: str, scenario_ids: list[str], agent_ws: str) -> list[str]:
-    resp = await c.post("/test_framework/v1/scenarios/run_scenarios_with_websockets/", json={
-        "scenarios": [
-            {"scenario_id": sid, "agent_id": agent_id, "websocket_url": agent_ws, "frequency": 1}
-            for sid in scenario_ids
-        ],
-    })
-    resp.raise_for_status()
-    body = resp.json()
-    runs = body.get("runs", body if isinstance(body, list) else [])
-    return [str(r.get("run_id", r.get("id"))) for r in runs]
-
-
-async def _poll_results(c: httpx.AsyncClient, run_ids: list[str], *, timeout: float = 180.0) -> list[dict]:
-    # TODO(team): confirm get-result shape; this maps to {persona_id,passed,reason,transcript}.
-    deadline = asyncio.get_event_loop().time() + timeout
-    out: list[dict] = []
-    pending = set(run_ids)
-    while pending and asyncio.get_event_loop().time() < deadline:
-        for rid in list(pending):
-            resp = await c.get(f"/test_framework/v1/results/{rid}/")
-            if resp.status_code != 200:
-                continue
-            data = resp.json()
-            if data.get("status") in ("completed", "done", "finished"):
-                out.append({
-                    "persona_id": data.get("scenario_name") or data.get("evaluator_name"),
-                    "passed": data.get("passed", data.get("success", False)),
-                    "reason": data.get("summary") or data.get("reason", ""),
-                    "transcript": data.get("transcript", []),
-                    "latency_ms": data.get("latency_ms", 0),
-                })
-                pending.discard(rid)
-        if pending:
-            await asyncio.sleep(3.0)
+        body: dict = {
+            "name": f"lineforge-{p.id}",
+            "scenario_type": "real_world_smart",
+            "agent": int(config.CEKURA_AGENT_ID),
+            "instructions": f"Caller goal: {p.goal}\nSuccess criteria: {p.success_criteria}",
+            "scenario_language": "en",
+            "tags": ["lineforge", p.category],
+        }
+        if config.CEKURA_PERSONALITY_ID:
+            body["personality"] = int(config.CEKURA_PERSONALITY_ID)
+        if config.CEKURA_METRIC_IDS:
+            body["metrics"] = config.CEKURA_METRIC_IDS
+        r = await c.post("/test_framework/v1/scenarios/", json=body)
+        r.raise_for_status()
+        out[p.id] = int(r.json().get("id"))
     return out
 
 
+def _match_name(personas: list[Persona], scenario_name: str):
+    name = (scenario_name or "").lower()
+    return next((p for p in personas if p.id in name or p.label.lower() in name), None)
+
+
 async def observe(call_id: str, agent_id: int, transcript: list[dict], recording_url: str = "") -> None:
-    """Log a live (Twilio) call to Cekura observability — production monitoring."""
+    """Log a completed live (Twilio) call to Cekura observability — production monitoring."""
     if not config.cekura_available():
         return
     async with _client() as c:
