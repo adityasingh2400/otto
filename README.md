@@ -1,303 +1,308 @@
 # Otto
 
-**Paste a business website. Get a live, self-healing inbound phone line in 30 seconds.**
+**Paste a business website. Get a working phone line that fixes itself, in 30 seconds.**
 
 > We're not selling a voice agent. We're selling **confidence that a business can safely let
-> AI answer the phone.** The hosts put it best: *"we're not looking for the best-sounding
-> voice — we're looking for the best **system**."* Otto is the system.
+> AI answer the phone.** The hosts said it best: *"we're not looking for the best sounding
+> voice. We're looking for the best **system**."* Otto is the system.
 
-Built at the **Voice Agents Hackathon** (YC SF, May 30 2026), co-hosted by **Daily** and
-**Cekura** with **NVIDIA**, **AWS**, and **Twilio**. It runs the whole four-stage brief —
-Build & Customize, Deploy at Scale, Simulate & Evaluate, and **Auto-Improve** — and the last
-stage, where the eval results flow back in and make the agent safer, is the actual product.
+Built at the **Voice Agents Hackathon** (YC SF, May 30 2026), hosted by **Daily** and
+**Cekura** with **NVIDIA**, **AWS**, and **Twilio**. It runs the full four part brief: Build and
+Customize, Deploy at Scale, Simulate and Evaluate, and **Auto-Improve**. That last stage, where
+the test results flow back in and make the agent safer, is the actual product.
 
 ---
 
 ## 1. What is this?
 
-Otto turns a business's website into a phone agent that's been stress-tested before it ever
-rings. You paste a URL; we read the site and build the agent — its greeting, what it knows,
-the things it can actually *do* (book a table, check availability, take a payment, escalate to
-a human), and the rules it has to follow. Then, before that number goes anywhere near a real
-customer, we attack it.
+**Otto turns a business's website into a phone agent that gets stress tested before it ever
+rings, and keeps fixing itself after it does.** Paste a URL. Otto reads the site and builds the
+agent: its greeting, what it knows, what it's allowed to *do* (book a table, check availability,
+take a payment, hand off to a human), and the rules it has to follow. Then, before that number
+goes anywhere near a customer, a swarm of fake callers attacks it. It goes live only when it can
+prove it's safe, and every real call after that gets scored too.
 
 ```
-PRE-LAUNCH   extract(url) → AgentSpec → synthetic swarm attacks it → fails → heals → re-runs → GATE → activate
-PRODUCTION   every live call → graded → a detected failure authors its own policy fix
-                             → a focused swarm re-verifies (RED → GREEN) → redeploy
+BEFORE LAUNCH   read the site → build the agent → fake callers attack it → it fails → it fixes itself → runs again → passes the bar → goes live
+LIVE            every real call → scored → a failure builds its own fix → a focused swarm checks it again (RED to GREEN) → ships
 ```
 
-**Why it matters.** For a local business the phone isn't a support channel, it's the front
-door. Most people still reach for it first: nearly 8 in 10 say a call is important when they
-need to reach a business, and 55% prefer the phone when it's urgent (TransUnion, 2024).[^transunion]
-Those calls are also worth more than anything else — across 60M+ calls, 37% of phone leads
-close right there on the line, versus under 2% for a web form (Invoca, 2025).[^invoca25] The
-problem is nobody's there to pick up. Restaurants are short-staffed — 45% say they don't have
-enough people to meet demand (NRA, 2024)[^nra] — so the phone rings while the team is buried.
-Roughly a quarter of calls to home-services businesses go unanswered, and almost nobody who
-lands in voicemail leaves a message (Invoca, 2024).[^invoca24] A missed call isn't a callback
-later; it's a customer who already dialed someone else. One in three businesses say they've
-lost money simply because they couldn't get to the phone (Hiya, 2025).[^hiya]
+**The failure everyone else misses: a call that sounds perfect and never books the table.**
+Warm, fast, natural, and then the customer shows up to no reservation. The transcript reads
+fine; nobody booked anything. Most testing grades the *words*. Otto grades what the agent
+actually *did*. It reads each call as a stream of events across four things: what it **said**,
+what it **did**, how the call **ended**, and how it **felt** to the caller, using 20 checks that
+mostly run on fixed rules. Every failure it finds builds its own fix. (See
+[`docs/FAILURE_TAXONOMY.md`](docs/FAILURE_TAXONOMY.md).)
+
+**Why it's worth building.** For a local business the phone is the front door, not a support
+line. Nearly 8 in 10 people say a call matters when they need to reach a business, and 55% reach
+for the phone first when it's urgent (TransUnion, 2024).[^transunion] Those calls are worth more
+than anything else: across 60M+ calls, 37% of phone leads close right there on the line, versus
+under 2% for a web form (Invoca, 2025).[^invoca25] But nobody's there to pick up. Restaurants
+are short staffed, with 45% saying they don't have enough people to meet demand (NRA,
+2024),[^nra] so the phone rings while the team is buried. About a quarter of calls to home
+services businesses go unanswered, and almost nobody who lands in voicemail leaves a message
+(Invoca, 2024).[^invoca24] A missed call isn't a callback later. It's a customer who already
+dialed someone else, and 1 in 3 businesses say they've lost money simply because they couldn't
+get to the phone (Hiya, 2025).[^hiya]
 
 So why not just hand the phone to an AI? Because for these businesses a wrong answer is worse
-than a missed one, and AI fails in exactly the way that scares them — it says the wrong thing
-with total confidence. Speech-to-text invents words that were never spoken in about 1% of
-transcriptions, and roughly 40% of those fabrications are actively harmful (ACM FAccT, 2024);[^whisper]
-models quietly degrade over time in 91% of cases (Nature, 2022);[^aging] and about 95% of
-enterprise GenAI shows no measurable impact on the bottom line (MIT, 2025).[^mit] The hard part
-was never making the voice sound good. It's earning enough trust to turn it on — and that's
-only possible when the job is narrow enough to test every way it can go wrong. A single
-restaurant's phone calls are exactly that narrow. That's the bet Otto makes.
-
-Here's the failure everyone else misses. Picture a call where the agent sounds flawless — warm,
-quick, natural — and then quietly never books the table. The transcript reads perfectly; the
-customer shows up to no reservation. Otto grades what the agent *did*, not just what it said. It
-reads the whole call as an event stream across four dimensions — what it **said**, what it
-**did**, the **end state**, and how it **felt** — with 14 mostly-deterministic detectors, and
-every failure it finds writes its own fix. ([`docs/FAILURE_TAXONOMY.md`](docs/FAILURE_TAXONOMY.md).)
+than a missed one, and AI fails in the exact way that scares them: it says the wrong thing with
+total confidence. Speech to text invents words that were never spoken in about 1% of transcripts,
+and roughly 40% of those made up words are actively harmful (ACM FAccT, 2024).[^whisper] Models
+quietly get worse over time in 91% of cases (Nature, 2022).[^aging] And about 95% of company AI
+projects show no real impact on the bottom line (MIT, 2025).[^mit] The hard part was never making
+the voice sound good. It's earning enough trust to turn it on, and that's only possible when the
+job is small enough to test every way it can go wrong. One restaurant's phone calls are exactly
+that small. That's the bet Otto makes.
 
 ---
 
-## 2. Demo video (< 60s)
+## 2. Demo video (under 60 seconds)
 
-▶️ **[watch the 60-second demo](ADD_VIDEO_LINK_HERE)**
+▶️ **[watch the 60 second demo](ADD_VIDEO_LINK_HERE)**
 
-> *Build a phone agent from a URL → a synthetic swarm attacks it and it goes red → it rewrites
-> its own policy and the pass rate jumps to green → the number goes live → we call it and ask
-> the exact thing it failed a minute ago, and now it handles it. Loop closed, on camera.*
+> *Build a phone agent from a URL. A swarm of fake callers attacks it and it goes red. It
+> rewrites its own rules and the pass rate jumps to green. The number goes live. We call it and
+> ask the exact thing it failed a minute ago, and now it handles it. Loop closed, on camera.*
 
 ---
 
 ## 3. How we used Cekura, Nemotron, and Pipecat
 
-Here's the whole system on one page — four phases, a single agent brain reached through one
-Pipecat pipeline by two different transports, and a feedback edge that drops every live call
-back into evaluation:
+**One agent brain, built from the playbook, reached two ways through a single Pipecat pipeline: a
+real phone call over Twilio, and a swarm of fake callers over Daily. So the thing we *test* is the
+exact same thing that *answers the phone*. Every call, fake or real, gets scored as a stream of
+events, and any failure spins up a focused swarm that reproduces it, builds a fix, and can't ship
+until the fix is proven not to break anything that already worked.**
 
 ```mermaid
 flowchart LR
-  subgraph B["① BUILD &amp; CUSTOMIZE"]
-    direction TB
-    URL["Paste a website"] --> EX["Otto reads the site<br/>and builds the agent<br/>(Nemotron)"]
-    EX --> SPEC["The agent's playbook:<br/>what it says, what it knows,<br/>what it's allowed to do"]
-  end
-
-  subgraph D["② DEPLOY AT SCALE"]
-    direction TB
-    TW["A real phone call<br/>(Twilio)"] --> PIPE["The voice agent<br/>listens, thinks, speaks<br/>(NVIDIA + Pipecat)"]
-    DLY["Practice callers<br/>(Daily)"] --> PIPE
-    PIPE --> BRAIN["Takes real actions:<br/>books, checks availability,<br/>takes payment, texts back"]
-  end
-
-  subgraph S["③ SIMULATE &amp; EVALUATE"]
-    direction TB
-    SWARM["Cekura attacks it with<br/>callers built for<br/>this kind of business"] --> TRACE["Records everything<br/>that happened on the call"]
-    TRACE --> TAX["Grades what it SAID<br/>and what it actually DID"]
-  end
-
-  subgraph A["④ AUTO-IMPROVE"]
-    direction TB
-    HEAL["Fixes itself<br/>and never gets worse"]:::hot
-    HEAL --> GATE{"Safe enough<br/>to go live?"}
-    GATE -->|"not yet"| HEAL
-    GATE -->|"yes"| ACT["Phone line goes live"]
-  end
-
-  SPEC --> PIPE
-  BRAIN --> SWARM
-  TAX --> HEAL
-  HEAL -.->|"updates the agent"| SPEC
-  ACT -.->|"every real call gets graded too"| TRACE
-
-  classDef hot fill:#d9542b,stroke:#9a2a18,color:#ffffff;
-  classDef spec fill:#1f3a5f,stroke:#13263d,color:#ffffff;
-  class SPEC spec;
+  URL["Paste a website"] --> SPEC["The agent's playbook<br/>(built by Nemotron)"]:::spec
+  SPEC --> BRAIN["One agent brain<br/>· Pipecat pipeline ·"]
+  BRAIN -->|"Twilio"| PHONE["A real phone call"]
+  BRAIN -->|"Daily"| SWARM["Cekura voice swarm"]:::cek
+  PHONE --> EVAL["Score EVERY call:<br/>20 rule based checks<br/>+ Cekura action scoring"]
+  SWARM --> EVAL
+  EVAL -->|"failure"| HEAL["Build a focused fix,<br/>safety checked"]:::hot
+  HEAL -->|"check it again, RED to GREEN"| SWARM
+  HEAL -.->|"updates the playbook"| SPEC
+  EVAL -->|"passes the bar"| LIVE["Phone line goes live"]
+  classDef cek fill:#3b6ea5,stroke:#274b73,color:#fff;
+  classDef hot fill:#d9542b,stroke:#9a2a18,color:#fff;
+  classDef spec fill:#1f3a5f,stroke:#13263d,color:#fff;
 ```
 
-### Cekura — the evaluation engine behind the whole loop
+### Cekura: two swarms, opposite shapes, one fixing engine
 
-Cekura is what lets us *say* an agent is safe instead of just hoping it is, and we use it for
-both halves of the loop.
+We don't run one round of testing. We run two swarms built for opposite jobs, and that contrast
+is the whole idea.
 
-Before launch, we hand Cekura the business we just extracted and let it generate the right
-callers for that business — allergy questions and big-party bookings for a restaurant,
-emergency-dispatch and licensing calls for a contractor. Our personas, mock tools, and
-pass/fail criteria map straight onto Cekura's test profiles and metrics, and its simulated
-callers dial into the very same Daily room our live agent answers on. So we're never testing a
-mock; we're testing the exact pipeline that will pick up the phone.
+**The first swarm goes wide, and it runs before the agent goes live.** It's a set of fake callers
+built for that exact kind of business: allergy questions and large party bookings for a
+restaurant, emergency calls and licensing traps for a contractor. They hit the new agent from
+every angle at once, and the phone number can't turn on until the agent passes a set bar. The
+point here is coverage. Find every weak spot before a real customer ever calls.
 
-After launch, Cekura keeps scoring every real call. The moment one regresses, that failure
-becomes a fresh, focused swarm aimed at exactly that weakness — fix it, re-run, ship it. Same
-engine on both sides.
+**The second swarm goes deep, and it runs on live calls.** Every real call is scored the moment it
+ends, across 20 plain checks that run on fixed rules and look at what the agent said, what it did,
+how the call ended, and how it felt to the caller. When a call fails, we choose on purpose not to
+just patch that one call. Fixing off a single call teaches the agent the exact words that broke it
+and nothing else. Instead we take that one failure and spin it into about 30 harder versions of
+the same call: the same request but with a thick accent, with background noise, from an angry
+caller, from someone who keeps interrupting, from someone who switches language partway through.
+Now the fix has to hold up against the whole family of that failure, not the single call that
+exposed it. One bad call becomes a tight test set aimed straight at that weak spot.
 
-The part that matters most is that Cekura grades *actions*, not just words. Its
-tool-call-accuracy and outcome metrics, together with our own event-stream taxonomy, check
-whether the agent actually called `check_availability`, whether the tool came back clean, and
-whether the booking really landed. That's how we catch the failure nobody else does — the one
-where the agent sounds perfect and the table was never booked.
+Running all 30 as real voice calls would be slow and costly, so the deep swarm groups them. Many
+of those 30 versions are really the same type of difficulty, so they can share one real voice
+call. That folds about 30 versions down to about 10 real calls that still cover the full range
+(`cekura.py:69-82`, proven in `test_loop.py:882`). This is the trick that lets the deep testing
+run on real audio instead of faking it with text, and still stay fast enough to watch live.
 
-And when we find a failure, we can fix it two ways. Most of the time the problem is a missing
-or sloppy rule, so Otto rewrites a policy. But sometimes the bug is in the tool *code* itself —
-a `reserve_table` that can double-book, or a path that lets a card number get written into a
-record. Those don't get a policy band-aid; they go to a coding agent that writes a real code
-patch, proves it by replaying the call's tool calls through the fixed code, and ships only if
-the failure flips from red to green without breaking anything else. It's sandboxed so it can
-only touch the tool layer, it can't fake its way past the check, and it starts on a cheap model
-and escalates only if it has to. One eval signal, two kinds of self-healing — one for the
-agent's rules, one for its code.
+**How a live fix actually happens.** First we sort the failure by what kind of bug it is. If it's
+a missing or weak rule, the agent rewrites its own rule. If it's a bug in the tool code that no
+rule could ever fix, like a booking tool that can double book, a tool that sometimes never
+replies, or a path that could write a card number into a record, then a coding agent writes a real
+code change and proves it by replaying that exact call's tool steps through the fixed code and
+running the same checks again. Two kinds of fixes, one scoring system. Either fix then has to pass
+a safety check: it ships only if it breaks nothing that was already passing, so the agent can only
+get better, never worse, by design. And that same check runs against the wide swarm from before
+launch too, so fixing a rare live case can never quietly undo the safety the agent shipped with.
+That last guarantee is the part most demos that claim an agent fixes itself quietly skip.
 
-Cekura (blue) is the engine for both loops; a failure routes to either a policy fix or a
-code-gen fix (orange), and both have to clear the regression gate:
+Both swarms run through one switch. A single setting picks the engine under them: the real Cekura
+voice swarm over a Daily room, or a fast local version, and if a key is missing it falls back on
+its own so the loop always runs (`swarm.py:54-77`). The same checks score all of it. And Cekura
+scores actions, not just words: whether the agent called the right tools and whether the booking
+actually landed, not whether the transcript sounded nice. That's how the system catches the call
+that sounds perfect and never booked the table.
 
 ```mermaid
 flowchart TB
-  subgraph PRE["BEFORE LAUNCH"]
-    direction LR
-    SPEC1["The agent"] --> GEN["Cekura builds callers<br/>for this exact business"]:::cek
-    GEN --> SIM["They call the agent<br/>(over Daily)"]:::cek
-    SIM --> MET["Cekura scores each call:<br/>did it say AND do<br/>the right thing?"]:::cek
+  subgraph GEN["① WIDE SWARM · runs before launch"]
+    direction TB
+    GA["Fake callers built for that exact<br/>type of business, hitting the agent<br/>from every angle at once"] --> GB["Phone number can't turn on<br/>until the agent passes the bar"]
   end
-  subgraph PROD["AFTER LAUNCH · forever"]
-    direction LR
-    LIVE["A real customer call"] --> MON["Cekura watches<br/>every live call"]:::cek
-    MON --> REG{"Something<br/>go wrong?"}
-    REG -->|"yes"| FOCUS["Cekura hammers<br/>that one weakness"]:::cek
+  subgraph PROD["② DEEP SWARM · runs on live calls"]
+    direction TB
+    PA["One real call fails"] --> PB["Spin it into ~30 harder versions<br/>(accent, noise, anger,<br/>interrupting, language switch)"]
+    PB --> PC["Group the similar ones into ~10<br/>real voice calls: hammer that one<br/>weak spot from every angle"]
   end
-  MET --> TAX["Pinpoint what failed:<br/>the words, the action,<br/>or the outcome"]
-  FOCUS --> TAX
-  TAX --> ROUTE{"What kind<br/>of bug?"}
-  ROUTE -->|"a missing rule"| HEALP["Rewrite a rule"]:::hot
-  ROUTE -->|"a bug in the code"| HEALC["A coding agent<br/>fixes the actual code"]:::hot
-  HEALP --> VER["Test it again"]
-  HEALC --> VER
-  VER -->|"red → green"| GATE{"Fixed, and<br/>nothing else broke?"}
-  GATE -->|"no"| ROUTE
-  GATE -->|"yes"| ACT["Ship it"]
-  ACT -.->|"never stops improving"| LIVE
-  classDef cek fill:#3b6ea5,stroke:#274b73,color:#ffffff;
-  classDef hot fill:#d9542b,stroke:#9a2a18,color:#ffffff;
+  GB --> ENG
+  PC --> ENG{"What kind of bug?"}
+  ENG -->|"weak rule"| RP["Agent rewrites its rule"]:::hot
+  ENG -->|"bug in the code"| RC["Coding agent fixes the tool,<br/>proven by replaying the call's<br/>tool steps through the new code"]:::hot
+  RP --> GUARD
+  RC --> GUARD
+  GUARD{"Safety check: does the fix break<br/>anything that already passed,<br/>here OR in the wide swarm?"}
+  GUARD -->|"yes, reject"| ENG
+  GUARD -->|"no"| CONF["Cekura runs the exact<br/>failing versions again: RED to GREEN"]:::cek
+  CONF --> SHIP["Ship it, and it can't drop<br/>the safety it launched with"]
+  classDef cek fill:#3b6ea5,stroke:#274b73,color:#fff;
+  classDef hot fill:#d9542b,stroke:#9a2a18,color:#fff;
 ```
 
-**How much it actually improves.** In a single heal round, with nothing hardcoded, the
-restaurant agent went from 50% to 100% (6 of 12 callers passing, then all 12), and the
-contractor went from 62% to 100% on its own set of failures. It also can't cheat its way there:
-in that same run it proposed four policy changes and threw one out because it would have broken
-a test that was already passing. The score only moves in one direction.
+> **What we were testing, and how much it improved.** In one fixing round, with nothing hand fed,
+> the restaurant agent went from 50% to 100% (6 of 12 tough callers passing, then all 12), and the
+> contractor went from 62% to 100% on its own failures. It couldn't game its way there: the safety
+> check threw out the one proposed fix that would have broken an allergy test that was already
+> passing. Honest scope: those numbers come from the fast local mode (`SWARM_MODE=local`), the same
+> loop Cekura drives in `SWARM_MODE=cekura`, run through the same path.
 
-> *Honest scope:* those numbers come from our eval loop in `SWARM_MODE=local` (the deterministic
-> version of the same loop Cekura drives when `SWARM_MODE=cekura`). We didn't separately record
-> an end-to-end pass rate from the live Cekura audio swarm.
+### Nemotron (NVIDIA): open weights doing the real work
 
-### Nemotron (NVIDIA) — open weights doing the real work
+The brief asked for open weights models doing real thinking, not just speech, so that's where we
+put Nemotron, and it's the brain on every part of the system. Off the call it reads a messy website
+into a clean playbook, writes the fixes, and judges how each call went. On the call it's the brain
+that decides what to say, live, in real time. The model is **Nemotron 3 Super, a 120B open weights
+model**, served through NVIDIA's NIM, and an open weights model that size holding a natural phone
+conversation is the "voice" and "open weights" themes in one shot. Because NIM speaks the same API
+as OpenAI, pointing our entire thinking layer at it was a one line change.
 
-The brief asked for open-weights models doing real inference, not just speech, so that's
-exactly where we put Nemotron. It's the brain for everything that happens off the call: reading
-a website into a spec, writing the policy fixes, and judging how a call went all run on an
-open-weights Nemotron through NIM. Because NIM speaks the OpenAI API, switching to it was a
-one-line change. On the call itself the whole voice path is NVIDIA too — Parakeet listening,
-Nemotron thinking, Magpie speaking — with Deepgram and Cartesia wired up as one-flag fallbacks
-so a bad moment on any single piece never takes the demo down. It's essentially Daily and
-NVIDIA's own Nemotron voice stack, and we just dropped our self-healing loop on top of it. One
-free `nvapi-` key runs all three.
+We also built a **custom listener for NVIDIA Parakeet**, and the engineering there is real even
+though it isn't what hears the phone. The hackathon Parakeet service talks over a raw websocket
+that no built in Pipecat piece knows how to speak, so we wrote our own client (`nvidia_stt.py`)
+with three details that matter on a live call:
+
+- **It handles pile up transcripts the right way.** The service sends each draft as the full
+  sentence so far, so one turn's words bleed into the next. We cut the already finished words by
+  counting them, not by matching the text, which keeps working even when the service quietly
+  changes how a word is spelled partway through.
+- **It ends a turn on a clear signal, not a timer.** When the caller stops talking, we send a hard
+  reset that grabs the last few words and ends the turn right away, instead of waiting on a silence
+  timer. Faster back and forth, and cleaner turn taking.
+- **It never clips the first word.** We keep a one second rolling buffer of audio so the start of a
+  sentence isn't cut off, and we keep every "uh" and "hold on," because that hesitation is a real
+  signal the call quality checks read, not noise to clean up.
+
+Here's the honest catch, and it's a useful one: Parakeet needs 16kHz audio, and a normal phone line
+is 8kHz. So on the actual phone call we let Deepgram do the listening, because it's built for 8kHz
+phone audio, and we run Parakeet on the higher quality 16kHz line that the Cekura swarm uses.
+Knowing that 8kHz versus 16kHz difference is the line between a call that transcribes and one that
+silently hears nothing. The voice you hear back is ElevenLabs, with Cartesia and NVIDIA Magpie as
+one setting backups. So the live phone stack is a Nemotron brain, Deepgram ears, and an ElevenLabs
+voice, with the full NVIDIA path (Parakeet plus Magpie) ready on any 16kHz line. One free `nvapi-`
+key runs all the NVIDIA parts.
 
 ```mermaid
 flowchart LR
-  subgraph REASON["The thinking work (off the call)"]
-    direction TB
-    R1["Read a website<br/>into an agent"]
-    R2["Write the fixes"]
-    R3["Grade the calls"]
+  subgraph OFF["Off the call: open weights thinking"]
+    R1["Read a website into an agent"] --> NEM
+    R2["Write the fixes"] --> NEM
+    R3["Score the calls"] --> NEM["Nemotron 3 Super<br/>120B open weights, via NIM"]:::nv
   end
-  subgraph VOICE["On the live call"]
-    direction LR
-    V1["Parakeet<br/>hears the caller"]:::nv --> V2["Nemotron<br/>decides what to say"]:::nv --> V3["Magpie<br/>speaks back"]:::nv
+  subgraph ON["On the live phone call (8kHz)"]
+    V1["Deepgram<br/>hears the caller"] --> V2["Nemotron 3 Super<br/>decides what to say"]:::nv --> V3["ElevenLabs<br/>speaks back"]
   end
-  R1 --> NEM["Nemotron<br/>open-weights model"]:::nv
-  R2 --> NEM
-  R3 --> NEM
-  NEM -.->|"easy to swap"| ALT["Backups if needed:<br/>OpenAI · Gemma · Bedrock"]
-  V2 -.-> ALT2["Backups:<br/>Deepgram · Cartesia"]
-  classDef nv fill:#76b900,stroke:#4d7a00,color:#ffffff;
+  NEM -.->|"same API as OpenAI, easy to swap"| ALT["Backups: OpenAI · Gemma · Bedrock"]
+  V1 -.->|"on a 16kHz line (the Daily swarm)"| PK["NVIDIA Parakeet<br/>custom websocket client"]:::nv
+  V3 -.-> ALT2["Backups: Cartesia · NVIDIA Magpie"]
+  classDef nv fill:#76b900,stroke:#4d7a00,color:#fff;
 ```
 
-### Pipecat — why "tested" and "live" are the same thing
+### Pipecat: why "tested" and "live" are the same thing
 
-The agent's brain is a single thing compiled from the spec, and Pipecat is what lets us reach
-it two ways: a real call comes in over Twilio, the synthetic swarm comes in over a Daily room,
-and both run through the identical pipeline. That one detail is the whole trick — it means a
-fix the swarm proves out is *literally* the code that answers the phone, not a close
-approximation of it. We lean on Pipecat for the swappable transports, the function-calling that
-powers the agent's tools, and the turn-and-interruption handling that makes the "interrupter"
-caller a real test instead of a script. There's also an AWS Nova Sonic speech-to-speech path in
-there as an alternative to the usual listen-think-speak chain. ([`docs/TECH.md`](docs/TECH.md).)
+The agent's brain is built once from the playbook, and Pipecat lets us reach it two ways: a real
+call comes in over Twilio, the fake caller swarm comes in over a Daily room, and both run through
+the exact same pipeline. That one fact is the whole trick. It means a fix the swarm proves out is
+*literally* the code that answers the phone, not a close copy of it. We lean on Pipecat for the
+swappable call types, the tool calling that powers the agent's actions, and the turn taking and
+interruption handling that make the "interrupter" caller a real test instead of a script. There's
+also an AWS Nova Sonic speech to speech path in there as an option, instead of the usual listen,
+think, speak chain. (See [`docs/TECH.md`](docs/TECH.md).)
 
 ---
 
 ## 4. What we built during the hackathon
 
 All of it. The repo's first commit is 9:04am on May 30 (it started life as "LineForge" and got
-renamed to Otto a couple hours in), and everything below was written on the day:
+renamed to Otto a couple hours in), and everything below was written that day:
 
-- the AgentSpec contract and the website-to-spec extractor (full-site crawl plus structured-data signals);
-- the self-improvement loop itself — swarm, failure detection, policy writing, the regression
-  guard that makes healing provably safe, and the launch gate;
-- the failure taxonomy: the four-dimension, 14-detector engine that reads a whole call as an
-  event stream (including voice/paralinguistic signals) and catches the said-vs-did failures a
+- the playbook format and the website to agent reader (it crawls the whole site plus reads the
+  page's structured data);
+- the self fixing loop itself: the swarm, the failure detection, the rule writing, the safety
+  check that makes every fix provably safe, and the launch bar;
+- the failure checks: the four part, 20 check engine that reads a whole call as a stream of events
+  (including voice and tone signals) and catches the sounds great but did nothing failures a
   transcript would miss;
-- the production loop, where a single live failure spins up a batch of targeted variations —
-  different accents, background noise, an angry caller — to confirm and harden the fix;
-- the coding-agent healer for bugs that live in code rather than in rules;
-- the live Pipecat voice agent on NVIDIA (with Nova Sonic and Gemini/Deepgram/Cartesia
-  fallbacks), the Cekura client, six business verticals, a real stateful backend that tracks
-  inventory and catches double-bookings, live Twilio SMS, the streaming dashboard, a printable
-  safety certificate, deploy paths for Render / Pipecat Cloud / AWS AgentCore, and a 50-test
-  suite that passes with no keys at all.
+- the live loop, where a single real failure spins up a batch of focused variations (different
+  accents, background noise, an angry caller) to confirm and harden the fix;
+- the coding agent that fixes bugs living in the code instead of the rules;
+- the live Pipecat voice agent (Nemotron brain, with Nova Sonic, Deepgram, Cartesia, and ElevenLabs
+  options), the Cekura client, six business types, a real backend that tracks inventory and catches
+  double bookings, live Twilio texts, the streaming dashboard, a printable safety certificate,
+  deploy paths for Render, Pipecat Cloud, and AWS AgentCore, and a 50 test suite that passes with no
+  keys at all.
 
-What we *didn't* build is the infrastructure underneath. Pipecat, Cekura, the NVIDIA models on
-NIM, and Twilio are all theirs, and the Parakeet streaming-STT service is vendored straight from
-the hackathon starter (we just added a shim to bridge a Pipecat version gap). Daily and NVIDIA's
-Nemotron voice stack was our starting point.
+What we *didn't* build is the plumbing underneath. Pipecat, Cekura, the NVIDIA models on NIM, and
+Twilio are all theirs, and the Parakeet listener is taken straight from the hackathon starter (we
+just added a small piece to bridge a Pipecat version gap). Daily and NVIDIA's Nemotron voice stack
+was our starting point.
 
 ---
 
 ## 5. Feedback on the tools
 
-> *Note to the team: this is drafted from how the build actually went — tighten it to your own
-> experience and drop in any real bugs you hit. Cekura specifically asked about bugs, and
-> there's a prize for the best feedback.*
+> *Note to the team: this is drafted from how the build actually went. Tighten it to your own
+> experience and drop in any real bugs you hit. Cekura asked about bugs, and there's a prize for
+> the best feedback.*
 
-**NVIDIA Nemotron.** The best part was how little friction there was. Because NIM is
-OpenAI-compatible, pointing our entire reasoning layer at Nemotron was a one-line change, and
-the bigger model held up well on the structured work we threw at it — turning a messy website
-into a clean spec, writing coherent policy patches. The rough edge is latency on the live call:
-the larger open models are just too slow for a natural back-and-forth, so we ended up running a
-smaller, faster Nemotron on the call and saving the big one for the off-call reasoning. Clearer
-guidance on which Nemotron to reach for when — fast-for-voice versus heavy-for-reasoning —
-would've saved us time, and rock-solid JSON output would help anyone whose loop depends on
-parsing the model's answers, like ours does.
+**NVIDIA Nemotron.** The best part was how little friction there was. Because NIM speaks the same
+API as OpenAI, pointing our whole thinking layer at Nemotron was a one line change, and the big
+Super model held up well on the hard structured work: turning a messy website into a clean
+playbook, writing rule fixes that actually made sense. Two rough edges. First, speed on the live
+call: Super is big, and the delay on a natural back and forth is real, so the thing we'd most want
+is either a faster path for Super on voice or clear guidance on which Nemotron to reach for when,
+fast for the live call and heavy for the thinking. Second, Parakeet streaming speech to text needs
+16kHz audio with no built in path for 8kHz phone lines, so it silently transcribes nothing on a
+normal phone call until you put a resampler in front of it; we fell back to Deepgram on the phone
+and kept Parakeet on the 16kHz swarm. Rock solid JSON output would also help anyone whose loop
+depends on reading the model's answer, like ours does.
 
-**Cekura.** Running one engine for both pre-launch testing and live monitoring is exactly the
-shape a self-improving product wants, and the scenario generation plus judge metrics dropped
-right into our loop. Where it got awkward was managing scenarios over time: re-running the same
-fix against a bunch of mutated variations piled up scenarios fast, so we built our own caching
-and a manual persona-to-scenario mapping to keep it sane. First-class scenario templates, or a
-way to create-or-reuse by key, would make building loops like ours a lot cleaner. *(Drop any
-actual API bugs you ran into here.)*
+**Cekura.** Running one engine for both the before launch testing and the live watching is exactly
+the shape a self fixing product wants, and the scenario building plus the scoring dropped right
+into our loop. Where it got awkward was managing scenarios over time. Running the same fix again
+against a bunch of changed versions piled up scenarios fast, so we built our own caching and a by
+hand map from caller type to scenario to keep it sane. Built in scenario templates, or a way to
+reuse a scenario by key, would make building loops like ours a lot cleaner. *(Drop any real API
+bugs you ran into here.)*
 
-**Pipecat.** The swappable transports are the entire reason our "test it and ship the same
-thing" pitch is true, and they came essentially for free — that's a big deal. Function-calling
-and interruption handling were solid out of the box. The one thing that bit us was the API churn
-between 0.0.x and 1.x; we pinned to `<1.0` and had to vendor the Parakeet service with a
-compatibility shim. A clearer migration path would help.
+**Pipecat.** The swappable call types are the entire reason our "test it and ship the same thing"
+claim is true, and they came basically for free, which is a big deal. Tool calling and interruption
+handling were solid out of the box. The one thing that bit us was the API churn between the 0.0.x
+and 1.x versions: some import paths moved, and we had to add a small shim to the vendored Parakeet
+listener to bridge the gap. A clearer upgrade guide would help.
 
 ---
 
-## 6. Live link
+## 6. Live link (optional)
 
-🔗 **https://otto-orchestrator.onrender.com** — paste a business website and watch the loop run.
+🔗 **https://otto-orchestrator.onrender.com** : paste a business website and watch the loop run.
 
-> *Verify this is actually deployed and reachable before submitting; if not, swap in the right
-> URL or just drop this section (it's optional).*
+> *Check this is actually deployed and reachable before submitting. If not, swap in the right URL
+> or just drop this section (it's optional).*
 
 ---
 
@@ -314,19 +319,19 @@ cd apps/orchestrator && uv run --python 3.12 python scripts/smoke.py
 cd apps/orchestrator && PYTHONPATH=. uv run --python 3.12 --with pytest pytest -q   # 50 passed
 ```
 
-With no key at all, a deterministic policy-coverage check stands in for the LLM. One free key —
-open-weights Gemma on Gemini's free tier, or an NVIDIA NIM key for Nemotron — makes extraction,
-the conversation sims, and the live call all real, at $0. Deeper dives live in
+With no key at all, a simple rule based coverage check stands in for the model. One free key (open
+weights Gemma on Gemini's free tier, or an NVIDIA NIM key for Nemotron) makes the reading, the call
+sims, and the live call all real, at $0. Deeper dives live in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/TECH.md`](docs/TECH.md),
 [`docs/FAILURE_TAXONOMY.md`](docs/FAILURE_TAXONOMY.md), and [`docs/DEPLOY.md`](docs/DEPLOY.md).
 
 ---
 
-[^transunion]: TransUnion, "The Call Conundrum," Oct 2024 — survey of 1,556 U.S. adults — [source](https://newsroom.transunion.com/nearly-80-of-consumers-consider-phone-channel-important-for-communicating-with-businesses-despite-reluctance-to-answer-calls/).
-[^invoca25]: Invoca, *Call Conversion Industry Benchmarks Report 2025* — AI analysis of 60M+ calls; 37% of phone leads convert on the call (web-form ~1.7% is the derived contrast) — [source](https://www.invoca.com/reports/the-invoca-call-conversion-industry-benchmarks-report-2025).
-[^nra]: National Restaurant Association, *2024 State of the Restaurant Industry* — [source](https://restaurant.org/research-and-media/media/press-releases/restaurant-industry-sales-forecast-to-set-1-1-trillion-record-in-2024/).
-[^invoca24]: Invoca, first-party call-tracking data, 2024 — [source](https://www.invoca.com/blog/how-much-missed-sales-calls-cost-home-services-businesses).
-[^hiya]: Hiya, *2025 State of the Call* (survey of ~1,800 working professionals) — [source](https://www.businesswire.com/news/home/20250930624483/en/).
-[^whisper]: Koenecke et al., "Careless Whisper: Speech-to-Text Hallucination Harms," ACM FAccT 2024 — [coverage](https://www.science.org/content/article/ai-transcription-tools-hallucinate-too).
-[^aging]: Vela et al., "Temporal quality degradation in AI models," *Scientific Reports* (Nature), 2022 — degradation in 91% of 128 (model, dataset) experimental cases — [source](https://www.nature.com/articles/s41598-022-15245-z).
-[^mit]: MIT NANDA, *The GenAI Divide: State of AI in Business 2025* — ~95% of organizations saw no measurable P&L impact from GenAI — [coverage](https://fortune.com/2025/08/18/mit-report-95-percent-generative-ai-pilots-at-companies-failing-cfo/).
+[^transunion]: TransUnion, "The Call Conundrum," Oct 2024. Survey of 1,556 U.S. adults. [source](https://newsroom.transunion.com/nearly-80-of-consumers-consider-phone-channel-important-for-communicating-with-businesses-despite-reluctance-to-answer-calls/).
+[^invoca25]: Invoca, *Call Conversion Industry Benchmarks Report 2025*. AI analysis of 60M+ calls; 37% of phone leads convert on the call (web form near 1.7% is the derived contrast). [source](https://www.invoca.com/reports/the-invoca-call-conversion-industry-benchmarks-report-2025).
+[^nra]: National Restaurant Association, *2024 State of the Restaurant Industry*. [source](https://restaurant.org/research-and-media/media/press-releases/restaurant-industry-sales-forecast-to-set-1-1-trillion-record-in-2024/).
+[^invoca24]: Invoca, first party call tracking data, 2024. [source](https://www.invoca.com/blog/how-much-missed-sales-calls-cost-home-services-businesses).
+[^hiya]: Hiya, *2025 State of the Call* (survey of about 1,800 working professionals). [source](https://www.businesswire.com/news/home/20250930624483/en/).
+[^whisper]: Koenecke et al., "Careless Whisper: Speech to Text Hallucination Harms," ACM FAccT 2024. [coverage](https://www.science.org/content/article/ai-transcription-tools-hallucinate-too).
+[^aging]: Vela et al., "Temporal quality degradation in AI models," *Scientific Reports* (Nature), 2022. Degradation in 91% of 128 (model, dataset) cases. [source](https://www.nature.com/articles/s41598-022-15245-z).
+[^mit]: MIT NANDA, *The GenAI Divide: State of AI in Business 2025*. About 95% of organizations saw no measurable P&L impact from GenAI. [coverage](https://fortune.com/2025/08/18/mit-report-95-percent-generative-ai-pilots-at-companies-failing-cfo/).
