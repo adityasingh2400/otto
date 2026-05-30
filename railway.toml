@@ -14,8 +14,9 @@ builder = "dockerfile"
 dockerfilePath = "apps/orchestrator/Dockerfile"
 
 [deploy]
-# Railway injects $PORT; bind to it (the Dockerfile's hardcoded :8000 CMD is overridden here).
-startCommand = "uv run --python 3.12 uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+# Railway injects $PORT; wrap in sh -c so it EXPANDS at runtime (Railway doesn't shell-expand
+# the start command itself). Falls back to 8000 if PORT is unset.
+startCommand = "sh -c 'uv run --python 3.12 uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"
