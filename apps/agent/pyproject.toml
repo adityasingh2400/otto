@@ -2,21 +2,20 @@
 name = "otto-agent"
 version = "0.1.0"
 description = "Otto voice agent — serves an AgentSpec over Twilio (phone) and Daily (Cekura swarm) via Pipecat."
-# Pipecat audio deps have best wheel coverage on 3.10–3.12; pin away from 3.14.
-requires-python = ">=3.10,<3.13"
+# Pipecat 1.x (required by Pipecat Cloud's base image + pipecatcloud runtime).
+requires-python = ">=3.11,<3.13"
 dependencies = [
   "otto-spec",
   "python-dotenv>=1.0",
   "httpx>=0.27",
   "fastapi>=0.110",
   "uvicorn[standard]>=0.29",
-  # Pipecat + the reliability-first plugin set. Sponsor swaps (nvidia, aws) are
-  # extra plugins you enable per .env — see bot.py. Confirm exact extras against the
-  # pinned pipecat version + github.com/pipecat-ai/pipecat-quickstart-phone-bot.
-  # Ceiling at <1.0: the 1.x line renamed import paths bot.py relies on (services.riva.tts
-  # -> services.nvidia.tts, openai_llm_context -> LLMContext). Migrate deliberately — don't
-  # let a fresh `uv sync` pull 1.x the morning of the demo. Commit apps/agent/uv.lock too.
-  "pipecat-ai[daily,openai,deepgram,cartesia,silero,elevenlabs,nvidia,aws,webrtc]>=0.0.96,<1.0",
+  # Pipecat 1.x + the plugin set we actually use. daily = Cekura swarm + Pipecat Cloud;
+  # openai = LLM (also drives the NVIDIA/Gemini OpenAI-compatible endpoints); deepgram = STT
+  # fallback; cartesia = TTS; silero = VAD; webrtc = local browser dev; websocket = Twilio
+  # serializer; runner = the unified entrypoint. NVIDIA ASR is the vendored ws client (nvidia_stt).
+  "pipecat-ai[daily,openai,deepgram,cartesia,silero,webrtc,websocket,runner]>=1.3.0",
+  "pipecatcloud>=0.7.1",  # Pipecat Cloud runtime — the base image's entrypoint imports it
   "pipecat-ai-small-webrtc-prebuilt>=2.5.0",  # local browser dev UI (not needed for cloud/Daily)
 ]
 
