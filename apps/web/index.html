@@ -4,6 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>LineForge · Mission Control</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%23FF6B5C'/%3E%3Ctext%20x='16'%20y='24'%20font-family='Arial%20Black,sans-serif'%20font-size='21'%20font-weight='900'%20text-anchor='middle'%20fill='%233C1F15'%3EL%3C/text%3E%3C/svg%3E">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Fraunces:ital,opsz,wght@1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -147,6 +149,8 @@
   .banner .bt{font-family:var(--display);font-size:18px;color:var(--ink)}
   .banner .bs{font-family:var(--serif);font-style:italic;color:var(--ink-soft);font-size:13px}
   .banner .num{margin-left:auto;font-family:var(--display);font-size:22px;color:var(--ink);background:var(--cream);border:2px solid var(--ink);border-radius:12px;padding:6px 14px;box-shadow:var(--sh-sm)}
+  .foot{margin-top:28px;text-align:center;font:600 12px var(--mono);color:var(--ink-soft);letter-spacing:.3px}
+  .foot b{color:var(--cherry-d)}.foot span{font-family:var(--serif);font-style:italic;color:var(--ink-fade)}
 </style>
 </head>
 <body>
@@ -207,6 +211,8 @@
     <div><div class="bt">Inbound line live</div><div class="bs">cleared the swarm safety gate</div></div>
     <div class="num" id="banner-num"></div>
   </div>
+
+  <footer class="foot">Built on <b>Pipecat</b> · <b>Cekura</b> · <b>Twilio</b> · <b>NVIDIA</b> · <b>AWS</b> — one architecture, five sponsors. <span>Sandbox demo · public info.</span></footer>
 </main>
 
 <script>

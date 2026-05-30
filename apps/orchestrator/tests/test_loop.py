@@ -87,3 +87,19 @@ def test_heal_flips_failing_checks():
     assert diffs, "heal produced no policy changes"
     r2 = _run(run_swarm("t-heal", spec2, 2, personas))
     assert r2["pass_rate"] > r1["pass_rate"]
+
+
+def test_extra_info_folds_into_knowledge():
+    _run(run_pipeline("t-extra", None, True, "piccino", "We close Mondays. Never promise gluten-free."))
+    spec = store.get_spec("t-extra")
+    notes = [k for k in spec.knowledge if k.topic == "owner-note"]
+    assert notes and "Mondays" in notes[0].content
+
+
+def test_observe_edge_case_triggers_real_heal():
+    # harden the restaurant agent, then hit it with a production edge case it never tested
+    _run(run_pipeline("t-edge", None, True, "piccino"))
+    assert store.get_spec("t-edge").get_policy("gift-card-balance") is None
+    res = _run(observe_call("t-edge", persona="gift_card_balance"))
+    assert res["failed"] is True
+    assert store.get_spec("t-edge").get_policy("gift-card-balance") is not None

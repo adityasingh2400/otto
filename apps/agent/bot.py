@@ -86,6 +86,8 @@ def _llm():
 
 # ── the pipeline ─────────────────────────────────────────────────────────────
 async def run_bot(transport: BaseTransport, spec: AgentSpec) -> None:
+    if os.getenv("PIPELINE_MODE") == "s2s":
+        return await _run_bot_s2s(transport, spec)
     stt, tts, llm = _stt(), _tts(spec), _llm()
     context = OpenAILLMContext(
         messages=[{"role": "system", "content": spec.compile_prompt()}],
@@ -108,6 +110,29 @@ async def run_bot(transport: BaseTransport, spec: AgentSpec) -> None:
 
     # Production loop: ship the finished transcript to the orchestrator's /api/observe,
     # which audits it and, on a failure, fires a targeted swarm-heal. (Loop #2.)
+    await _report_to_orchestrator(context)
+
+
+async def _run_bot_s2s(transport: BaseTransport, spec: AgentSpec) -> None:
+    """AWS Nova Sonic speech-to-speech (sponsor: AWS) — one bidirectional service replaces
+    STT + LLM + TTS for lowest latency. Enable with PIPELINE_MODE=s2s + AWS creds."""
+    from pipecat.services.aws.nova_sonic import AWSNovaSonicLLMService
+
+    llm = AWSNovaSonicLLMService(
+        access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+        region=os.getenv("AWS_REGION", "us-east-1"),
+        settings=AWSNovaSonicLLMService.Settings(voice="matthew", system_instruction=spec.compile_prompt()),
+    )
+    context = OpenAILLMContext(messages=[], tools=build_tool_schemas(spec))
+    aggregator = llm.create_context_aggregator(context)
+    for t in spec.tools:
+        llm.register_function(t.name, _handler(spec, t.name))
+
+    pipeline = Pipeline([transport.input(), aggregator.user(), llm, transport.output(), aggregator.assistant()])
+    task = PipelineTask(pipeline, params=PipelineParams(
+        audio_in_sample_rate=8000, audio_out_sample_rate=8000, enable_metrics=True, allow_interruptions=True))
+    await PipelineRunner().run(task)
     await _report_to_orchestrator(context)
 
 
