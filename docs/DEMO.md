@@ -16,7 +16,8 @@ your business can safely let AI answer the phone."**
 | 0:30–0:42 | Failure map clusters; **auto-patch diff** before/after; pass-rate foil number counts **58% → 100%** | "It finds the failure modes, rewrites its own policies, and re-runs the swarm. This is the eval loop the hackathon is about — built on Cekura." |
 | 0:42–0:52 | ACTIVE banner lands with the phone number | "Only once it clears the safety gate does the line go live." |
 | 0:52–1:15 | **Pick up a phone, call the number on speaker.** Ask the allergy question. Agent hedges + offers to connect. Live console updates. | "Now you call it — and ask the exact thing the swarm caught. It handles it correctly. The loop closed, live." |
-| 1:15–1:30 | Click a **production edge-case** button → targeted heal → re-verify | "And it never stops: every real call is evaluated, and a new failure triggers a focused swarm-heal. We're not selling a voice agent — we're selling confidence that your business can safely let AI answer the phone." |
+| 1:15–1:35 | Click a **"voice was fine but the action went wrong"** replay (e.g. *confirmed a sold-out table*). The **failure taxonomy** panel lights up: OUTCOME × critical, with the event-stream evidence; it auto-heals red→green. | "And every live call is judged on the whole event stream, not just the words. Here the voice sounded perfect — but the table was never booked. We catch that, the failure writes its own fix, and the line re-verifies itself. This is the Auto-Improve stage the hackathon is about." |
+| 1:35–1:45 | Click **Evaluation report ↗** in the live banner → the printable safety certificate (v1→vN, every scenario, every patch). | "Out the other side: a safety certificate, every number from a real run. We're not selling a voice agent — we're selling confidence that your business can safely let AI answer the phone." |
 
 ## Recording setup
 

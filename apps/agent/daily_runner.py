@@ -29,7 +29,7 @@ async def main() -> None:
 
     transport = DailyTransport(
         room_url=os.environ["DAILY_ROOM_URL"],
-        token=os.getenv("DAILY_TOKEN"),
+        token=os.getenv("DAILY_ROOM_TOKEN"),  # matches config.py + .env.example (not DAILY_TOKEN)
         bot_name=f"{spec.business.name} agent",
         params=DailyParams(audio_in_enabled=True, audio_out_enabled=True),
     )

@@ -76,6 +76,8 @@ async def run_suite(session_id: str, spec: AgentSpec, personas: list[Persona], r
         resp = await c.post("/test_framework/v1/scenarios-external/run_scenarios_pipecat/", json={"scenarios": items})
         resp.raise_for_status()
         result_id = resp.json().get("id")
+        if not result_id:  # no id => fall back to local eval immediately, don't poll /results/None/ for 4 min
+            raise RuntimeError("Cekura run returned no result id")
         runs = await _poll_results(c, result_id)
 
     results = []

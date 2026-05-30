@@ -9,9 +9,14 @@ the swarm, and only activates the phone line once it clears a safety gate.
 > We are not selling a voice agent. We are selling **confidence that your business
 > can safely let AI answer the phone.**
 
-Built for the **Gemma 4 Voice Agents Hackathon** (YC SF, May 30 2026) — theme:
-*Voice AI, open models, and next-generation evals.* Co-hosted by Daily/Pipecat and
-Cekura, with NVIDIA, AWS, and Twilio.
+Built for the **Voice Agents Hackathon** (YC SF, May 30 2026), co-hosted by **Daily**
+and **Cekura**, with **NVIDIA**, **AWS**, and **Twilio**. The hosts' brief: *"The era of
+'AI demos' is over … bridge the gap between a voice agent that works and one that
+**scales, persists, and learns**."* They named four stages — **Build & Customize ·
+Deploy at Scale · Simulate & Evaluate · Auto-Improve**. Otto is all four end to end, and
+the headline stage — **Auto-Improve**, eval data flowing back to make the agent safer —
+*is the product*. "We aren't looking for the best-sounding voice; we're looking for the
+best system." Otto is the system.
 
 ---
 
@@ -33,9 +38,14 @@ owner intake) and Otto stands up a phone line that:
   missed/incorrect action triggers a targeted, high-volume swarm-heal on that one thing →
   patch → re-verify → redeploy. The line never stops getting safer.
 
-Two kinds of failure, both caught and healed: **what the agent says** (a hallucinated policy,
-a botched edge case) and **what the agent does** (the wrong booking, the action it never took).
-Most voice agents only ever test the first.
+Most voice evals only ask *did it say the right words?* Otto classifies the **whole call
+event stream** across four dimensions — what it **said** (conversation), what it **did**
+(action), the **end state** (outcome), and how it **felt** (experience) — so it catches the
+failures a transcript judge is blind to: a tool that *failed* while the agent said "you're all
+set," availability it *guessed* without checking, a card number *written into a record*, a
+*double-booking*, a 4-second *dead-air* lookup. Each detected failure authors its own policy
+fix and the loop re-verifies it. See **`docs/FAILURE_TAXONOMY.md`** — 14 detectors, mostly
+deterministic. This is the heart of the **Auto-Improve** stage.
 
 ## Why this niche — local service businesses
 
@@ -101,20 +111,30 @@ The **AgentSpec** (`packages/spec/`) is the single contract every component read
 and writes. The self-heal loop only edits `policies[]`; the live prompt is
 recompiled from the spec, so a patch is a legible before/after diff.
 
-## Sponsor surface (one architecture, five sponsors)
+## The four stages → Otto (one architecture, five sponsors)
+
+The hosts framed the challenge as four stages. Otto is built as exactly that loop:
+
+| Stage (host's words) | Otto | Sponsor surface |
+|---|---|---|
+| **1. Build & Customize** — high-reasoning voice engines on open-weights models | `extract(url)` → `AgentSpec` → `compile_prompt()`, reasoning on **NVIDIA Nemotron** (open weights, via NIM) | NVIDIA Nemotron LLM + Parakeet/Magpie speech (NIM) · AWS Bedrock Nova · open Gemma free failover |
+| **2. Deploy at Scale** — eliminate latency, scale the line | Pipecat pipeline, one definition, two transports — the **Daily + NVIDIA Nemotron voice blueprint** | Daily/Pipecat · Twilio telephony · AWS AgentCore (0→thousands of isolated sessions) |
+| **3. Simulate & Evaluate** — move beyond "vibes" | vertical-archetyped synthetic swarm + LLM-judge | **Cekura** test framework over a Daily room |
+| **4. Auto-Improve** — eval data flows back into the agent | self-heal: failures → policy diff → re-run → gated activation → perpetual production loop | Cekura observability webhook → targeted swarm-heal |
+
+Every layer is config-swappable via `.env`. Default = reliability. Flip on the sponsor
+option with on-site mentor help to claim a judges' prize without risking the demo.
 
 | Layer | Default | Sponsor swap | Sponsor |
 |---|---|---|---|
 | Framework | **Pipecat** | — | Daily (co-host) |
 | Eval / self-heal | **Cekura** | — | Cekura (co-host) |
-| Telephony | **Twilio Media Streams** | Twilio ConversationRelay | Twilio (partner) |
-| STT | Deepgram | **NVIDIA Parakeet (NIM)** | NVIDIA (mentor) |
-| TTS | Cartesia | **NVIDIA Magpie (NIM)** | NVIDIA (mentor) |
-| LLM | OpenAI `gpt-4o` | **AWS Bedrock Nova** | AWS (mentor) |
-| Hosting | local / ngrok | **AWS Bedrock AgentCore** | AWS (mentor) |
-
-Every layer is config-swappable via `.env`. Default = reliability. Flip on the
-sponsor option with on-site mentor help to claim the track without risking the demo.
+| Telephony | **Twilio Media Streams** | Twilio ConversationRelay | Twilio (sponsor) |
+| LLM (reasoning + voice) | OpenAI / open Gemma | **NVIDIA Nemotron (NIM)** | NVIDIA (sponsor) |
+| STT | Deepgram | **NVIDIA Parakeet (NIM)** | NVIDIA (sponsor) |
+| TTS | Cartesia | **NVIDIA Magpie (NIM)** | NVIDIA (sponsor) |
+| LLM | OpenAI `gpt-4o` | **AWS Bedrock Nova** | AWS (sponsor) |
+| Hosting | local / ngrok | **AWS Bedrock AgentCore** | AWS (sponsor) |
 
 ## Quickstart
 
@@ -138,13 +158,14 @@ and `SWARM_MODE=cekura` for the real eval engine.
 ## Layout
 
 ```
-packages/spec/      AgentSpec (Pydantic source of truth + JSON Schema + TS types) + cached specs for 6 verticals (piccino, contractor, clinic, salon, law)
-apps/orchestrator/  FastAPI: extract · swarm · archetypes (vertical-aware) · heal · observe (production loop) · activate · SSE · serves the dashboard
-apps/agent/         Pipecat bot: serves an AgentSpec over Twilio (phone) + Daily (Cekura swarm)
-apps/web/           Mission-control dashboard (single-file v0 on the live SSE; Next.js migration later)
-docs/ARCHITECTURE.md  design doc — reframe, refined vision, the two loops, scope, risks, plan
-docs/TECH.md          per-technology deep dive — how we leverage each sponsor fully
-docs/DAYOF.md         competition-day execution + clean commit plan
+packages/spec/      AgentSpec + CallTrace (Pydantic source of truth + JSON Schema + TS types) + cached specs for 5 verticals (piccino, contractor, clinic, salon, law)
+apps/orchestrator/  FastAPI: extract · swarm · archetypes (vertical-aware) · heal · failure (the taxonomy engine) · observe (production loop) · report (eval certificate) · activate · SSE · serves the dashboard
+apps/agent/         Pipecat bot: serves an AgentSpec over Twilio (phone) + Daily (Cekura swarm); emits a CallTrace per call
+apps/web/           Mission-control dashboard + the printable /report/ eval certificate (single-file on the live SSE)
+docs/ARCHITECTURE.md     design doc — reframe, refined vision, the two loops, scope, risks, plan
+docs/TECH.md             per-technology deep dive — how we leverage each sponsor fully
+docs/FAILURE_TAXONOMY.md the 4-dimension failure taxonomy + event-stream eval engine (the Auto-Improve brain)
+docs/DAYOF.md            competition-day execution + clean commit plan
 ```
 
 ## Two loops

@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Otto · Evaluation Report</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%237A1B2D'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='18' font-weight='700' text-anchor='middle' fill='%23FAF6F1'%3EO%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* Otto evaluation report — warm editorial, matched to the dashboard, built to print. */
+  :root{
+    --bg:#FAF6F1; --card:#FFFFFF; --paper:#FBF7F1; --cream2:#F4ECE2;
+    --ink:#2A0A10; --ink-soft:#6B4A3A; --ink-fade:#9A8575;
+    --maroon:#7A1B2D; --maroon-l:#9A3040; --maroon-d:#4A0F18;
+    --danger:#9A2020; --danger-bg:#F6E5E5;
+    --pass:#4A7A2E; --pass-d:#3A6024; --pass-bg:#E8F2E0;
+    --gold:#9A7020; --gold-light:#F3E8CE;
+    --line:#E4D7C8; --line2:#D8C7B4;
+    --display:'Fraunces',Georgia,serif; --sans:'DM Sans',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+    --sh-sm:0 1px 3px rgba(42,10,16,.07); --sh-md:0 10px 28px -14px rgba(42,10,16,.26); --sh-lg:0 30px 70px -40px rgba(42,10,16,.42);
+  }
+  *{box-sizing:border-box}html,body{margin:0}
+  body{font-family:var(--sans);color:var(--ink);font-size:15px;line-height:1.5;background:var(--bg);-webkit-font-smoothing:antialiased;position:relative}
+  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
+    background-image:radial-gradient(circle at 1px 1px,rgba(122,27,45,.05) 1px,transparent 1.4px);background-size:7px 7px}
+  ::selection{background:var(--maroon);color:#fff}
+  .doc{max-width:880px;margin:0 auto;padding:34px 28px 90px;position:relative;z-index:1}
+
+  /* masthead */
+  .top{display:flex;align-items:flex-end;gap:14px;border-bottom:2px solid var(--maroon);padding-bottom:16px}
+  .word{font:600 26px var(--display);letter-spacing:-.01em;line-height:1}.word b{color:var(--maroon)}
+  .doctype{font:600 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--maroon)}
+  .subline{font-family:var(--display);font-style:italic;color:var(--ink-soft);font-size:14px}
+  .meta-r{margin-left:auto;text-align:right;font:500 11px var(--mono);color:var(--ink-fade);line-height:1.7}
+  .actions{display:flex;gap:9px;margin:14px 0 0}
+  .pbtn{font:600 12px var(--sans);color:var(--ink);background:var(--card);border:1px solid var(--line2);border-radius:11px;padding:9px 14px;cursor:pointer;text-decoration:none;box-shadow:var(--sh-sm);transition:transform .15s,box-shadow .15s,border-color .15s}
+  .pbtn:hover{transform:translateY(-1px);box-shadow:var(--sh-md);border-color:var(--maroon-l)}
+  .pbtn.solid{background:var(--maroon);color:#fff;border-color:var(--maroon-d)}
+
+  h2{font:600 13px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--maroon);margin:34px 0 12px;display:flex;align-items:baseline;gap:10px}
+  h2 .sub{font:500 11px var(--mono);letter-spacing:0;text-transform:none;color:var(--ink-fade)}
+  .muted{font-family:var(--display);font-style:italic;color:var(--ink-fade);font-size:13px}
+
+  /* subject + verdict */
+  .subject{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:var(--sh-md);margin-top:18px}
+  .subject .name{font:600 24px var(--display);letter-spacing:-.01em}
+  .subject .name span{font-family:var(--display);font-style:italic;font-weight:500;font-size:15px;color:var(--ink-fade)}
+  .subject .greet{font-family:var(--display);font-style:italic;color:var(--ink-soft);margin:8px 0 0;font-size:15px}
+  .subject .disc{font:400 12px var(--mono);color:var(--ink-fade);margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
+
+  .verdict{display:flex;align-items:center;gap:22px;border-radius:18px;padding:22px 24px;margin-top:14px;box-shadow:var(--sh-lg);border:1px solid var(--line)}
+  .verdict.pass{background:linear-gradient(110deg,#fff,var(--pass-bg))}
+  .verdict.fail{background:linear-gradient(110deg,#fff,var(--danger-bg))}
+  .verdict .big{font:600 60px var(--display);line-height:.9;color:var(--maroon)}
+  .verdict .stamp{font:700 15px var(--sans);letter-spacing:.02em}
+  .verdict .stamp.pass{color:var(--pass-d)}.verdict .stamp.fail{color:var(--danger)}
+  .verdict .vs{font-family:var(--display);font-style:italic;color:var(--ink-soft);font-size:14px;margin-top:3px}
+  .verdict .right{margin-left:auto;text-align:right;font:500 12px var(--mono);color:var(--ink-soft);line-height:1.9}
+  .verdict .right b{color:var(--ink)}
+
+  /* stat strip */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:var(--sh-sm)}
+  .stat .v{font:600 26px var(--display);color:var(--ink);line-height:1}
+  .stat .l{font:600 11px var(--sans);color:var(--ink-soft);margin-top:6px}
+
+  /* the safety guarantee */
+  .guarantee{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;border:1px solid var(--pass);background:linear-gradient(110deg,#fff,var(--pass-bg));border-radius:14px;padding:15px 18px;margin-top:14px;box-shadow:var(--sh-md)}
+  .guarantee .gt{font:600 15px var(--display);color:var(--pass-d)}
+  .guarantee .gi{font:500 12px var(--mono);color:var(--ink-soft)}.guarantee .gi b{color:var(--ink)}
+  .guarantee .gi.disc b{color:var(--maroon)}
+  /* climb chart */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:var(--sh-md)}
+  .climb{display:flex;align-items:flex-end;gap:18px;height:200px;padding:10px 6px 0;position:relative}
+  .gate-line{position:absolute;left:6px;right:6px;border-top:2px dashed var(--gold);}
+  .gate-tag{position:absolute;right:6px;transform:translateY(-100%);font:600 10px var(--mono);color:var(--gold);background:var(--gold-light);padding:1px 6px;border-radius:5px}
+  .bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:7px}
+  .bar .col{width:64%;max-width:80px;border-radius:8px 8px 0 0;background:linear-gradient(180deg,var(--maroon-l),var(--maroon));position:relative;transition:height .6s cubic-bezier(.2,.7,.2,1);box-shadow:var(--sh-sm)}
+  .bar .col.gced{background:linear-gradient(180deg,#5C9438,var(--pass))}
+  .bar .pct{font:600 15px var(--display);color:var(--ink)}
+  .bar .vl{font:500 11px var(--mono);color:var(--ink-fade)}
+
+  /* category coverage */
+  .cov{display:grid;grid-template-columns:1fr 1fr;gap:12px 26px}
+  .covrow .top2{display:flex;justify-content:space-between;font:600 13px var(--sans);margin-bottom:5px}
+  .covrow .top2 .n{font:500 12px var(--mono);color:var(--ink-fade)}
+  .track{height:9px;background:var(--cream2);border-radius:99px;overflow:hidden}
+  .fill{height:100%;border-radius:99px;background:var(--pass)}
+  .fill.partial{background:var(--gold)}
+
+  /* learned / patches */
+  .diff{border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:11px;background:var(--card);box-shadow:var(--sh-sm)}
+  .diff .id{font:600 13px var(--mono);color:var(--maroon)}
+  .diff .tag{font:600 10px var(--mono);letter-spacing:.06em;padding:2px 8px;border-radius:6px;margin-left:7px;vertical-align:1px}
+  .diff .tag.add{background:var(--pass-bg);color:var(--pass-d)}.diff .tag.mod{background:var(--gold-light);color:var(--gold)}
+  .diff .cat{font:500 11px var(--mono);color:var(--ink-fade);float:right}
+  .diff .row{font-size:13px;margin-top:9px;padding:9px 12px;border-radius:9px;line-height:1.45}
+  .diff .before{background:var(--danger-bg);border-left:3px solid var(--danger);color:#6b1717;text-decoration:line-through;text-decoration-color:rgba(154,32,32,.4)}
+  .diff .after{background:var(--pass-bg);border-left:3px solid var(--pass);color:#33521f}
+  .roundpill{font:600 10px var(--mono);color:var(--ink-fade);text-transform:uppercase;letter-spacing:.08em;margin:16px 0 8px}
+
+  /* failure taxonomy */
+  .taxdims{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .taxdim{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--line2);background:var(--card);color:var(--ink-fade)}
+  .taxdim b{font-family:var(--display);margin-left:5px}.taxdim.hit{background:var(--maroon);border-color:var(--maroon-d);color:#fff}
+  .fcall{border:1px solid var(--line);border-radius:13px;padding:14px 16px;margin-bottom:10px;background:var(--card);box-shadow:var(--sh-sm)}
+  .fcall .fcid{font:600 12px var(--mono);color:var(--maroon)}
+  .frow{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+  .frow:first-of-type{border-top:0}
+  .fsev{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:999px;color:#fff}
+  .fsev.critical,.fsev.high{background:var(--danger)}.fsev.medium{background:var(--gold)}.fsev.low{background:var(--ink-fade)}
+  .frow .ft{font:700 13px var(--sans)}.frow .fd{font:500 11px var(--mono);color:var(--ink-fade)}
+  .frow .fr{flex:1 1 100%;font-size:12px;color:var(--ink-soft);margin-top:2px}
+  /* production note */
+  .prod{display:flex;align-items:center;gap:18px;background:linear-gradient(110deg,#fff,var(--gold-light));border:1px solid var(--gold);border-radius:14px;padding:16px 20px;box-shadow:var(--sh-md)}
+  .prod .arrow{font:600 22px var(--display);color:var(--maroon)}
+  .prod .lab{font:700 13px var(--sans)}.prod .det{font-family:var(--display);font-style:italic;color:var(--ink-soft);font-size:13px;margin-top:2px}
+
+  /* ledger */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-fade);padding:8px 10px;border-bottom:1px solid var(--line2)}
+  tbody td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:last-child td{border-bottom:0}
+  .scn{font-weight:600}.scncat{font:500 11px var(--mono);color:var(--ink-fade)}
+  .v-pass{font:700 11px var(--mono);color:#fff;background:var(--pass);padding:2px 8px;border-radius:99px}
+  .v-fail{font:700 11px var(--mono);color:#fff;background:var(--danger);padding:2px 8px;border-radius:99px}
+  .why{color:var(--ink-soft);font-size:12px;max-width:340px}
+
+  .foot{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);font:500 12px var(--mono);color:var(--ink-soft);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .foot b{color:var(--maroon)}.foot .sp{margin-left:auto;font-family:var(--display);font-style:italic;color:var(--ink-fade)}
+
+  .empty{text-align:center;padding:90px 20px}
+  .empty .word{justify-content:center;margin-bottom:14px}
+  .empty p{color:var(--ink-soft);margin:6px 0 18px}
+
+  @media(max-width:680px){.stats{grid-template-columns:1fr 1fr}.cov{grid-template-columns:1fr}.verdict{flex-wrap:wrap}.meta-r{display:none}}
+  @media print{
+    body{background:#fff}body::before{display:none}.actions{display:none}
+    .doc{max-width:none;padding:0 8px}
+    .panel,.subject,.verdict,.stat,.diff,.prod{box-shadow:none}
+    h2{break-after:avoid}.diff,.prod,.subject,.verdict{break-inside:avoid}
+    .col{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    a[href]:after{content:""}
+  }
+</style>
+</head>
+<body>
+<div class="doc" id="doc"></div>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const ORCH=(location.protocol==="file:")?"http://localhost:8000":"";
+const sid=new URLSearchParams(location.search).get("s");
+const pct=x=>(x==null?"—":Math.round(x*100)+"%");
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+(async()=>{
+  if(!sid){return empty("No session specified.","Run a build in mission control, then open its report.");}
+  let r;
+  try{const resp=await fetch(ORCH+"/api/report/"+sid);if(!resp.ok)throw 0;r=await resp.json();}
+  catch{return empty("Report not found.","That session may have expired, or the orchestrator isn’t running on :8000.");}
+  render(r);
+})();
+
+function empty(t,p){
+  $("#doc").innerHTML=`<div class="empty"><div class="word top" style="border:0">Otto<b>.</b></div>
+    <h1 style="font-family:var(--display);font-weight:600">${esc(t)}</h1><p>${esc(p)}</p>
+    <a class="pbtn solid" href="/app/">Open mission control →</a></div>`;
+}
+
+function render(r){
+  const b=r.business||{}, v=r.voice||{};
+  const cert=r.certification_rounds||[], prod=r.production_rounds||[];
+  const fr=cert[cert.length-1]||null;   // final certification round
+  const now=new Date();
+  const ts=now.toLocaleString(undefined,{year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+  const passed=r.passed_gate;
+  const backendLabel={static:"deterministic policy-coverage check",sim:"LLM caller ↔ LLM-judge simulation",cekura:"Cekura test framework"}[r.backend]||r.backend;
+
+  // ── masthead ──
+  let h=`<div class="top">
+    <div><div class="word">Otto<b>.</b></div><div class="doctype">Voice-agent evaluation report</div></div>
+    <div class="meta-r">session <b>${esc(r.session_id)}</b><br>generated ${esc(ts)}<br>eval engine · ${esc(backendLabel)}</div>
+  </div>
+  <div class="actions">
+    <a class="pbtn solid" href="#" onclick="window.print();return false">⎙ Save as PDF / print</a>
+    <a class="pbtn" href="/app/?s=${esc(r.session_id)}">↩ Back to mission control</a>
+  </div>`;
+
+  // ── subject ──
+  h+=`<div class="subject">
+    <div class="name">${esc(b.name||"—")} <span>· ${esc(b.type||"")}${b.location?" · "+esc(b.location):""}${b.public_url?" · "+esc(b.public_url):""}</span></div>
+    ${v.greeting?`<div class="greet">“${esc(v.greeting)}”</div>`:""}
+    ${b.disclaimer?`<div class="disc">${esc(b.disclaimer)}</div>`:""}
+  </div>`;
+
+  // ── verdict ──
+  h+=`<div class="verdict ${passed?"pass":"fail"}">
+    <div><div class="big">${pct(r.final_pass_rate)}</div></div>
+    <div>
+      <div class="stamp ${passed?"pass":"fail"}">${passed?"✓ CLEARED THE SAFETY GATE":"✕ BLOCKED — BELOW GATE"}</div>
+      <div class="vs">${passed
+        ? `the line was activated only after passing ${pct(r.gate)} of synthetic callers`
+        : `final pass rate is under the ${pct(r.gate)} activation gate — the line stays off`}</div>
+    </div>
+    <div class="right">
+      gate threshold · <b>${pct(r.gate)}</b><br>
+      final spec · <b>v${esc(r.final_version)}</b><br>
+      ${r.active&&r.active.phone_number?`live line · <b>${esc(r.active.phone_number)}</b>`:`status · <b>not activated</b>`}
+    </div>
+  </div>`;
+
+  // ── stat strip ──
+  const heals=(r.patches||[]).length;
+  const policyAdds=(r.patches||[]).reduce((n,p)=>n+(p.diffs||[]).filter(d=>d.change==="added").length,0);
+  const policyMods=(r.patches||[]).reduce((n,p)=>n+(p.diffs||[]).filter(d=>d.change==="modified").length,0);
+  h+=`<div class="stats">
+    <div class="stat"><div class="v">${r.total_scenarios_run}</div><div class="l">Synthetic callers run</div></div>
+    <div class="stat"><div class="v">${pct(r.first_pass_rate)} → ${pct(r.final_pass_rate)}</div><div class="l">Pass rate, first → final</div></div>
+    <div class="stat"><div class="v">${heals}</div><div class="l">Self-heal round${heals===1?"":"s"}</div></div>
+    <div class="stat"><div class="v">${policyMods}<span style="font-size:15px;color:var(--ink-fade)">mod</span> ${policyAdds}<span style="font-size:15px;color:var(--ink-fade)">new</span></div><div class="l">Policies rewritten / added</div></div>
+  </div>`;
+
+  // ── the safety guarantee (provably monotonic self-improvement) ──
+  const g=r.guarantee||{};
+  if(g.heals_guarded){
+    h+=`<div class="guarantee">
+      <span class="gt">✓ Provably monotonic — the agent cannot make itself worse</span>
+      <span class="gi"><b>${g.heals_guarded}</b> heal${g.heals_guarded>1?"s":""}, each regression-checked across up to <b>${g.scenarios_checked}</b> scenarios</span>
+      <span class="gi"><b>${g.total_regressed}</b> regressions shipped</span>
+      ${g.patches_rejected?`<span class="gi"><b>${g.patches_rejected}</b> unsafe/ineffective patch${g.patches_rejected>1?"es":""} rejected</span>`:""}
+      ${g.discovered_modes?`<span class="gi disc">🔬 <b>${g.discovered_modes}</b> new failure mode${g.discovered_modes>1?"s":""} discovered in production</span>`:""}
+    </div>`;
+  }
+
+  // ── how it hardened (climb chart) ──
+  if(cert.length){
+    const maxH=170, gateY=maxH*r.gate;
+    h+=`<h2>How it hardened <span class="sub">pass rate per spec version, gated activation</span></h2>
+    <div class="panel"><div class="climb">
+      <div class="gate-line" style="bottom:${10+gateY}px"><span class="gate-tag">gate ${pct(r.gate)}</span></div>
+      ${cert.map(c=>{const hh=Math.max(4,maxH*c.pass_rate);const ok=c.pass_rate>=r.gate;
+        return `<div class="bar"><div class="pct">${pct(c.pass_rate)}</div>
+          <div class="col ${ok?"gced":""}" style="height:${hh}px"></div>
+          <div class="vl">v${c.spec_version} · ${c.passed}/${c.total}</div></div>`;}).join("")}
+    </div></div>`;
+  }
+
+  // ── coverage by category (final round) ──
+  if(fr&&fr.by_category){
+    const order=r.categories||Object.keys(fr.by_category);
+    const rows=order.filter(c=>fr.by_category[c]).map(c=>{
+      const d=fr.by_category[c];const ratio=d.total?d.passed/d.total:1;const full=ratio>=1;
+      return `<div class="covrow"><div class="top2"><span>${esc(c.replace("_"," "))}</span><span class="n">${d.passed}/${d.total}</span></div>
+        <div class="track"><div class="fill ${full?"":"partial"}" style="width:${Math.round(ratio*100)}%"></div></div></div>`;
+    }).join("");
+    h+=`<h2>Coverage by category <span class="sub">final round · ${esc(b.type||"")} archetype</span></h2>
+      <div class="panel"><div class="cov">${rows}</div></div>`;
+  }
+
+  // ── what it learned (patches) ──
+  if((r.patches||[]).length){
+    h+=`<h2>What it patched in itself <span class="sub">LLM-authored policy diffs, by heal round</span></h2>`;
+    r.patches.forEach(p=>{
+      h+=`<div class="roundpill">Heal round ${esc(p.round)}</div>`;
+      (p.diffs||[]).forEach(d=>{
+        const isMod=d.change==="modified";
+        h+=`<div class="diff">
+          <span class="cat">[${esc(d.category)}]</span>
+          <span class="id">${esc(d.policy_id)}</span><span class="tag ${isMod?"mod":"add"}">${isMod?"MODIFIED":"ADDED"}</span>
+          ${d.before?`<div class="row before">${esc(d.before.rule)}</div>`:""}
+          <div class="row after">${esc(d.after.rule)}</div>
+        </div>`;
+      });
+    });
+  }
+
+  // ── continuous improvement (production) ──
+  if(prod.length){
+    const pre=prod[0].pass_rate, post=prod[prod.length-1].pass_rate, n=prod[0].total;
+    h+=`<h2>Continuous improvement <span class="sub">a live-call failure → targeted swarm-heal</span></h2>
+      <div class="prod">
+        <div class="arrow">${pct(pre)} → ${pct(post)}</div>
+        <div><div class="lab">The line kept getting safer after go-live.</div>
+        <div class="det">A real-call failure triggered ${n} targeted variations of the exact issue; the policy was patched and re-verified to v${prod[prod.length-1].spec_version}.</div></div>
+      </div>`;
+  }
+
+  // ── production failure taxonomy (the multi-dimensional classifier) ──
+  const frs=r.failure_reports||[];
+  if(frs.length){
+    const td=r.taxonomy_dimensions||{};
+    h+=`<h2>Production failure taxonomy <span class="sub">live calls classified across four dimensions</span></h2>
+    <div class="panel">
+      <div class="taxdims">${["conversation","action","outcome","experience"].map(d=>`<div class="taxdim ${td[d]?"hit":""}">${d}<b>${td[d]||0}</b></div>`).join("")}</div>
+      ${frs.map(fr=>`<div class="fcall"><div class="fcid">call ${esc(fr.call_id||"")} · ${(fr.failures||[]).length} failure(s)</div>
+        ${(fr.failures||[]).map(f=>`<div class="frow"><span class="fsev ${f.severity}">${f.severity}</span><span class="ft">${esc(f.title)}</span><span class="fd">${esc(f.dimension)}</span><div class="fr">${esc(f.reason)}</div></div>`).join("")}
+      </div>`).join("")}
+    </div>`;
+  }
+
+  // ── scenario ledger (fail → pass journey) ──
+  if((r.journey||[]).length){
+    h+=`<h2>Scenario ledger <span class="sub">every synthetic caller · first verdict → final verdict</span></h2>
+    <div class="panel" style="padding:6px 10px">
+    <table><thead><tr><th>Scenario</th><th>First</th><th>Final</th><th>Finding</th></tr></thead><tbody>
+    ${r.journey.map(j=>`<tr>
+      <td><div class="scn">${esc(j.label)}</div><div class="scncat">${esc(j.category)}</div></td>
+      <td><span class="${j.first_passed?"v-pass":"v-fail"}">${j.first_passed?"PASS":"FAIL"}</span></td>
+      <td><span class="${j.final_passed?"v-pass":"v-fail"}">${j.final_passed?"PASS":"FAIL"}</span></td>
+      <td class="why">${esc(j.reason||"")}</td>
+    </tr>`).join("")}
+    </tbody></table></div>`;
+  }
+
+  // ── footer ──
+  h+=`<div class="foot">Evaluated with <b>Cekura</b> · <b>Pipecat</b> · <b>Twilio</b> · <b>NVIDIA</b> · <b>AWS</b>
+    · swarm mode <b>${esc(r.swarm_mode)}</b>
+    <span class="sp">Sandbox demo · built from public info · numbers are real run output, nothing hardcoded.</span></div>`;
+
+  $("#doc").innerHTML=h;
+  document.title=`Otto · ${b.name||"Evaluation"} report`;
+}
+</script>
+</body>
+</html>

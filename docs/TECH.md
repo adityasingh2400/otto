@@ -1,8 +1,14 @@
 # Otto — Technology Deep Dive
 
 How we use each technology to the **fullest**, not just the happy path. Every layer is
-config-swappable; defaults favor reliability, sponsor swaps claim tracks. Five sponsors
-(Daily/Pipecat, Cekura, Twilio, NVIDIA, AWS) covered by one architecture.
+config-swappable; defaults favor reliability, sponsor swaps claim a judges' prize. Five
+sponsors (Daily/Pipecat, Cekura, Twilio, NVIDIA, AWS) covered by one architecture.
+
+The hosts named four stages; each maps to a section below:
+**1. Build & Customize** → §4 NVIDIA open-weights speech, §5 AWS Bedrock, §6 the model layer ·
+**2. Deploy at Scale** → §1 Pipecat, §3 Twilio, §5 AgentCore ·
+**3. Simulate & Evaluate** → §2 Cekura ·
+**4. Auto-Improve** → §7 the two loops.
 
 Sources are linked at the bottom.
 
@@ -117,21 +123,35 @@ as the one-flip reliability mode if Pipecat latency misbehaves on the day.
 
 ---
 
-## 4. NVIDIA — fast, reliable speech · mentor
+## 4. NVIDIA — open-weights inference (Nemotron) + fast speech · sponsor prize
 
-**What it is:** Riva speech models served as NIM microservices (build.nvidia.com/speech).
+**What it is:** **Nemotron** open-weights LLMs and Riva speech models, both served as NIM
+microservices (build.nvidia.com), OpenAI-compatible. The event names **"NVIDIA Nemotron
+models"** and "NVIDIA-accelerated SOTA open-weights models" — so the on-theme play is to run
+*inference* on NVIDIA, not just treat it as a speech vendor. (It's "Nemotron" on the event
+materials, not "NeMo" — pitch the word Nemotron.)
 
 **Full capabilities we lean on:**
-- **Parakeet ASR** (`parakeet-tdt-0.6b-v3`): ~6% WER, ~50× realtime, 25 languages. Fast +
-  accurate STT = fewer mis-hears = fewer false failures in the swarm and on the phone.
-- **Magpie TTS** (v2602, 9 languages, zero-shot voice cloning): natural, low-latency
-  voice; clone a warm "house" voice per business.
-- **NIM microservices:** GPU-accelerated, low-latency, drop-in as Pipecat STT/TTS services.
-- NeMo / Nemotron + other LLMs via NIM if we want NVIDIA-hosted inference.
+- **Nemotron LLM via NIM** (`integrate.api.nvidia.com/v1`, OpenAI-compatible): Otto's
+  reasoning (extract / heal / judge) and the live-call LLM run on an open-weights Nemotron —
+  literally theme #1. Because our LLM layer already speaks the OpenAI protocol, this is a
+  `base_url` + model swap (`LLM_PROVIDER=nvidia`, `apps/orchestrator/app/llm.py::_nvidia`).
+  Nemotron Super for reasoning quality; a faster Nemotron (Nano) for low live-call latency.
+- **Parakeet ASR** (`parakeet-tdt-0.6b-v3`): ~6% WER, ~3,300× realtime (RTFx), 25 languages.
+- **Magpie TTS** (9 languages, zero-shot voice cloning): natural, low first-audio latency.
+- **NIM:** GPU-accelerated, OpenAI-compatible (LLM) / drop-in Pipecat services (speech).
 
-**Leverage to the max:** flip `STT_PROVIDER=nvidia` / `TTS_PROVIDER=nvidia` to run
-Parakeet + Magpie in the Pipecat pipeline — claims the NVIDIA track, improves latency and
-multilingual accuracy. Ask NVIDIA mentors for NIM endpoints/credits on-site.
+**The blueprint angle (the pitch):** Daily (co-host) + NVIDIA ship the **Nemotron Voice Agent
+Blueprint** — Parakeet + Nemotron + Magpie on Pipecat. Otto is already Pipecat-based, so we
+run *inside the judges' own reference architecture* and build the self-healing, eval-driven
+system on top of it. One line to the NVIDIA judge: *"we took your Nemotron voice blueprint and
+made it heal itself."*
+
+**Leverage to the max:** `LLM_PROVIDER=nvidia` (Nemotron reasoning + live LLM) and
+`STT_PROVIDER=nvidia` / `TTS_PROVIDER=nvidia` (Parakeet + Magpie) — one free `nvapi-` key
+(build.nvidia.com) powers all three. Gemini + Deepgram/Cartesia stay wired as one-flag
+failovers so the live call never rides on speech you couldn't stabilize. Ask NVIDIA mentors
+for endpoints/credits on-site.
 
 ---
 
@@ -179,9 +199,10 @@ PRE-LAUNCH  (broad, gate before go-live)
   extract → build → auto-gen swarm (vertical-archetyped) → fail → heal → re-run → gate → activate
 
 PRODUCTION  (perpetual, targeted)
-  every live call → Cekura observe → regression/failure detected
-     → webhook → FOCUSED high-volume red-team swarm on THAT failure
-     → heal that policy → re-run → redeploy   (the line never stops getting safer)
+  every live call → CallTrace → failure taxonomy (4 dimensions: conversation/action/outcome/experience)
+     → a detected failure (incl. wrong/slow/failed/unauthorized ACTIONS, not just bad words)
+     → it authors its own policy fix → FOCUSED swarm probes that fix → re-verify → redeploy
+     (the line never stops getting safer — see docs/FAILURE_TAXONOMY.md)
 ```
 
 Pre-launch proves it's safe to turn on. Production keeps it safe as reality throws new

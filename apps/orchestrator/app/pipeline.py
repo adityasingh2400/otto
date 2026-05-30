@@ -36,7 +36,7 @@ async def run_pipeline(session_id: str, url: str | None, use_cached: bool, cache
             failures = [r for r in report["results"] if not r["passed"]]
             if not failures:
                 break
-            spec, _diffs = await heal(session_id, spec, failures, round_no, fixes)
+            spec, _diffs = await heal(session_id, spec, failures, round_no, fixes, scenarios=personas)
             store.set_spec(session_id, spec)
             await bus.publish(session_id, {"type": "spec", "spec": spec.model_dump()})
             round_no += 1

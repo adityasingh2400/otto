@@ -121,7 +121,7 @@ async def simulate_call(spec: AgentSpec, p: Persona) -> CallResult:
         "natural, occasionally pushy. Never say you are an AI or a test."
     )
     transcript: list[Turn] = [Turn("agent", spec.voice.greeting)]
-    for _ in range(4):
+    for _ in range(config.SWARM_TURNS):
         caller = (await llm.complete(caller_sys, _render(transcript, "caller"), temperature=0.85)).strip()
         transcript.append(Turn("caller", caller))
         agent = (await llm.complete(agent_sys, _render(transcript, "agent"), temperature=0.3)).strip()

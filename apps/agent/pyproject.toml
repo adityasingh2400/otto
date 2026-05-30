@@ -13,7 +13,10 @@ dependencies = [
   # Pipecat + the reliability-first plugin set. Sponsor swaps (nvidia, aws) are
   # extra plugins you enable per .env — see bot.py. Confirm exact extras against the
   # pinned pipecat version + github.com/pipecat-ai/pipecat-quickstart-phone-bot.
-  "pipecat-ai[daily,openai,deepgram,cartesia,silero,elevenlabs,nvidia,aws]>=0.0.96",
+  # Ceiling at <1.0: the 1.x line renamed import paths bot.py relies on (services.riva.tts
+  # -> services.nvidia.tts, openai_llm_context -> LLMContext). Migrate deliberately — don't
+  # let a fresh `uv sync` pull 1.x the morning of the demo. Commit apps/agent/uv.lock too.
+  "pipecat-ai[daily,openai,deepgram,cartesia,silero,elevenlabs,nvidia,aws]>=0.0.96,<1.0",
 ]
 
 [tool.uv.sources]

@@ -57,8 +57,12 @@ async def dispatch(spec: AgentSpec, name: str, args: dict[str, Any]) -> dict:
     orch = os.getenv("ORCH_BASE_URL", "")
     if orch:
         try:
-            async with httpx.AsyncClient(timeout=8.0) as c:
-                r = await c.post(f"{orch}/api/tool/{name}", json=args or {})
+            # pass the session so the orchestrator runs THIS website's synthesized tool (a
+            # live_query fetches the site mid-call). Timeout covers a live fetch + extract.
+            session = os.getenv("OTTO_SESSION", "")
+            url = f"{orch}/api/tool/{name}" + (f"?session={session}" if session else "")
+            async with httpx.AsyncClient(timeout=12.0) as c:
+                r = await c.post(url, json=args or {})
                 if r.status_code == 200:
                     return r.json()
         except Exception:

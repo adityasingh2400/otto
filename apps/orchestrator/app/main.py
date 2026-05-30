@@ -40,8 +40,10 @@ class RunReq(BaseModel):
 
 
 class ObserveReq(BaseModel):
-    transcript: str | None = None  # a completed live-call transcript to audit
+    transcript: str | None = None  # a completed live-call transcript to audit (voice-only)
     persona: str | None = None     # or an explicit failure signal (persona id)
+    trace_id: str | None = None    # or a synthetic CallTrace fixture id (demo replay buttons)
+    trace: dict | None = None      # or a full CallTrace the live agent emitted (event stream)
 
 
 @app.get("/api/health")
@@ -81,6 +83,15 @@ async def get_spec(session_id: str) -> dict:
     return spec.model_dump()
 
 
+@app.get("/api/report/{session_id}")
+async def report_route(session_id: str) -> dict:
+    """Evaluation report for a session — every number read back from the real run history."""
+    from .report import build_report
+    if not store.get_spec(session_id):
+        raise HTTPException(status_code=404, detail="no session")
+    return build_report(session_id)
+
+
 @app.post("/api/activate/{session_id}")
 async def activate_route(session_id: str) -> dict:
     spec = store.get_spec(session_id)
@@ -92,16 +103,39 @@ async def activate_route(session_id: str) -> dict:
 
 @app.post("/api/observe/{session_id}")
 async def observe_route(session_id: str, req: ObserveReq) -> dict:
-    """Production loop: audit a live call; on failure, targeted swarm-heal + re-verify."""
-    from .observe import observe_call
+    """Production loop: audit a live call; on failure, targeted swarm-heal + re-verify.
+
+    Three inputs, richest first: a structured `trace`/`trace_id` (full event stream → the
+    multi-dimensional failure taxonomy), or a `persona` signal / `transcript` (voice-only)."""
+    from .observe import observe_call, observe_trace
+    if req.trace or req.trace_id:
+        from otto_spec import CallTrace
+        from . import traces
+        tr = CallTrace.model_validate(req.trace) if req.trace else traces.get(req.trace_id)
+        if tr is None:
+            raise HTTPException(status_code=404, detail=f"unknown trace_id {req.trace_id}")
+        return await observe_trace(session_id, tr)
     return await observe_call(session_id, transcript=req.transcript, persona=req.persona)
 
 
+@app.get("/api/traces")
+async def traces_route(vertical: str | None = None) -> dict:
+    """Synthetic action-failure call traces to replay. With ?vertical=, returns the ordered
+    set to surface for that business (its own first, then universal ones)."""
+    from . import traces
+    if vertical:
+        return {"traces": [{"id": tid, "label": label} for tid, label in traces.for_vertical(vertical)]}
+    return {"traces": [{"id": tid, "label": t["label"], "vertical": t["vertical"]} for tid, t in traces.TRACES.items()]}
+
+
 @app.post("/api/tool/{name}")
-async def tool_route(name: str, args: dict = Body(default={})) -> dict:
-    """Stateful mock business actions (booking, inventory, payment) — shared by the agent + dashboard."""
-    from . import mock_services
-    return mock_services.call(name, args)
+async def tool_route(name: str, args: dict = Body(default={}), session: str | None = None) -> dict:
+    """Execute a business tool — shared by the live agent (as a middleman) + the dashboard. With a
+    `session`, runs the per-website synthesized tool via the spec-driven engine (live_query fetches
+    the site mid-call; stateful hits the sandbox backend); without one, falls back to the backend by name."""
+    from . import tool_engine
+    spec = store.get_spec(session) if session else None
+    return await tool_engine.execute(spec, name, args)
 
 
 @app.get("/api/state")

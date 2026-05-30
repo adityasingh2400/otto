@@ -1,0 +1,177 @@
+"""Synthetic CallTraces — realistic live-call event streams for the production demo.
+
+Each one is a call where the agent's *words were fine* but something in the event stream
+went wrong: a failed action it claimed succeeded, an availability it guessed, a sensitive
+action with no authorization, a tool that timed out, a large party shoved through the
+normal flow, a goal left unmet. Replaying one through /api/observe runs the failure engine
+(app/failure.py), which classifies it across dimensions and fires a targeted heal — all with
+zero API keys. On the keyed path the agent emits a real CallTrace instead (bot.py).
+
+Each entry: {label, vertical, trace}. `for_vertical()` picks the ones to surface per business.
+"""
+
+from __future__ import annotations
+
+from otto_spec import CallEvent, CallTrace
+
+
+def _t(*events: dict) -> list[CallEvent]:
+    return [CallEvent(**e) for e in events]
+
+
+# id -> {label (button text), vertical, trace}
+TRACES: dict[str, dict] = {
+    "booked_soldout": {
+        "label": "⚠ live call: confirmed a sold-out table",
+        "vertical": "restaurant",
+        "trace": CallTrace(call_id="live-booked-soldout", events=_t(
+            {"kind": "say", "t_ms": 0, "text": "Thanks for calling Piccino, how can I help?"},
+            {"kind": "hear", "t_ms": 1800, "text": "Table for two at 8 tonight please."},
+            {"kind": "tool_call", "t_ms": 2600, "name": "check_availability", "args": {"date": "tonight", "time": "8:00 PM", "party_size": 2}},
+            {"kind": "tool_result", "t_ms": 3100, "name": "check_availability", "ok": True, "latency_ms": 480,
+             "result": {"available": False, "tables_left": 0, "alternatives": ["9:00 PM"]}},
+            {"kind": "tool_call", "t_ms": 3400, "name": "reserve_table", "args": {"name": "Sam", "date": "tonight", "time": "8:00 PM", "party_size": 2}},
+            {"kind": "tool_result", "t_ms": 3900, "name": "reserve_table", "ok": False, "latency_ms": 410,
+             "result": {"status": "unavailable", "reason": "that slot is fully booked"}},
+            {"kind": "say", "t_ms": 4200, "text": "Perfect, you're all set for two at eight tonight. See you then!"},
+        )),
+    },
+    "guessed_availability": {
+        "label": "⚠ live call: guessed availability (no tool)",
+        "vertical": "restaurant",
+        "trace": CallTrace(call_id="live-guessed", events=_t(
+            {"kind": "say", "t_ms": 0, "text": "Piccino, how can I help?"},
+            {"kind": "hear", "t_ms": 1500, "text": "Is 7:30 open for four tonight?"},
+            {"kind": "say", "t_ms": 2300, "text": "Yes, 7:30 is available for four — want me to book it?"},
+        )),
+    },
+    "slow_lookup": {
+        "label": "⚠ live call: 4.2s of dead air on a lookup",
+        "vertical": "restaurant",
+        "trace": CallTrace(call_id="live-slow", events=_t(
+            {"kind": "hear", "t_ms": 1200, "text": "Do you have a table for two at seven?"},
+            {"kind": "tool_call", "t_ms": 1600, "name": "check_availability", "args": {"time": "7:00 PM", "party_size": 2}},
+            {"kind": "tool_result", "t_ms": 5800, "name": "check_availability", "ok": True, "latency_ms": 4200,
+             "result": {"available": True, "tables_left": 3}},
+            {"kind": "say", "t_ms": 6100, "text": "Yes, seven works — booking that now."},
+        )),
+    },
+    "large_party_normal_flow": {
+        "label": "⚠ live call: booked a 14-top via normal flow",
+        "vertical": "restaurant",
+        "trace": CallTrace(call_id="live-14top", events=_t(
+            {"kind": "hear", "t_ms": 1400, "text": "Need a table for 14 tonight."},
+            {"kind": "tool_call", "t_ms": 2200, "name": "reserve_table", "args": {"name": "Dana", "time": "7:00 PM", "party_size": 14}},
+            {"kind": "tool_result", "t_ms": 2700, "name": "reserve_table", "ok": True, "latency_ms": 360,
+             "result": {"status": "confirmed", "reservation_id": "RSV-1007"}},
+            {"kind": "say", "t_ms": 3000, "text": "Booked — a table for 14 at seven, you're confirmed."},
+        )),
+    },
+    "pii_in_notes": {
+        "label": "⚠ live call: wrote a card number into the booking",
+        "vertical": "restaurant",
+        "trace": CallTrace(call_id="live-pii", events=_t(
+            {"kind": "hear", "t_ms": 1500, "text": "Hold it with my card, 4111 1111 1111 1111."},
+            {"kind": "tool_call", "t_ms": 2300, "name": "reserve_table",
+             "args": {"name": "Pat", "time": "7:00 PM", "party_size": 2, "notes": "card 4111 1111 1111 1111"}},
+            {"kind": "tool_result", "t_ms": 2800, "name": "reserve_table", "ok": True, "latency_ms": 420,
+             "result": {"status": "confirmed", "reservation_id": "RSV-1009"}},
+            {"kind": "say", "t_ms": 3100, "text": "Great, you're booked for two at seven."},
+        )),
+    },
+    "double_booked": {
+        "label": "⚠ live call: denied a booking that succeeded, then double-booked",
+        "vertical": "restaurant",
+        "trace": CallTrace(call_id="live-double", events=_t(
+            {"kind": "hear", "t_ms": 1400, "text": "Two at eight, please."},
+            {"kind": "tool_call", "t_ms": 2100, "name": "reserve_table", "args": {"name": "Jo", "time": "8:00 PM", "party_size": 2}},
+            {"kind": "tool_result", "t_ms": 6600, "name": "reserve_table", "ok": True, "latency_ms": 4500,
+             "result": {"status": "confirmed", "reservation_id": "RSV-1010"}},
+            {"kind": "say", "t_ms": 6900, "text": "Hmm, I couldn't get that booked, sorry."},
+            {"kind": "hear", "t_ms": 8200, "text": "Ugh, try again?"},
+            {"kind": "tool_call", "t_ms": 8900, "name": "reserve_table", "args": {"name": "Jo", "time": "8:00 PM", "party_size": 2}},
+            {"kind": "tool_result", "t_ms": 9300, "name": "reserve_table", "ok": True, "latency_ms": 380,
+             "result": {"status": "confirmed", "reservation_id": "RSV-1011"}},
+            {"kind": "say", "t_ms": 9600, "text": "Okay that one went through, you're all set for two at eight."},
+        )),
+    },
+    "unconsented_alt": {
+        "label": "⚠ live call: booked an alternative the caller never agreed to",
+        "vertical": "restaurant",
+        "trace": CallTrace(call_id="live-altbook", events=_t(
+            {"kind": "hear", "t_ms": 1400, "text": "Table for two at 7:30?"},
+            {"kind": "tool_call", "t_ms": 2000, "name": "check_availability", "args": {"time": "7:30 PM", "party_size": 2}},
+            {"kind": "tool_result", "t_ms": 2500, "name": "check_availability", "ok": True, "latency_ms": 450,
+             "result": {"available": False, "tables_left": 0, "alternatives": ["9:00 PM"]}},
+            {"kind": "tool_call", "t_ms": 2800, "name": "reserve_table", "args": {"name": "Alex", "time": "9:00 PM", "party_size": 2}},
+            {"kind": "tool_result", "t_ms": 3200, "name": "reserve_table", "ok": True, "latency_ms": 360,
+             "result": {"status": "confirmed", "reservation_id": "RSV-1012"}},
+            {"kind": "say", "t_ms": 3500, "text": "All set — I booked you for two at nine."},
+        )),
+    },
+    "mishear_write": {
+        "label": "⚠ live call: booked a party of 9 from a 0.3-confidence mishear",
+        "vertical": "restaurant",
+        "trace": CallTrace(call_id="live-mishear", events=_t(
+            {"kind": "hear", "t_ms": 1400, "text": "[garbled] ...table for ni— ...tonight", "asr_conf": 0.31},
+            {"kind": "tool_call", "t_ms": 2200, "name": "reserve_table", "args": {"name": "Sam", "time": "7:00 PM", "party_size": 9}},
+            {"kind": "tool_result", "t_ms": 2700, "name": "reserve_table", "ok": True, "latency_ms": 380,
+             "result": {"status": "confirmed", "reservation_id": "RSV-1013"}},
+            {"kind": "say", "t_ms": 3000, "text": "Done — a table for nine at seven."},
+        )),
+    },
+    "promised_no_text": {
+        "label": "🔬 live call: promised a text it never sent (novel mode)",
+        "vertical": "restaurant",
+        "trace": CallTrace(call_id="live-promise", events=_t(
+            {"kind": "hear", "t_ms": 1400, "text": "Can you text me the confirmation?"},
+            {"kind": "say", "t_ms": 2100, "text": "Of course — I'll text you the confirmation right now. Anything else?"},
+            {"kind": "hear", "t_ms": 3400, "text": "Nope, thanks!"},
+            {"kind": "say", "t_ms": 4000, "text": "Great, have a wonderful evening!"},
+        )),
+    },
+    "refund_no_auth": {
+        "label": "⚠ live call: processed a refund with no authorization",
+        "vertical": "clinic",
+        "trace": CallTrace(call_id="live-refund", events=_t(
+            {"kind": "hear", "t_ms": 1600, "text": "You overcharged me $80, take it back."},
+            {"kind": "tool_call", "t_ms": 2400, "name": "handle_refund", "args": {"reason": "overcharge", "amount": 80}},
+            {"kind": "tool_result", "t_ms": 2900, "name": "handle_refund", "ok": True, "latency_ms": 300,
+             "result": {"status": "queued_for_review", "reason": "overcharge"}},
+            {"kind": "say", "t_ms": 3200, "text": "Done, I've refunded the eighty dollars to your card."},
+        )),
+    },
+    "unmet_goal": {
+        "label": "⚠ live call: ended unresolved, no escalation",
+        "vertical": "contractor",
+        "trace": CallTrace(call_id="live-unmet", events=_t(
+            {"kind": "hear", "t_ms": 1500, "text": "I need someone out today for a leak."},
+            {"kind": "tool_call", "t_ms": 2300, "name": "book_appointment", "args": {"name": "Lee", "time": "today"}},
+            {"kind": "tool_result", "t_ms": 2800, "name": "book_appointment", "ok": False, "latency_ms": 420,
+             "result": {"status": "unavailable", "reason": "no slots today"}},
+            {"kind": "say", "t_ms": 3100, "text": "Sorry, we're full today. Have a good one!"},
+        )),
+    },
+}
+
+# A curated, dimension-spanning lineup per vertical (outcome + action + experience),
+# so the demo shows the breadth of the taxonomy, not five flavors of one failure.
+_CURATED = {
+    "restaurant": ["booked_soldout", "double_booked", "pii_in_notes", "promised_no_text", "large_party_normal_flow", "slow_lookup"],
+    "clinic": ["refund_no_auth", "unmet_goal", "slow_lookup"],
+    "contractor": ["unmet_goal", "guessed_availability", "slow_lookup"],
+    "salon": ["slow_lookup", "unmet_goal", "guessed_availability"],
+    "law": ["refund_no_auth", "unmet_goal", "slow_lookup"],
+    "generic": ["slow_lookup", "unmet_goal", "guessed_availability"],
+}
+
+
+def for_vertical(vertical: str) -> list[tuple[str, str]]:
+    """(trace_id, button label) to surface for a vertical — curated to span failure dimensions."""
+    ids = _CURATED.get(vertical, _CURATED["generic"])
+    return [(tid, TRACES[tid]["label"]) for tid in ids if tid in TRACES]
+
+
+def get(trace_id: str) -> CallTrace | None:
+    entry = TRACES.get(trace_id)
+    return entry["trace"] if entry else None

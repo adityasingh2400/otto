@@ -3,10 +3,38 @@
 Runs right now with **no keys** (static mode); a single free key makes it fully live.
 
 ## TL;DR
-- **Open `http://localhost:8000`** → click any of 6 verticals → extract → swarm goes red →
-  self-heal (policy diff) → re-run goes green → line goes live → production-loop + business-action buttons.
-- **17 commits · 13/13 tests · $0 to run.** Design is in your Sunset Arcade language (`DESIGN.md`).
-- **One free Gemini key** (`LLM_PROVIDER=gemini`) makes extraction + self-heal + the live call all real, $0.
+- **Open `http://localhost:8000`** (landing) → enter → **`/app/`** mission control → click any of 5 verticals
+  → extract → swarm goes red → self-heal (policy diff) → re-run goes green → line goes live →
+  production-loop replays (voice **and** action-failure) + the printable **eval report** (`/report/?s=…`).
+- **15/15 tests · $0 to run.** Design is the Warm Editorial system (`DESIGN.md`) — cream + maroon, Fraunces.
+- **One free Gemini key** (`LLM_PROVIDER=gemini`, open-weights Gemma) makes extraction + self-heal + the live call all real, $0.
+
+## This event (corrected): the **Voice Agents Hackathon** (YC SF, May 30)
+Co-hosts **Daily + Cekura**; sponsors **NVIDIA / AWS / Twilio**. NOT the separate April "Gemma 4"
+hackathon — there is no Gemma/DeepMind track here. The brief is the four stages
+**Build & Customize → Deploy at Scale → Simulate & Evaluate → Auto-Improve** ("the best system,
+not the best voice"). Otto is all four; the **Auto-Improve** stage is the product.
+
+## Headline: the failure taxonomy + a self-improving SYSTEM — `docs/FAILURE_TAXONOMY.md`
+Production calls are classified across **4 dimensions** (conversation / action / outcome / experience)
+over the whole **CallTrace** event stream, not just the transcript — **14 detectors, mostly
+deterministic** + an anomaly detector. It catches the failures voice-only evals miss: a tool that
+*failed* while the agent said "you're all set," availability it *guessed*, a card number *written
+into a record*, a *double-booking*, an *unauthorized* refund, a *4.2s dead-air* lookup. Each failure
+**authors its own policy fix**; a targeted swarm re-verifies it red→green. Zero-key demo via
+`app/traces.py` fixtures → `POST /api/observe {trace_id}`.
+
+What makes it a SYSTEM, not a patcher (all deterministic, all surfaced in UI + the report):
+- **Provably monotonic** (`heal.safe_apply`): every patch is regression-checked across the whole
+  suite (pre-launch personas + probes); a patch that would regress anything is **rejected** — the
+  agent cannot make itself worse. Verified: a patch re-introducing the allergy over-promise is caught.
+- **Can't grade its own homework** (`failure.governed`): the verify oracle requires the policy to
+  *semantically* close the gap (real rule tokens), so a `rule="lol"` fix is rejected as ineffective —
+  which also kills prompt-bloat and vanity version bumps.
+- **Root-cause clustering** (`failure.cluster`): N symptoms → M underlying causes → M fixes.
+- **Self-expanding eval**: an anomaly detector **discovers failure modes it wasn't programmed for**
+  ("promised a text it never sent") and promotes recurring ones — the eval suite compounds from real
+  traffic. The report shows "0 regressions shipped · K new modes discovered."
 
 ## Runs with no keys
 - Full loop in `SWARM_MODE=static` (deterministic policy-coverage checks; honest, not faked).
@@ -30,6 +58,19 @@ Every **keyless** gap is now closed + tested:
 - owner-notification → real Twilio SMS — `752ea6f`
 - Gemini in the live agent → $0 phone call — `acdfbf1`
 
+## Built — this session (god-tier pass + the Auto-Improve upgrade)
+- **Corrected the hackathon framing** repo-wide (was wrongly targeting the April "Gemma 4" event)
+  and reframed everything around the real four-stage brief.
+- **Failure taxonomy engine** (`app/failure.py`, `packages/spec/.../trace.py`, `app/traces.py`): the
+  multi-dimensional event-stream classifier + 14 detectors + failure-authored heals. New tests.
+- **Eval report / safety certificate** — printable `/report/?s=…` built only from real run data
+  (`app/report.py`); linked from the activation banner.
+- **"Learns" version-lineage rail** in the dashboard (v1 → v2 → v3 climb).
+- Acted on a **39-finding adversarial review**: fixed the law demo (was activating with **no heal**),
+  pinned Pipecat `<1.0` (was a guaranteed fresh-install ImportError), hardened the heal against bad
+  LLM output, fixed the SSE double-deliver race, made the dashboard responsive + keyboard-accessible,
+  made action buttons spec-driven, killed dead code, and more.
+
 ## Plug-and-play (the $0 recipe)
 1. `./scripts/setup.sh`
 2. Free **Gemini** key → `LLM_PROVIDER=gemini`, `GEMINI_API_KEY=…`, `SWARM_MODE=static`, `SWARM_CONCURRENCY=2`.
@@ -51,5 +92,5 @@ Full free-tier table + cost traps in RUNBOOK → "Cheapest path".
 - Next.js dashboard migration (optional; tokens port 1:1 — `DESIGN.md`).
 
 ## Map
-`docs/`: ARCHITECTURE · TECH · RUNBOOK (incl. $0 recipe) · DAYOF · DEMO · STATUS (this) · `DESIGN.md` (root).
-`apps/`: orchestrator (loop + dashboard) · agent (Pipecat) · web (dashboard). `packages/spec`: contract + 6 cached verticals.
+`docs/`: ARCHITECTURE · TECH · **FAILURE_TAXONOMY** · RUNBOOK (incl. $0 recipe) · DAYOF · DEMO · STATUS (this) · `DESIGN.md` (root).
+`apps/`: orchestrator (loop + failure engine + report + dashboard) · agent (Pipecat, emits CallTrace) · web (dashboard + `/report/`). `packages/spec`: AgentSpec + CallTrace contract + 5 cached verticals.

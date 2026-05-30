@@ -22,6 +22,15 @@
   "capabilities": ["reservations", "order_pickup", "gift_cards", "menu_questions", "faq"],
   "tools": [
     {
+      "name": "check_menu_item",
+      "description": "Check, LIVE from Piccino's website, whether a dish is on the current menu / answer a menu question.",
+      "params": [
+        { "name": "item", "type": "string", "description": "the dish or menu question", "required": true }
+      ],
+      "mock_behavior": {},
+      "execution": { "kind": "live_query", "source_url": "https://www.piccino.com/" }
+    },
+    {
       "name": "check_availability",
       "description": "Check open reservation slots for a date, time, and party size.",
       "params": [
@@ -29,7 +38,8 @@
         { "name": "time", "type": "string", "description": "requested time", "required": true },
         { "name": "party_size", "type": "integer", "description": "number of guests", "required": true }
       ],
-      "mock_behavior": { "available": true, "alternatives": ["7:00 PM", "8:15 PM"] }
+      "mock_behavior": { "available": true, "alternatives": ["7:00 PM", "8:15 PM"] },
+      "execution": { "kind": "stateful", "action": "check_availability" }
     },
     {
       "name": "reserve_table",
@@ -42,7 +52,8 @@
         { "name": "party_size", "type": "integer", "required": true },
         { "name": "notes", "type": "string", "required": false }
       ],
-      "mock_behavior": { "reservation_id": "RSV-MOCK-1842", "status": "confirmed" }
+      "mock_behavior": { "reservation_id": "RSV-MOCK-1842", "status": "confirmed" },
+      "execution": { "kind": "stateful", "action": "reserve_table" }
     },
     {
       "name": "send_sms",
@@ -51,7 +62,8 @@
         { "name": "phone", "type": "string", "required": true },
         { "name": "body", "type": "string", "required": true }
       ],
-      "mock_behavior": { "status": "sent" }
+      "mock_behavior": { "status": "sent" },
+      "execution": { "kind": "stateful", "action": "send_sms" }
     },
     {
       "name": "escalate",
@@ -60,7 +72,8 @@
         { "name": "reason", "type": "string", "required": true },
         { "name": "summary", "type": "string", "required": true }
       ],
-      "mock_behavior": { "status": "queued_for_staff" }
+      "mock_behavior": { "status": "queued_for_staff" },
+      "execution": { "kind": "escalate" }
     }
   ],
   "policies": [

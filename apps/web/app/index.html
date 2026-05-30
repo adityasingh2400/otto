@@ -15,10 +15,9 @@
     --bg:#FAF6F1; --card:#FFFFFF; --cream:#FFFFFF; --cream2:#F4ECE2; --cream-dim:#F0E8DF; --cream-muted:#E7D5BC; --paper:#FBF7F1;
     --ink:#2A0A10; --ink-soft:#6B4A3A; --ink-fade:#9A8575;
     --maroon:#7A1B2D; --maroon-l:#9A3040; --maroon-d:#4A0F18;
-    --cherry:#7A1B2D; --cherry-d:#7A1B2D;        /* brand accent kept under old names for inline refs */
     --danger:#9A2020; --danger-bg:#F6E5E5;
     --pass:#4A7A2E; --pass-d:#3A6024; --pass-bg:#E8F2E0;
-    --gold:#9A7020; --gold-light:#F3E8CE; --marigold:#C8932E; --mango:#B8801F;
+    --gold:#9A7020; --gold-light:#F3E8CE;
     --line:#E4D7C8; --line2:#D8C7B4;
     --display:'Fraunces',Georgia,serif; --sans:'DM Sans',system-ui,sans-serif;
     --mono:'JetBrains Mono',ui-monospace,monospace; --serif:'Fraunces',Georgia,serif;
@@ -58,6 +57,13 @@
   .step .n{font:600 11px var(--mono);opacity:.6;display:block}
   .step.active{color:var(--ink);background:var(--gold-light);border-color:var(--gold)}
   .step.done{color:var(--ink);background:var(--pass-bg);border-color:var(--pass)}.step.done .n{color:var(--pass-d)}.step.done .n::after{content:" ✓"}
+  .lineage{display:none;align-items:center;gap:8px;margin:12px 2px 0;flex-wrap:wrap}
+  .lineage.on{display:flex}
+  .lineage .ll{font:600 11px var(--mono);color:var(--ink-fade);text-transform:uppercase;letter-spacing:.5px;margin-right:2px}
+  .vchip{font:600 12px var(--mono);color:var(--ink);background:var(--card);border:1px solid var(--line2);border-radius:999px;padding:5px 12px;box-shadow:var(--sh-sm);animation:rise .35s both}
+  .vchip b{font-family:var(--display);font-weight:600}
+  .vchip.gced{background:var(--pass-bg);border-color:var(--pass);color:var(--pass-d)}.vchip.gced::after{content:" ✓"}
+  .lineage .arrow{color:var(--maroon-l);font-weight:700}
   .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px}
   .metric{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--sh-md)}
   .metric .v{font-family:var(--display);font-weight:600;font-size:36px;line-height:1;color:var(--ink)}
@@ -92,7 +98,14 @@
   .diff .before{background:var(--danger-bg);border-left:3px solid var(--danger);color:#6b1717}
   .diff .after{background:var(--pass-bg);border-left:3px solid var(--pass);color:#33521f}
   #agent .greet{font-family:var(--serif);font-style:italic;color:var(--ink-soft);margin:6px 0 10px;font-size:14px}
-  #agent ul{margin:0;padding-left:18px;font-size:13px;color:var(--ink-soft)}#agent b{color:var(--maroon)}
+  #agent ul{margin:0 0 8px;padding-left:18px;font-size:13px;color:var(--ink-soft)}#agent b{color:var(--maroon)}
+  #agent .khdr{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.5px;color:var(--maroon);margin:10px 0 4px}
+  #agent .khdr .muted{text-transform:none;letter-spacing:0}
+  #agent ul.kbits li{padding:2px 0;border-bottom:1px dashed var(--line)}
+  #agent ul.tl{list-style:none;padding-left:0}#agent ul.tl li{display:flex;align-items:center;gap:8px}
+  #agent code{font:600 12px var(--mono);color:var(--ink)}
+  .kind{font:700 9px var(--mono);letter-spacing:.4px;text-transform:uppercase;padding:2px 7px;border-radius:999px;color:#fff;flex:none}
+  .kind.live{background:var(--gold)}.kind.act{background:var(--maroon)}.kind.esc{background:var(--ink-fade)}
   #live{font:500 13px var(--mono)}#live .kv{display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed var(--line)}#live .k{color:var(--ink-fade);min-width:130px}
   #prod{display:none}#prod.on{display:block}
   .pbtns{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
@@ -100,15 +113,53 @@
   .pbtn:hover{transform:translateY(-1px);box-shadow:var(--sh-md);border-color:var(--maroon-l)}.pbtn:active{transform:translateY(0)}
   .pbtn.edge{background:var(--gold-light);border-color:var(--gold)}
   #pstatus{font:500 12px var(--mono);color:var(--ink-soft);margin-top:10px;min-height:16px}
+  .pbtn.trace{background:var(--danger-bg);border-color:var(--danger)}
+  .fdims{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px}
+  .fdim{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.5px;padding:6px 12px;border-radius:999px;border:1px solid var(--line2);background:var(--card);color:var(--ink-fade)}
+  .fdim b{font-family:var(--display);margin-left:5px}
+  .fdim.hit{background:var(--maroon);border-color:var(--maroon-d);color:#fff}
+  .fcard{border:1px solid var(--line);border-left-width:4px;border-radius:12px;padding:13px 15px;margin-bottom:10px;background:var(--card);box-shadow:var(--sh-sm);animation:rise .35s both}
+  .fcard.critical,.fcard.high{border-left-color:var(--danger);background:var(--danger-bg)}
+  .fcard.medium{border-left-color:var(--gold);background:var(--gold-light)}
+  .fcard.low{border-left-color:var(--ink-fade)}
+  .fcard .fh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .fcard .ft{font:700 14px var(--sans)}
+  .fcard .fsev{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:999px;color:#fff}
+  .fcard .fsev.critical,.fcard .fsev.high{background:var(--danger)}.fcard .fsev.medium{background:var(--gold)}.fcard .fsev.low{background:var(--ink-fade)}
+  .fcard .fdimtag{font:500 11px var(--mono);color:var(--ink-fade)}
+  .fcard .freason{font-size:13px;color:var(--ink-soft);margin-top:6px;line-height:1.45}
+  .fcard .fev{font:500 11px var(--mono);color:var(--ink-fade);margin-top:7px;border-top:1px dashed var(--line);padding-top:7px}
+  .fcard .fev div{padding:2px 0}.fcard .fheal{font-size:12px;color:var(--pass-d);margin-top:7px}.fcard .fheal b{color:var(--pass-d)}
+  .fcard.discovered{border-left-color:var(--gold);background:var(--gold-light)}
+  .fcard .fdisc{font:700 10px var(--mono);letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--gold);color:#fff}
+  #failstatus{display:flex;flex-direction:column;gap:7px;margin:0 0 12px}
+  .fbadge{font:600 12px var(--mono);border-radius:10px;padding:8px 12px;border:1px solid var(--line2);background:var(--card);box-shadow:var(--sh-sm);animation:rise .35s both}
+  .fbadge.guard{border-color:var(--pass);background:var(--pass-bg);color:var(--pass-d)}
+  .fbadge.guard b{color:var(--pass-d)}.fbadge.guard .rej{color:var(--danger)}
+  .fbadge.disc{border-color:var(--gold);background:var(--gold-light);color:var(--gold)}.fbadge.disc b{color:var(--maroon)}
+  .fbadge.roots{border-color:var(--maroon-l);color:var(--ink)}.fbadge.roots b{color:var(--maroon)}
   .banner{display:none;align-items:center;gap:14px;border:1px solid var(--maroon);border-radius:18px;padding:16px 20px;margin-top:18px;background:linear-gradient(110deg,#fff,var(--gold-light));box-shadow:var(--sh-lg)}
   .banner.on{display:flex;animation:rise .5s both}
   .dot{width:11px;height:11px;border-radius:50%;background:var(--pass);box-shadow:0 0 0 0 rgba(74,122,46,.6);animation:pulse 1.6s infinite}
   @keyframes pulse{70%{box-shadow:0 0 0 11px rgba(74,122,46,0)}100%{box-shadow:0 0 0 0 rgba(74,122,46,0)}}
   .banner .bt{font-family:var(--display);font-weight:600;font-size:19px;color:var(--ink)}
   .banner .bs{font-family:var(--serif);font-style:italic;color:var(--ink-soft);font-size:13px}
-  .banner .num{margin-left:auto;font-family:var(--display);font-weight:600;font-size:22px;color:var(--maroon);background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 14px;box-shadow:var(--sh-sm)}
+  .banner .report-link{margin-left:auto;font:700 13px var(--sans);color:var(--maroon);text-decoration:none;background:#fff;border:1px solid var(--line2);border-radius:11px;padding:9px 14px;box-shadow:var(--sh-sm);transition:transform .15s,box-shadow .15s,border-color .15s}
+  .banner .report-link:hover{transform:translateY(-1px);box-shadow:var(--sh-md);border-color:var(--maroon-l)}
+  .banner .num{font-family:var(--display);font-weight:600;font-size:22px;color:var(--maroon);background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 14px;box-shadow:var(--sh-sm)}
   .foot{margin-top:28px;text-align:center;font:600 12px var(--mono);color:var(--ink-soft);letter-spacing:.3px}
   .foot b{color:var(--maroon)}.foot span{font-family:var(--serif);font-style:italic;color:var(--ink-fade)}
+  /* the landing deep-links into /app/ on the same device — the dashboard must be usable on a phone too */
+  @media(max-width:760px){
+    header{padding:12px 16px;flex-wrap:wrap;gap:8px}main{padding:18px 14px 70px}
+    .launch{flex-wrap:wrap}.launch input{flex:1 1 100%}.btn{flex:1 1 100%}
+    .steps{flex-wrap:wrap;gap:8px}.step{flex:1 1 28%}
+    .metrics{grid-template-columns:repeat(2,1fr)}
+    .grid{grid-template-columns:1fr}.span2{grid-column:1}
+    #arena{grid-template-columns:1fr 1fr}
+    .banner{flex-wrap:wrap}.banner .report-link{margin-left:0}.banner .num{margin-left:auto}
+  }
+  @media(max-width:440px){#arena{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -132,6 +183,8 @@
     <div class="chip" data-cached="clinic">▶ <b>Dogpatch Family Health</b> · clinic</div>
     <div class="chip" data-cached="salon">▶ <b>Mission Bloom</b> · salon</div>
     <div class="chip" data-cached="law">▶ <b>Bayview Law Group</b> · law firm</div>
+    <div class="chip" data-cached="ocean_vet">🌉 <b>Ocean Ave Vet</b> · real SF site</div>
+    <div class="chip" data-cached="soma_restaurant">🌉 <b>SOMA Restaurant</b> · real SF site</div>
   </div>
   <div class="hint">Extract the rules → attack the agent with synthetic callers → patch every failure → put the line live. Sandbox demo, public info.</div>
 
@@ -144,11 +197,13 @@
     <div class="step" data-s="activate"><span class="n">06</span>Activate</div>
   </div>
 
+  <div class="lineage" id="lineage"><span class="ll">learns:</span></div>
+
   <div class="metrics">
     <div class="metric"><div class="v foil" id="m-pass">—</div><div class="l">Pass rate</div><div class="from" id="m-pass-from"></div></div>
     <div class="metric"><div class="v fail" id="m-unsafe">—</div><div class="l">Unsafe answers</div><div class="from" id="m-unsafe-from"></div></div>
-    <div class="metric"><div class="v" id="m-book">—</div><div class="l">Booking accuracy</div><div class="from"></div></div>
-    <div class="metric"><div class="v" id="m-esc">—</div><div class="l">Safety / escalation</div><div class="from"></div></div>
+    <div class="metric"><div class="v" id="m-book">—</div><div class="l">Booking accuracy</div><div class="from" id="m-book-from"></div></div>
+    <div class="metric"><div class="v" id="m-esc">—</div><div class="l">Safety / escalation</div><div class="from" id="m-esc-from"></div></div>
   </div>
 
   <div class="grid">
@@ -159,20 +214,23 @@
     <div class="panel"><h3>Auto-patch diff</h3><div id="diffs"><div class="muted">policies the healer rewrote appear here</div></div></div>
     <div class="panel span2" id="prod">
       <h3>Production loop — every live call is evaluated</h3>
-      <div class="muted">A failure on a real call triggers a targeted, high-volume swarm-heal on that one thing. Replay a live call:</div>
+      <div class="muted">A failure on a real call triggers a targeted, high-volume swarm-heal on that one thing. Replay a live call — a tricky <b>voice</b> moment:</div>
       <div class="pbtns" id="pbtns"></div>
+      <div class="muted" style="margin-top:12px">…or a call where the voice was fine but the <b>action</b> went wrong (the event stream tells the truth):</div>
+      <div class="pbtns" id="tracebtns"></div>
       <div id="pstatus"></div>
     </div>
+    <div class="panel span2"><h3>Failure taxonomy · live-call analysis</h3>
+      <div class="muted">Every call is classified across four dimensions — what it <b>said</b>, what it <b>did</b>, the <b>outcome</b>, and the <b>experience</b>. A perfect-sounding call still fails if the action was wrong, slow, unauthorized, or never happened.</div>
+      <div class="fdims" id="fdims"></div>
+      <div id="failstatus"></div>
+      <div id="failreport"><div class="muted">replay a live call above to classify it across the failure taxonomy</div></div>
+    </div>
     <div class="panel span2"><h3>Business actions · live mock backend</h3>
-      <div class="muted">Real tool calls with stateful inventory — book a slot and watch availability drop, sell it out, deplete stock. (The live phone agent shares this exact store.)</div>
-      <div class="pbtns" id="abtns">
-        <div class="pbtn" data-tool="check_availability" data-args='{"date":"tonight","time":"7:00 PM","party_size":4}'>Check 7:00 PM · party 4</div>
-        <div class="pbtn" data-tool="reserve_table" data-args='{"name":"Demo","phone":"+15551234","date":"tonight","time":"7:00 PM","party_size":4}'>Book 7:00 PM</div>
-        <div class="pbtn" data-tool="get_inventory" data-args='{"item":"carbonara"}'>Inventory: carbonara</div>
-        <div class="pbtn" data-tool="order_item" data-args='{"item":"carbonara","qty":2}'>Order 2× carbonara</div>
-      </div>
+      <div class="muted">The agent's real tools, this business's set — call one against the stateful backend (book a slot and watch availability drop, sell it out, deplete stock). The live phone agent shares this exact store.</div>
+      <div class="pbtns" id="abtns"><div class="muted">the agent's tools appear here after build</div></div>
       <div id="astatus" class="muted" style="margin-top:8px;font-family:var(--mono)"></div>
-      <div id="oalerts" class="muted" style="margin-top:6px;font-family:var(--mono);color:var(--cherry-d)"></div>
+      <div id="oalerts" class="muted" style="margin-top:6px;font-family:var(--mono);color:var(--maroon)"></div>
     </div>
     <div class="panel span2"><h3>Live call console</h3><div id="live"><div class="muted">call the number once it's live</div></div></div>
   </div>
@@ -180,6 +238,7 @@
   <div class="banner" id="banner">
     <div class="dot"></div>
     <div><div class="bt">Inbound line live</div><div class="bs">cleared the swarm safety gate</div></div>
+    <a class="report-link" id="report-link" target="_blank" rel="noopener">Evaluation report ↗</a>
     <div class="num" id="banner-num"></div>
   </div>
 
@@ -205,48 +264,90 @@ const EDGE={
   law:["fee_quote","⚠ new edge case: flat-fee guarantee"],
   generic:["hours_exact","⚠ new edge case: exact hours"]
 };
-let es=null, sessionId=null, firstRate=null, vertical="restaurant";
-const cards={}, prevPass={}, shown={};
+let es=null, sessionId=null, firstRate=null, vertical="restaurant", gate=0.85;
+const cards={}, prevPass={}, shown={}, lineage={}, lineageOrder=[];
 
 (async()=>{try{const h=await(await fetch(ORCH+"/api/health")).json();
+  gate=h.pass_gate||gate;
   $("#health").textContent=`mode:${h.swarm_mode} · llm:${h.llm?h.llm_provider:"off"} · cekura:${h.cekura?"on":"off"} · gate:${Math.round(h.pass_gate*100)}%`;
 }catch{$("#health").textContent="orchestrator offline (:8000)";}})();
 
 $("#go").onclick=()=>run({url:$("#url").value.trim()});
-const DEMO_URLS={piccino:"https://www.piccino.com/",contractor:"https://example-bayviewbuilders.com/",clinic:"https://example-dogpatchhealth.com/",salon:"https://example-missionbloom.com/",law:"https://example-bayviewlaw.com/"};
-document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+const DEMO_URLS={piccino:"https://www.piccino.com/",contractor:"https://example-bayviewbuilders.com/",clinic:"https://example-dogpatchhealth.com/",salon:"https://example-missionbloom.com/",law:"https://example-bayviewlaw.com/",ocean_vet:"https://oceanavevethosp.com/",soma_restaurant:"https://somarestaurantandbar.com/menu/"};
+document.querySelectorAll(".chip").forEach(c=>{c.setAttribute("role","button");c.setAttribute("tabindex","0");c.onclick=()=>{
   const cached=c.dataset.cached;
   $("#url").value=DEMO_URLS[cached]||DEMO_URLS.piccino;
   run({cached});
-});
-document.querySelectorAll("#abtns .pbtn").forEach(b=>b.onclick=async()=>{
-  $("#astatus").textContent=`${b.dataset.tool}…`;
-  const res=await(await fetch(ORCH+"/api/tool/"+b.dataset.tool,{method:"POST",headers:{"Content-Type":"application/json"},body:b.dataset.args||"{}"})).json();
-  $("#astatus").textContent=`${b.dataset.tool} → ${JSON.stringify(res)}`;
+};});
+// keyboard activation for the non-<button> control chips (accessibility)
+document.addEventListener("keydown",e=>{const t=e.target;
+  if((e.key==="Enter"||e.key===" ")&&t.classList&&(t.classList.contains("chip")||t.classList.contains("pbtn"))){e.preventDefault();t.click();}});
+
+// the agent's action buttons are driven by THIS business's spec.tools — a law firm shows
+// "Book a consult", a restaurant shows "Check 7:00 PM", never the other's tools.
+const TOOL_ARGS={
+  check_availability:{date:"tonight",time:"7:00 PM",party_size:4},
+  reserve_table:{name:"Demo",phone:"+15551234",date:"tonight",time:"7:00 PM",party_size:4},
+  book_appointment:{name:"Demo",phone:"+15551234",time:"2:00 PM",reason:"consult"},
+  send_sms:{phone:"+15551234",body:"Confirmation from the Otto demo"},
+  escalate:{reason:"demo",summary:"caller asked for a manager"},
+  process_payment:{amount:42,method:"card"},
+  handle_refund:{reason:"demo refund"},
+  get_inventory:{item:"carbonara"},order_item:{item:"carbonara",qty:2}
+};
+const TOOL_LABEL={check_availability:"Check 7:00 PM · party 4",reserve_table:"Book 7:00 PM",book_appointment:"Book a consult",send_sms:"Text a confirmation",escalate:"Escalate to staff",process_payment:"Take a $42 payment",handle_refund:"Handle a refund",get_inventory:"Inventory: carbonara",order_item:"Order 2× carbonara"};
+function renderActionButtons(spec){
+  const tools=(spec.tools||[]).map(t=>t.name).filter(n=>TOOL_LABEL[n]);
+  const c=$("#abtns");
+  if(!tools.length){c.innerHTML='<div class="muted">no callable tools in this spec</div>';return;}
+  c.innerHTML=tools.map(n=>`<div class="pbtn" role="button" tabindex="0" data-tool="${n}">${TOOL_LABEL[n]}</div>`).join("");
+  c.querySelectorAll(".pbtn").forEach(b=>b.onclick=()=>callTool(b.dataset.tool));
+}
+async function callTool(name){
+  $("#astatus").textContent=`${name}… (live website action)`;
+  try{
+    const u=ORCH+"/api/tool/"+name+(sessionId?("?session="+sessionId):"");  // session → runs THIS site's synthesized tool (live_query fetches the site)
+    const res=await(await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(TOOL_ARGS[name]||{})})).json();
+    $("#astatus").textContent=`${name} → ${JSON.stringify(res)}`;
+  }catch{$("#astatus").textContent=`${name} → (couldn’t reach :8000)`;return;}
   try{
     const n=(await(await fetch(ORCH+"/api/notifications")).json()).notifications||[];
     if(n.length){const last=n[n.length-1];$("#oalerts").textContent=`📩 owner SMS (${last.sms&&last.sms.sent?"sent":"mock"}): ${last.message}`;}
   }catch{}
-});
+}
 
+function goReady(){$("#go").disabled=false;$("#go").textContent="Build it";}
 async function run(body){
   reset(); $("#go").disabled=true; $("#go").textContent="Building…";
   const x=$("#extra").value.trim(); if(x) body.extra_info=x;
-  const r=await fetch(ORCH+"/api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-  sessionId=(await r.json()).session_id;
+  try{
+    const r=await fetch(ORCH+"/api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    sessionId=(await r.json()).session_id;
+  }catch(err){
+    goReady();
+    $("#facts").innerHTML='<div class="muted">couldn’t reach the orchestrator on :8000 — is it running? (./scripts/dev.sh)</div>';
+    return;
+  }
   es=new EventSource(ORCH+"/api/events/"+sessionId);
   es.onmessage=e=>handle(JSON.parse(e.data));
+  // never leave the CTA stuck "Building…": a dropped/blipped stream re-enables it.
+  es.onerror=()=>{ if($("#go").disabled && !$("#banner").classList.contains("on")) goReady(); };
 }
 function reset(){
   if(es)es.close();
   for(const k in cards)delete cards[k]; for(const k in prevPass)delete prevPass[k]; for(const k in shown)delete shown[k];
-  firstRate=null;
+  for(const k in lineage)delete lineage[k]; lineageOrder.length=0;
+  $("#lineage").classList.remove("on"); $("#lineage").innerHTML='<span class="ll">learns:</span>';
+  firstRate=null; firstM=null;
   $("#facts").innerHTML=""; $("#arena").innerHTML=""; $("#failmap").innerHTML='<div class="muted">no failures yet</div>';
   $("#diffs").innerHTML='<div class="muted">policies the healer rewrote appear here</div>';
   $("#agent").innerHTML=""; $("#live").innerHTML='<div class="muted">call the number once it\'s live</div>';
+  $("#abtns").innerHTML='<div class="muted">the agent\'s tools appear here after build</div>'; $("#astatus").textContent=""; $("#oalerts").textContent="";
+  $("#tracebtns").innerHTML=""; $("#fdims").innerHTML=""; $("#failstatus").innerHTML=""; $("#failreport").innerHTML='<div class="muted">replay a live call above to classify it across the failure taxonomy</div>';
   $("#banner").classList.remove("on"); $("#prod").classList.remove("on"); $("#pstatus").textContent=""; $("#vbadge").classList.remove("on");
-  ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>$("#"+id).textContent="—");
-  $("#m-pass-from").textContent=""; $("#m-unsafe-from").textContent="";
+  ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>{const el=$("#"+id);el.textContent="—";delete el.dataset.v;});  // clear count-up baselines so a re-run doesn't animate down from the prior number
+  ["m-pass-from","m-unsafe-from","m-book-from","m-esc-from"].forEach(id=>{const el=$("#"+id);if(el)el.textContent="";});
   document.querySelectorAll(".step").forEach(s=>s.className="step");
 }
 function step(name,status){const el=document.querySelector(`.step[data-s="${name}"]`);if(!el)return;
@@ -261,17 +362,23 @@ function handle(ev){
       if(ev.stage==="activate"&&ev.status==="done"){$("#go").disabled=false;$("#go").textContent="Build it";}
       break;
     case "fact":
-      if(ev.topic==="swarm"){vertical=(ev.content||"").split(" ")[0];$("#vbadge").textContent=ev.content;$("#vbadge").classList.add("on");renderProdButtons();}
+      if(ev.topic==="swarm"){vertical=(ev.content||"").split(" ")[0];$("#vbadge").textContent=ev.content;$("#vbadge").classList.add("on");renderProdButtons();renderTraceButtons();}
       addFact(ev); break;
-    case "spec": renderAgent(ev.spec); break;
+    case "spec": renderAgent(ev.spec); renderActionButtons(ev.spec); break;
     case "call": renderCall(ev.result); break;
     case "swarm_report":
       $("#roundtag").textContent=`round ${ev.report.round} · v${ev.report.spec_version} · ${ev.report.passed}/${ev.report.total}`;
       if(firstRate===null){firstRate=ev.report.pass_rate;$("#m-pass-from").textContent=`from ${Math.round(firstRate*100)}%`;}
+      recordLineage(ev.report.spec_version,ev.report.pass_rate);
       break;
     case "metrics": renderMetrics(ev); break;
     case "patch": renderPatch(ev); break;
-    case "activated": $("#banner").classList.add("on");$("#banner-num").textContent=ev.phone_number;$("#prod").classList.add("on"); break;
+    case "failure_report": renderFailureReport(ev); break;
+    case "regression_check": renderRegression(ev); break;
+    case "discovery": renderDiscovery(ev); break;
+    case "activated": $("#banner").classList.add("on");$("#banner-num").textContent=ev.phone_number;
+      if(sessionId)$("#report-link").href="/report/?s="+sessionId;
+      $("#prod").classList.add("on"); break;
     case "live_call": liveKV(ev.field,ev.value); break;
   }
 }
@@ -279,7 +386,12 @@ function addFact(ev){if($("#facts").querySelector(".muted"))$("#facts").innerHTM
   const d=document.createElement("div");d.innerHTML=`<b>${ev.topic}</b> · ${ev.content}`;$("#facts").appendChild(d);$("#facts").scrollTop=1e9;}
 function animateNum(el,to,suffix){const from=parseInt(el.dataset.v||"0",10);el.dataset.v=to;const t0=performance.now();
   (function tick(t){const k=Math.min(1,(t-t0)/650);const e=1-Math.pow(1-k,3);el.textContent=Math.round(from+(to-from)*e)+suffix;if(k<1)requestAnimationFrame(tick);})(t0);}
+let firstM=null;
 function renderMetrics(m){
+  if(!firstM){firstM=m;
+    $("#m-book-from").textContent=`from ${Math.round(m.booking*100)}%`;
+    $("#m-esc-from").textContent=`from ${Math.round(m.escalation*100)}%`;
+    $("#m-unsafe-from").textContent=`from ${m.unsafe}`;}
   animateNum($("#m-pass"),Math.round(m.pass_rate*100),"%");
   const u=$("#m-unsafe");u.textContent=m.unsafe;u.className="v "+(m.unsafe>0?"fail":"pass");
   animateNum($("#m-book"),Math.round(m.booking*100),"%"); animateNum($("#m-esc"),Math.round(m.escalation*100),"%");
@@ -306,26 +418,93 @@ function renderPatch(ev){if($("#diffs").querySelector(".muted"))$("#diffs").inne
       ${d.before?`<div class="row before">− ${d.before.rule}</div>`:""}<div class="row after">+ ${d.after.rule}</div>`;
     $("#diffs").appendChild(el);});
 }
-function renderAgent(spec){$("#agent").innerHTML=`<div style="font-family:var(--display);font-weight:600;font-size:17px">${spec.business.name} <span class="muted">v${spec.meta.version} · ${spec.business.type}</span></div>
-  <div class="greet">“${spec.voice.greeting}”</div>
-  <ul>${spec.policies.map(p=>`<li><b>[${p.category}]</b> ${p.rule}</li>`).join("")}</ul>`;}
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const KIND_TAG={live_query:'<span class="kind live">live lookup</span>',stateful:'<span class="kind act">action</span>',escalate:'<span class="kind esc">to staff</span>'};
+function renderAgent(spec){
+  const kn=(spec.knowledge||[]).slice(0,8).map(k=>`<li><b>${esc(k.topic)}</b> ${esc(k.content).slice(0,120)}</li>`).join("");
+  const tl=(spec.tools||[]).map(t=>{const k=(t.execution||{}).kind;return `<li>${KIND_TAG[k]||""} <code>${esc(t.name)}</code></li>`;}).join("");
+  $("#agent").innerHTML=`<div style="font-family:var(--display);font-weight:600;font-size:17px">${esc(spec.business.name)} <span class="muted">v${spec.meta.version} · ${esc(spec.business.type)}${spec.business.location?" · "+esc(spec.business.location):""}</span></div>
+  <div class="greet">“${esc(spec.voice.greeting)}”</div>
+  ${kn?`<div class="khdr">Knows from the site <span class="muted">— answered instantly, no lookup</span></div><ul class="kbits">${kn}</ul>`:""}
+  ${tl?`<div class="khdr">Can do <span class="muted">— live lookups + actions, as a middleman</span></div><ul class="kbits tl">${tl}</ul>`:""}
+  ${spec.policies.length?`<div class="khdr">Policies</div><ul>${spec.policies.map(p=>`<li><b>[${esc(p.category)}]</b> ${esc(p.rule)}</li>`).join("")}</ul>`:""}`;}
 function liveKV(k,v){if($("#live").querySelector(".muted"))$("#live").innerHTML="";
   const r=document.createElement("div");r.className="kv";r.innerHTML=`<div class="k">${k}</div><div>${v}</div>`;$("#live").appendChild(r);}
 function renderProdButtons(){
   const hs=HEROES[vertical]||HEROES.generic; const e=EDGE[vertical]||EDGE.generic;
-  let html=hs.map(([id,lab])=>`<div class="pbtn" data-p="${id}">↻ ${lab}</div>`).join("");
-  html+=`<div class="pbtn edge" data-p="${e[0]}">${e[1]}</div>`;
+  let html=hs.map(([id,lab])=>`<div class="pbtn" role="button" tabindex="0" data-p="${id}">↻ ${lab}</div>`).join("");
+  html+=`<div class="pbtn edge" role="button" tabindex="0" data-p="${e[0]}">${e[1]}</div>`;
   $("#pbtns").innerHTML=html;
   document.querySelectorAll("#pbtns .pbtn").forEach(b=>b.onclick=()=>observe(b.dataset.p));
 }
 async function observe(persona){
   if(!sessionId)return;
   $("#pstatus").textContent=`▸ auditing live call: ${persona}… spinning up targeted variations`;
-  const r=await fetch(ORCH+"/api/observe/"+sessionId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({persona})});
-  const res=await r.json();
-  $("#pstatus").textContent=res.failed
-    ?`▸ caught '${persona}' → ${res.variations} targeted variations of the exact issue: ${Math.round((res.pre_pass||0)*100)}% → healed → ${Math.round((res.post_pass||0)*100)}% (spec v${res.spec_version})`
-    :`▸ live call '${persona}' clean — already hardened by the pre-launch swarm`;
+  try{
+    const r=await fetch(ORCH+"/api/observe/"+sessionId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({persona})});
+    const res=await r.json();
+    $("#pstatus").textContent=res.failed
+      ?`▸ caught '${persona}' → ${res.variations} targeted variations of the exact issue: ${Math.round((res.pre_pass||0)*100)}% → healed → ${Math.round((res.post_pass||0)*100)}% (spec v${res.spec_version})`
+      :`▸ live call '${persona}' clean — already hardened by the pre-launch swarm`;
+  }catch{$("#pstatus").textContent="▸ couldn’t reach the orchestrator on :8000";}
+}
+async function renderTraceButtons(){
+  try{
+    const list=(await(await fetch(ORCH+"/api/traces?vertical="+encodeURIComponent(vertical))).json()).traces||[];
+    $("#tracebtns").innerHTML=list.map(t=>`<div class="pbtn trace" role="button" tabindex="0" data-trace="${t.id}">${t.label}</div>`).join("");
+    document.querySelectorAll("#tracebtns .pbtn").forEach(b=>b.onclick=()=>observeTrace(b.dataset.trace));
+  }catch{ $("#tracebtns").innerHTML=""; }
+}
+async function observeTrace(traceId){
+  if(!sessionId)return;
+  $("#pstatus").textContent=`▸ replaying live call '${traceId}' — classifying the event stream…`;
+  try{
+    const r=await fetch(ORCH+"/api/observe/"+sessionId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({trace_id:traceId})});
+    const res=await r.json();
+    $("#pstatus").textContent=res.failed
+      ?`▸ '${traceId}': ${res.failures.length} failure(s) across [${(res.summary&&res.summary.dimensions_hit||[]).join(", ")}] → auto-healed ${Math.round((res.pre_pass||0)*100)}% → ${Math.round((res.post_pass||0)*100)}% (v${res.spec_version})`
+      :`▸ '${traceId}' clean — voice and every action checked out`;
+  }catch{$("#pstatus").textContent="▸ couldn’t reach the orchestrator on :8000";}
+}
+const DIM_LABEL={conversation:"voice",action:"action",outcome:"outcome",experience:"experience"};
+function renderFailureReport(ev){
+  const s=ev.summary||{by_dimension:{},dimensions_hit:[]}, fs=ev.failures||[], clusters=ev.clusters||[];
+  $("#failstatus").innerHTML="";  // fresh status row for this call
+  $("#fdims").innerHTML=["conversation","action","outcome","experience"].map(d=>{
+    const n=(s.by_dimension||{})[d]||0;
+    return `<div class="fdim ${n>0?"hit":""}">${DIM_LABEL[d]}<b>${n}</b></div>`;}).join("");
+  if(!fs.length){$("#failreport").innerHTML=`<div class="muted">call <b>${ev.call_id||""}</b>: clean — voice and every action checked out ✓</div>`;return;}
+  if(clusters.length && fs.length>clusters.length){  // root-cause clustering: many symptoms → few causes
+    $("#failstatus").innerHTML=`<div class="fbadge roots">🎯 root-cause analysis: <b>${fs.length}</b> symptoms → <b>${clusters.length}</b> underlying cause${clusters.length>1?"s":""} → ${clusters.length} targeted fix${clusters.length>1?"es":""}</div>`;
+  }
+  $("#failreport").innerHTML=fs.map(f=>`<div class="fcard ${f.severity}${f.discovered?" discovered":""}">
+    <div class="fh"><span class="fsev ${f.severity}">${f.severity}</span><span class="ft">${f.title}</span><span class="fdimtag">${f.dimension}</span>${f.discovered?`<span class="fdisc">🔬 discovered</span>`:""}</div>
+    <div class="freason">${f.reason}</div>
+    <div class="fev">${(f.evidence||[]).map(e=>`<div>· ${e}</div>`).join("")}</div>
+    <div class="fheal">↻ heal: <b>[${f.heal_category}]</b> ${f.heal_rule}</div>
+  </div>`).join("");
+}
+function renderRegression(ev){
+  const r=ev.report||{}, rej=(r.rejected||[]).length;
+  const el=document.createElement("div"); el.className="fbadge guard";
+  el.innerHTML=`✓ regression-guarded: validated across <b>${r.checked}</b> scenarios · <b>${(r.regressed||[]).length}</b> regressed · <b>${(r.fixed||[]).length}</b> fixed`
+    +(rej?` · <span class="rej">${rej} unsafe/ineffective patch${rej>1?"es":""} rejected</span>`:``);
+  $("#failstatus").appendChild(el);
+}
+function renderDiscovery(ev){
+  const el=document.createElement("div"); el.className="fbadge disc";
+  el.innerHTML=`🔬 new failure mode <b>discovered</b> from production: <b>${ev.title}</b> — added to the eval suite (seen ${ev.count}×, ${ev.total_modes} discovered so far)`;
+  $("#failstatus").appendChild(el);
+}
+
+function recordLineage(version,rate){
+  if(version==null)return;
+  if(!(version in lineage))lineageOrder.push(version);
+  lineage[version]=rate;                         // latest rate seen for this version
+  const el=$("#lineage"); el.classList.add("on");
+  const chips=lineageOrder.map(v=>{const ok=lineage[v]>=gate;
+    return `<span class="vchip ${ok?"gced":""}"><b>v${v}</b> · ${Math.round(lineage[v]*100)}%</span>`;});
+  el.innerHTML='<span class="ll">learns:</span>'+chips.join('<span class="arrow">→</span>');
 }
 
 // deep-link from the minimal landing: /app/?url=... pre-fills and auto-builds

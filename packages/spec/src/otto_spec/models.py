@@ -58,6 +58,14 @@ class ToolSpec(BaseModel):
     params: list[ToolParam] = Field(default_factory=list)
     # Deterministic mock used in the demo (and as a Cekura mock-tool mapping).
     mock_behavior: dict[str, Any] = Field(default_factory=dict)
+    # How this tool RUNS at call time, synthesized per-website by extraction. The agent acts as a
+    # middleman, performing the website's action for the caller. The tool engine reads `kind`:
+    #   live_query — fetch CURRENT data from the site mid-call + extract the answer (real, read-only)
+    #   stateful   — a write/booking/order against the stateful backend (mock; swap for a real POS/
+    #                reservation API via `endpoint`). `action` names the backend op.
+    #   escalate   — hand to staff.
+    # e.g. {"kind":"live_query","source_url":"https://…/menu"} or {"kind":"stateful","action":"reserve_table"}
+    execution: dict[str, Any] = Field(default_factory=dict)
 
 
 class Policy(BaseModel):
@@ -140,13 +148,18 @@ class AgentSpec(BaseModel):
             lines += [f"- {c}" for c in self.capabilities]
 
         if self.tools:
-            lines.append("\n# Tools — call these; never invent their results")
+            lines.append(
+                "\n# Tools — call ONLY for live/changing data or to take an action; never invent results."
+                " Answer static facts (hours, menu, prices, services) from Knowledge below WITHOUT a tool."
+            )
             for t in self.tools:
                 ps = ", ".join(p.name for p in t.params)
-                lines.append(f"- {t.name}({ps}): {t.description}")
+                kind = (t.execution or {}).get("kind")
+                tag = " [live lookup]" if kind == "live_query" else (" [action]" if kind == "stateful" else "")
+                lines.append(f"- {t.name}({ps}): {t.description}{tag}")
 
         if self.knowledge:
-            lines.append("\n# Knowledge")
+            lines.append("\n# Knowledge — answer these directly from memory; do NOT call a tool for them")
             for k in self.knowledge:
                 hedge = "  (uncertain — do not state as fact)" if k.confidence < 0.5 else ""
                 lines.append(f"- {k.topic}: {k.content}{hedge}")

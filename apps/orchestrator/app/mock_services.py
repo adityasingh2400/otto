@@ -140,14 +140,42 @@ _DISPATCH = {
 }
 
 
+# LLMs (and the dashboard) often send numerics as strings ("4", "2"); coerce so a
+# comparison like `have < qty` can't raise deep in a handler.
+_INT_ARGS = {"party_size", "qty"}
+_FLOAT_ARGS = {"amount"}
+
+
+def _coerce(args: dict) -> dict:
+    out = dict(args or {})
+    for k in list(out):
+        try:
+            if k in _INT_ARGS and out[k] is not None:
+                out[k] = int(float(out[k]))
+            elif k in _FLOAT_ARGS and out[k] is not None:
+                out[k] = float(out[k])
+        except (TypeError, ValueError):
+            pass  # leave as-is; the handler tolerates **_
+    return out
+
+
+def _generic_action(name: str, args: dict) -> dict:
+    """A synthesized tool with no curated backend op (e.g. a per-website action). Record it and
+    return an HONEST 'queued for staff' — never a fake confirmation (so the agent can't claim a
+    booking that didn't really happen). Swap for the business's real API at the adapter seam."""
+    _STATE.setdefault("actions", []).append({"tool": name, "args": dict(args or {})})
+    _notify("action", f"{name} requested: {args}")
+    return {"status": "queued_for_staff", "tool": name, "note": "recorded for staff to action (demo sandbox)"}
+
+
 def call(name: str, args: dict) -> dict:
     fn = _DISPATCH.get(name)
     if not fn:
-        return {"error": f"unknown tool {name}"}
+        return _generic_action(name, args)
     try:
-        return fn(**(args or {}))
-    except TypeError:
-        return fn(**{k: v for k, v in (args or {}).items() if k in fn.__code__.co_varnames})
+        return fn(**_coerce(args))
+    except Exception as e:  # an action must never 500 the route
+        return {"error": f"{name} failed: {e}"}
 
 
 def snapshot() -> dict:
