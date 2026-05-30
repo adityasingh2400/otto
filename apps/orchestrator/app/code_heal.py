@@ -206,11 +206,11 @@ def _task_prompt(spec: AgentSpec, fd: dict, trace_dict: dict) -> str:
     )
 
 
-async def _run_agent(messages: list[dict], current_source: str) -> tuple[Optional[str], str]:
+async def _run_agent(messages: list[dict], current_source: str, model: str) -> tuple[Optional[str], str]:
     """One coding-agent turn. Returns (new_source, note): the patched source if the agent emitted a
     cleanly-applicable edit, else (None, why) so the caller can feed the reason back and retry."""
     msg = await llm.complete_tools(CODE_SYS, messages, _EDIT_TOOL, temperature=0.0,
-                                   model=config.CODE_HEAL_MODEL, max_tokens=4000, force_tool=True)
+                                   model=model, max_tokens=4000, force_tool=True)
     edit = next((c for c in msg["tool_calls"] if c["name"] == "edit_file"), None)
     if not edit:
         return None, "no edit_file call"
@@ -228,16 +228,93 @@ async def _run_agent(messages: list[dict], current_source: str) -> tuple[Optiona
 # patch_fn lets a test inject a deterministic writer (no LLM, no budget): (failure_dict, current_src) -> new_src
 PatchFn = Callable[[dict, str], str]
 
+# A target = (failure_dict, repro-trace-dict, persona-or-None). Both entry points build this and
+# hand it to the shared loop, so the pre-launch swarm path and the production/Cekura trace path
+# run the identical author→verify→escalate machinery.
+Target = "tuple[dict, dict, Optional[Persona]]"
 
-async def heal_code(session_id: str, spec: AgentSpec, report: dict, personas: list[Persona],
-                    round_no: int, *, patch_fn: Optional[PatchFn] = None) -> dict:
-    """Route every CODE_SPACE failure in the swarm report to the coding agent, verify each fix against
-    the replay oracle, and return a report of accepted/rejected diffs. A strict no-op when there are no
-    code-space failures. Mirrors heal()'s shape (events, version-style reporting), writer swapped."""
+
+def _as_dict(f) -> dict:
+    return f.to_dict() if hasattr(f, "to_dict") else dict(f)
+
+
+def _models() -> list[str]:
+    """The model ladder: cheap model for the budgeted hops, then one shot on the escalation model."""
+    ladder = [config.CODE_HEAL_MODEL] * max(1, config.CODE_HEAL_MAX_HOPS)
+    if config.CODE_HEAL_ESCALATE_MODEL.strip():
+        ladder.append(config.CODE_HEAL_ESCALATE_MODEL.strip())
+    return ladder
+
+
+async def _heal_one(session_id: str, spec: AgentSpec, fd: dict, trace: dict, persona: Optional[Persona],
+                    working_source: str, tag: str, patch_fn: Optional[PatchFn]) -> tuple[CodeFix, str]:
+    """Author + verify ONE code-space failure, escalating up the model ladder until a patch passes the
+    replay oracle (or attempts run out). Returns (CodeFix, new_working_source)."""
+    target_id = fd.get("id", "")
+    persona_id = getattr(persona, "id", "") or ""
+    messages = [{"role": "user", "content": _task_prompt(spec, fd, trace)
+                 + "\n\n--- CURRENT mock_services.py (copy old_string verbatim from here) ---\n"
+                 + working_source}]
+    last_reason = "agent did not submit a patch"
+    for attempt, model in enumerate(_models()):
+        try:
+            if patch_fn:
+                new_source, note = patch_fn(fd, working_source), "ok"
+            else:
+                new_source, note = await _run_agent(messages, working_source, model)
+        except Exception as e:  # noqa: BLE001
+            last_reason = f"agent error ({model}): {type(e).__name__}: {e}"
+            break
+        if not new_source:   # no applicable edit — feed the reason back and let it retry
+            last_reason = note
+            if patch_fn:
+                break
+            messages.append({"role": "assistant", "content": f"(edit could not be applied: {note})"})
+            messages.append({"role": "user", "content":
+                             f"That edit failed ({note}). Quote a SHORT, exact, UNIQUE snippet from the "
+                             "file as old_string and try edit_file again."})
+            continue
+        v = await _verify(spec, trace, persona, target_id, working_source, new_source, f"{tag}_{attempt}")
+        last_reason = v["reason"]
+        if v["accepted"]:
+            diff = "".join(difflib.unified_diff(
+                working_source.splitlines(keepends=True), new_source.splitlines(keepends=True),
+                fromfile="a/app/mock_services.py", tofile="b/app/mock_services.py"))
+            return CodeFix(target_id, persona_id, True, v["reason"], v["before"], v["after"], diff), new_source
+        # rejected by the replay oracle — hand the verdict back; the next attempt may be a stronger model
+        messages.append({"role": "assistant", "content": f"(submitted a patch; verifier said: {v['reason']})"})
+        messages.append({"role": "user", "content":
+                         f"That patch was rejected: {v['reason']}. Failures still present: {v['after']}. "
+                         f"Make '{target_id}' go away without breaking anything, then call edit_file again."})
+        if patch_fn:   # a deterministic stub won't change across attempts — don't spin
+            break
+    return CodeFix(target_id, persona_id, False, last_reason), working_source
+
+
+async def _run_targets(session_id: str, spec: AgentSpec, targets: list, round_no: int,
+                       patch_fn: Optional[PatchFn]) -> tuple[list[CodeFix], str, str]:
+    """Run every target through the author→verify→escalate loop, stacking accepted diffs onto one
+    working copy. Returns (fixes, working_source, original_source). No file is written here."""
+    can_author = patch_fn is not None or (config.llm_available() and llm.tool_calling_available())
+    original_source = TARGET_PATH.read_text()
+    working_source = original_source
+    fixes: list[CodeFix] = []
+    for idx, (fd, trace, persona) in enumerate(targets):
+        if not can_author:
+            fixes.append(CodeFix(fd.get("id", ""), getattr(persona, "id", "") or "", False,
+                                 "no coding-agent backend available (set an LLM key or pass patch_fn)"))
+            continue
+        fix, working_source = await _heal_one(session_id, spec, fd, trace, persona,
+                                              working_source, f"{round_no}_{idx}", patch_fn)
+        fixes.append(fix)
+        if fix.accepted:
+            await bus.publish(session_id, {"type": "code_patch", "round": round_no, "fix": fix.to_dict()})
+    return fixes, working_source, original_source
+
+
+def _targets_from_report(report: dict, personas: list[Persona]) -> list:
     persona_by_id = {p.id: p for p in personas}
-    # Collect (failure, repro-trace, persona) for each distinct code-space failure, dedup by (id, persona).
-    targets: list[tuple[dict, dict, Optional[Persona]]] = []
-    seen: set[tuple[str, str]] = set()
+    targets, seen = [], set()
     for r in report.get("results", []):
         trace = r.get("trace")
         if not trace:
@@ -250,79 +327,120 @@ async def heal_code(session_id: str, spec: AgentSpec, report: dict, personas: li
                 continue
             seen.add(key)
             targets.append((fd, trace, persona_by_id.get(r.get("persona", ""))))
+    return targets
 
+
+async def heal_code(session_id: str, spec: AgentSpec, report: dict, personas: list[Persona],
+                    round_no: int, *, patch_fn: Optional[PatchFn] = None) -> dict:
+    """PRE-LAUNCH path: route every CODE_SPACE failure in a swarm report to the coding agent, verify each
+    against the replay oracle, return accepted/rejected diffs. Writes to the tree only if CODE_HEAL_APPLY.
+    A strict no-op when there are no code-space failures."""
+    targets = _targets_from_report(report, personas)
     if not targets:
         return {"round": round_no, "checked": 0, "fixes": [], "applied": [], "wrote": False}
-
     await bus.publish(session_id, {"type": "stage", "stage": "code_heal", "status": "start",
                                    "detail": f"{len(targets)} structural failure(s) → coding agent"})
-
-    can_author = patch_fn is not None or (config.llm_available() and llm.tool_calling_available())
-    original_source = TARGET_PATH.read_text()
-    working_source = original_source     # accepted fixes accumulate on top of each other
-    fixes: list[CodeFix] = []
-
-    for idx, (fd, trace, persona) in enumerate(targets):
-        target_id = fd.get("id", "")
-        if not can_author:
-            fixes.append(CodeFix(target_id, getattr(persona, "id", ""), False,
-                                 "no coding-agent backend available (set an LLM key or pass patch_fn)"))
-            continue
-        messages = [{"role": "user", "content": _task_prompt(spec, fd, trace)
-                     + "\n\n--- CURRENT mock_services.py (copy old_string verbatim from here) ---\n"
-                     + working_source}]
-        accepted_fix: Optional[CodeFix] = None
-        last_reason = "agent did not submit a patch"
-        for hop in range(max(1, config.CODE_HEAL_MAX_HOPS)):
-            try:
-                if patch_fn:
-                    new_source, note = patch_fn(fd, working_source), "ok"
-                else:
-                    new_source, note = await _run_agent(messages, working_source)
-            except Exception as e:  # noqa: BLE001
-                last_reason = f"agent error: {type(e).__name__}: {e}"
-                break
-            if not new_source:   # the agent didn't emit an applicable edit — feed back & retry
-                last_reason = note
-                if patch_fn:
-                    break
-                messages.append({"role": "assistant", "content": f"(edit could not be applied: {note})"})
-                messages.append({"role": "user", "content":
-                                 f"That edit failed ({note}). Quote a SHORT, exact, UNIQUE snippet from "
-                                 "the file as old_string and try edit_file again."})
-                continue
-            v = await _verify(spec, trace, persona, target_id, working_source, new_source, f"{round_no}_{idx}_{hop}")
-            last_reason = v["reason"]
-            if v["accepted"]:
-                diff = "".join(difflib.unified_diff(
-                    working_source.splitlines(keepends=True), new_source.splitlines(keepends=True),
-                    fromfile="a/app/mock_services.py", tofile="b/app/mock_services.py"))
-                working_source = new_source   # stack this fix; later targets verify against it
-                accepted_fix = CodeFix(target_id, getattr(persona, "id", ""), True, v["reason"],
-                                       v["before"], v["after"], diff)
-                break
-            # rejected — give the agent the oracle's verdict and let it try again (budget-capped)
-            messages.append({"role": "assistant", "content": f"(submitted a patch; verifier said: {v['reason']})"})
-            messages.append({"role": "user", "content":
-                             f"That patch was rejected: {v['reason']}. Failures still present: {v['after']}. "
-                             f"Fix it so '{target_id}' is gone and nothing new breaks. Return the full file again."})
-            if patch_fn:   # a deterministic stub won't change across hops — don't spin
-                break
-
-        fixes.append(accepted_fix or CodeFix(target_id, getattr(persona, "id", ""), False, last_reason))
-        if accepted_fix:
-            await bus.publish(session_id, {"type": "code_patch", "round": round_no,
-                                           "fix": accepted_fix.to_dict()})
-
+    fixes, working_source, original_source = await _run_targets(session_id, spec, targets, round_no, patch_fn)
     applied = [f.failure_id for f in fixes if f.accepted]
     wrote = False
     if applied and config.CODE_HEAL_APPLY and working_source != original_source:
-        TARGET_PATH.write_text(working_source)   # land the stacked, verified diff into the working tree
+        TARGET_PATH.write_text(working_source)
         wrote = True
-
     rej = sum(1 for f in fixes if not f.accepted)
     detail = (f"{len(applied)} verified, {rej} rejected"
               + (" · written to tree" if wrote else " · diff only (CODE_HEAL_APPLY=0)"))
     await bus.publish(session_id, {"type": "stage", "stage": "code_heal", "status": "done", "detail": detail})
     return {"round": round_no, "checked": len(targets), "wrote": wrote,
             "applied": applied, "fixes": [f.to_dict() for f in fixes]}
+
+
+async def heal_code_for_trace(session_id: str, spec: AgentSpec, trace, failures: list,
+                              persona: Optional[Persona] = None, round_no: int = 1, *,
+                              patch_fn: Optional[PatchFn] = None) -> dict:
+    """PRODUCTION path (what the live/Cekura observe loop calls): given ONE live call's trace + the
+    failures detected on it, fix every code-space failure, then — if CODE_HEAL_MERGE — gate the stacked
+    fix through the conversational harness (Cekura when keyed) and, only if it passes, MERGE it to the
+    live line (write + hot-reload + commit). Rolls back if the harness regresses. No-op if no code-space
+    failure. `failures` may be FailureInstance objects or dicts."""
+    trace_dict = trace.model_dump() if hasattr(trace, "model_dump") else dict(trace)
+    code_failures = [d for d in (_as_dict(f) for f in failures) if d.get("fix_space") == "code"]
+    if not code_failures:
+        return {"round": round_no, "checked": 0, "fixes": [], "applied": [], "merged": False}
+    targets = [(fd, trace_dict, persona) for fd in code_failures]
+    await bus.publish(session_id, {"type": "stage", "stage": "code_heal", "status": "start",
+                                   "detail": f"{len(targets)} structural failure(s) on live call → coding agent"})
+    fixes, working_source, original_source = await _run_targets(session_id, spec, targets, round_no, patch_fn)
+    applied = [f.failure_id for f in fixes if f.accepted]
+
+    merged, gate_rate = False, None
+    if applied and config.CODE_HEAL_MERGE and working_source != original_source:
+        merged, gate_rate = await _gate_and_merge(session_id, spec, working_source, original_source, applied)
+
+    rej = sum(1 for f in fixes if not f.accepted)
+    if not applied:
+        detail = f"0 verified, {rej} rejected"
+    elif merged:
+        detail = f"{len(applied)} fix(es) verified + harness-gated ({int(gate_rate*100)}%) → MERGED to live line"
+    elif gate_rate is not None:
+        detail = f"{len(applied)} verified but harness regressed ({int(gate_rate*100)}%) → rolled back, NOT merged"
+    else:
+        detail = f"{len(applied)} verified · merge off (CODE_HEAL_MERGE=0), diff only"
+    await bus.publish(session_id, {"type": "stage", "stage": "code_heal", "status": "done", "detail": detail})
+    return {"round": round_no, "checked": len(targets), "merged": merged, "gate_pass_rate": gate_rate,
+            "applied": applied, "fixes": [f.to_dict() for f in fixes]}
+
+
+def _reload_target() -> None:
+    """Hot-reload mock_services so the running line (agent + dashboard, via tool_engine.mock_services)
+    picks up the patched tool layer in place — no restart. reload() mutates the existing module object,
+    so every `from . import mock_services` reference sees the new functions."""
+    import importlib
+    from . import mock_services
+    importlib.reload(mock_services)
+
+
+async def _gate_and_merge(session_id: str, spec: AgentSpec, working_source: str, original_source: str,
+                          applied: list[str]) -> tuple[bool, float]:
+    """The second gate + the merge. Write the verified fix, hot-reload it, then run the conversational
+    harness (Cekura when SWARM_MODE=cekura + keyed, else the local sim) across the full pre-launch suite.
+    Keep + commit only if it clears PASS_GATE; otherwise roll the file back. Returns (merged, pass_rate)."""
+    from . import archetypes
+    from .swarm import run_swarm
+    await bus.publish(session_id, {"type": "stage", "stage": "code_gate", "status": "start",
+                                   "detail": "verified locally — now gating the fix through the conversational harness"})
+    TARGET_PATH.write_text(working_source)
+    _reload_target()
+    try:
+        personas = archetypes.select_for(spec.business.type, config.SWARM_PERSONAS)
+        gate = await run_swarm(session_id, spec, round_no=spec.meta.version, personas=personas)
+        rate = float(gate.get("pass_rate", 0.0))
+    except Exception as e:  # noqa: BLE001 — a harness error must not leave a half-merged tree
+        TARGET_PATH.write_text(original_source)
+        _reload_target()
+        await bus.publish(session_id, {"type": "stage", "stage": "code_gate", "status": "done",
+                                       "detail": f"harness error ({type(e).__name__}) → rolled back, NOT merged"})
+        return False, 0.0
+    if rate < config.PASS_GATE:
+        TARGET_PATH.write_text(original_source)   # the fix regressed conversations — undo it
+        _reload_target()
+        await bus.publish(session_id, {"type": "stage", "stage": "code_gate", "status": "done",
+                                       "detail": f"harness {int(rate*100)}% < gate {int(config.PASS_GATE*100)}% → rolled back"})
+        return False, rate
+    if config.CODE_HEAL_COMMIT:
+        _commit(applied)
+    await bus.publish(session_id, {"type": "stage", "stage": "code_gate", "status": "done",
+                                   "detail": f"harness {int(rate*100)}% ≥ gate → fix is live"})
+    return True, rate
+
+
+def _commit(applied: list[str]) -> None:
+    """Commit the merged fix to the current branch (durable record of the live-line change)."""
+    import subprocess
+    msg = f"fix(auto): code-heal merged {', '.join(applied)} after harness gate\n\nAuthored by the code-heal coding agent, verified by the replay oracle + conversational harness."
+    try:
+        subprocess.run(["git", "add", str(TARGET_PATH)], cwd=str(config.ROOT), check=True,
+                       capture_output=True, timeout=20)
+        subprocess.run(["git", "commit", "-m", msg], cwd=str(config.ROOT), check=True,
+                       capture_output=True, timeout=20)
+    except Exception:  # noqa: BLE001 — a commit failure must not unwind a verified, live fix
+        pass

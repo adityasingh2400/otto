@@ -458,3 +458,77 @@ def test_code_heal_rejects_a_noop_and_a_cheat_patch():
     assert cheat["applied"] == [], "a cosmetic patch that doesn't fix the invariant must be rejected"
     assert "still present" in next(f for f in cheat["fixes"]
                                    if f["failure_id"] == "duplicate_side_effect")["reason"]
+
+
+# ── code-heal: production entry point + Cekura-gated live merge ──────────────────────────────
+def test_code_heal_for_trace_is_the_production_entry_point():
+    """observe_trace hands a single (trace, failures); heal_code_for_trace fixes it WITHOUT a swarm
+    report and, with merge off, leaves the tree untouched (diff-only)."""
+    from app import code_heal
+    spec = _spec("piccino")
+    trace, found, _report = _dup_booking_report(spec)
+    before_file = code_heal.TARGET_PATH.read_text()
+    out = _run(code_heal.heal_code_for_trace("t-prod", spec, trace, found, persona=None,
+                                             patch_fn=_idempotent_patch))
+    assert out["applied"] == ["duplicate_side_effect"], out
+    assert out["merged"] is False
+    assert code_heal.TARGET_PATH.read_text() == before_file, "merge off must not touch the file"
+
+
+def test_code_heal_merges_to_live_line_only_after_harness_passes():
+    """The two-tier gate: local replay oracle THEN the conversational harness. Only if the harness
+    clears PASS_GATE is the verified fix written + reloaded into the live line."""
+    from app import code_heal, swarm, config as cfg
+    spec = _spec("piccino")
+    trace, found, _ = _dup_booking_report(spec)
+    original = code_heal.TARGET_PATH.read_text()
+    saved = (cfg.CODE_HEAL_MERGE, cfg.CODE_HEAL_COMMIT, swarm.run_swarm)
+
+    async def harness_passes(*a, **k):
+        return {"pass_rate": 1.0, "results": []}
+    cfg.CODE_HEAL_MERGE, cfg.CODE_HEAL_COMMIT, swarm.run_swarm = True, False, harness_passes
+    try:
+        out = _run(code_heal.heal_code_for_trace("t-merge", spec, trace, found, patch_fn=_idempotent_patch))
+        assert out["merged"] is True, out
+        assert out["gate_pass_rate"] == 1.0
+        assert "existing" in code_heal.TARGET_PATH.read_text(), "the fix must be live in the file"
+    finally:
+        code_heal.TARGET_PATH.write_text(original)
+        code_heal._reload_target()
+        cfg.CODE_HEAL_MERGE, cfg.CODE_HEAL_COMMIT, swarm.run_swarm = saved
+
+
+def test_code_heal_rolls_back_when_harness_regresses():
+    """Safety: a fix that passes the replay oracle but regresses CONVERSATIONS is rolled back, not merged.
+    The live line is never left worse off — the same monotonic guarantee the policy healer gives."""
+    from app import code_heal, swarm, config as cfg
+    spec = _spec("piccino")
+    trace, found, _ = _dup_booking_report(spec)
+    original = code_heal.TARGET_PATH.read_text()
+    saved = (cfg.CODE_HEAL_MERGE, cfg.CODE_HEAL_COMMIT, swarm.run_swarm)
+
+    async def harness_regresses(*a, **k):
+        return {"pass_rate": 0.0, "results": []}
+    cfg.CODE_HEAL_MERGE, cfg.CODE_HEAL_COMMIT, swarm.run_swarm = True, False, harness_regresses
+    try:
+        out = _run(code_heal.heal_code_for_trace("t-rollback", spec, trace, found, patch_fn=_idempotent_patch))
+        assert out["merged"] is False, out
+        assert out["gate_pass_rate"] == 0.0
+        assert code_heal.TARGET_PATH.read_text() == original, "a regressing fix must be rolled back"
+    finally:
+        code_heal.TARGET_PATH.write_text(original)
+        code_heal._reload_target()
+        cfg.CODE_HEAL_MERGE, cfg.CODE_HEAL_COMMIT, swarm.run_swarm = saved
+
+
+def test_model_ladder_escalates_then_stops():
+    """The coding agent spends cheap hops first, then one shot on the stronger model; empty escalate = no ladder."""
+    from app import code_heal, config as cfg
+    saved = (cfg.CODE_HEAL_MAX_HOPS, cfg.CODE_HEAL_MODEL, cfg.CODE_HEAL_ESCALATE_MODEL)
+    cfg.CODE_HEAL_MAX_HOPS, cfg.CODE_HEAL_MODEL, cfg.CODE_HEAL_ESCALATE_MODEL = 2, "haiku-x", "sonnet-x"
+    try:
+        assert code_heal._models() == ["haiku-x", "haiku-x", "sonnet-x"]
+        cfg.CODE_HEAL_ESCALATE_MODEL = ""
+        assert code_heal._models() == ["haiku-x", "haiku-x"]
+    finally:
+        cfg.CODE_HEAL_MAX_HOPS, cfg.CODE_HEAL_MODEL, cfg.CODE_HEAL_ESCALATE_MODEL = saved
