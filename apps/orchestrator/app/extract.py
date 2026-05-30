@@ -13,7 +13,7 @@ import asyncio
 from urllib.parse import urlparse
 
 import httpx
-from lineforge_spec import AgentSpec
+from lineforge_spec import AgentSpec, KnowledgeItem
 
 from . import config, llm
 from .events import bus
@@ -22,7 +22,8 @@ _PICCINO = config.SPEC_DIR / "piccino.json"
 _FACT_DELAY = 0.2  # seconds between streamed facts (timeline cadence)
 
 
-async def extract(session_id: str, url: str | None, use_cached: bool, cached: str | None = None) -> AgentSpec:
+async def extract(session_id: str, url: str | None, use_cached: bool, cached: str | None = None,
+                  extra_info: str | None = None) -> AgentSpec:
     await bus.publish(session_id, {"type": "stage", "stage": "extract", "status": "start",
                                    "detail": (f"cached: {cached}" if cached else url) or "cached Piccino spec"})
     host = (urlparse(url).hostname or "") if url else ""
@@ -43,6 +44,13 @@ async def extract(session_id: str, url: str | None, use_cached: bool, cached: st
             await bus.publish(session_id, {"type": "fact", "topic": "note",
                                            "content": f"extraction fell back to demo spec ({e})"})
             spec = _load_cached("piccino")
+
+    # "Website + relevant additional info": fold an owner-provided note into the spec's
+    # knowledge as high-confidence (it enters the compiled prompt the agent runs on).
+    if extra_info and extra_info.strip():
+        note = extra_info.strip()[:600]
+        spec.knowledge.append(KnowledgeItem(topic="owner-note", content=note, source_url="(owner-provided)", confidence=0.95))
+        await bus.publish(session_id, {"type": "fact", "topic": "owner-note", "content": note[:120]})
 
     await _stream_facts(session_id, spec)
     await bus.publish(session_id, {"type": "stage", "stage": "extract", "status": "done",

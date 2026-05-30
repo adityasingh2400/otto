@@ -13,7 +13,7 @@ dependencies = [
   # Pipecat + the reliability-first plugin set. Sponsor swaps (nvidia, aws) are
   # extra plugins you enable per .env — see bot.py. Confirm exact extras against the
   # pinned pipecat version + github.com/pipecat-ai/pipecat-quickstart-phone-bot.
-  "pipecat-ai[daily,openai,deepgram,cartesia,silero,elevenlabs]>=0.0.40",
+  "pipecat-ai[daily,openai,deepgram,cartesia,silero,elevenlabs,nvidia,aws]>=0.0.96",
 ]
 
 [tool.uv.sources]

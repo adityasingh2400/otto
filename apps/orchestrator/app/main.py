@@ -35,7 +35,8 @@ app.add_middleware(
 class RunReq(BaseModel):
     url: str | None = None
     use_cached: bool = False
-    cached: str | None = None  # demo fixture: "piccino" | "contractor"
+    cached: str | None = None  # demo fixture: "piccino" | "contractor" | "clinic"
+    extra_info: str | None = None  # owner-provided note folded into the agent's knowledge
 
 
 class ObserveReq(BaseModel):
@@ -59,7 +60,7 @@ async def health() -> dict:
 @app.post("/api/run")
 async def run(req: RunReq) -> dict:
     session_id = uuid.uuid4().hex[:12]
-    asyncio.create_task(run_pipeline(session_id, req.url, req.use_cached, req.cached))
+    asyncio.create_task(run_pipeline(session_id, req.url, req.use_cached, req.cached, req.extra_info))
     return {"session_id": session_id}
 
 

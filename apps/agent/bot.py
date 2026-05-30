@@ -52,9 +52,10 @@ def _json_type(t: str) -> str:
 
 # ── provider selection (reliability default + sponsor swaps via .env) ────────
 def _stt():
-    if os.getenv("STT_PROVIDER") == "nvidia":  # sponsor: NVIDIA Parakeet (confirm import vs pinned pipecat)
-        from pipecat.services.riva.stt import RivaSTTService
-        return RivaSTTService(api_key=os.getenv("NVIDIA_API_KEY"))
+    if os.getenv("STT_PROVIDER") == "nvidia":  # sponsor: NVIDIA Parakeet via NIM
+        # current path (>=0.0.96); pre-0.0.96 it was pipecat.services.riva.stt.RivaSTTService
+        from pipecat.services.nvidia.stt import NvidiaSTTService
+        return NvidiaSTTService(api_key=os.getenv("NVIDIA_API_KEY"))
     from pipecat.services.deepgram.stt import DeepgramSTTService
     return DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
 
@@ -74,9 +75,11 @@ def _tts(spec: AgentSpec):
 
 
 def _llm():
-    if os.getenv("LLM_PROVIDER") == "bedrock":  # sponsor: AWS Nova (confirm import vs pinned pipecat)
+    if os.getenv("LLM_PROVIDER") == "bedrock":  # sponsor: AWS Bedrock cascaded text LLM (e.g. Nova Pro)
         from pipecat.services.aws.llm import AWSBedrockLLMService
         return AWSBedrockLLMService(model=os.getenv("BEDROCK_MODEL_ID", "us.amazon.nova-pro-v1:0"))
+        # Lowest-latency alternative: AWSNovaSonicLLMService (pipecat.services.aws.nova_sonic)
+        # is speech-to-speech — it REPLACES stt+tts, so use a different pipeline if you pick it.
     from pipecat.services.openai.llm import OpenAILLMService
     return OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model=os.getenv("LLM_MODEL", "gpt-4o"))
 

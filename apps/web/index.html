@@ -56,6 +56,9 @@
   .launch input{flex:1;background:var(--cream);border:2px solid var(--ink);border-radius:14px;padding:14px 16px;
     font:500 14px var(--mono);color:var(--ink);box-shadow:var(--sh-sm);outline:none;transition:.15s}
   .launch input:focus{box-shadow:var(--sh-md);transform:translate(-2px,-2px)}
+  .extra{width:100%;margin-top:10px;background:var(--cream);border:2px solid var(--ink);border-radius:12px;padding:11px 14px;font:500 13px var(--sans);color:var(--ink);box-shadow:var(--sh-sm);outline:none}
+  .extra:focus{box-shadow:var(--sh-md);transform:translate(-2px,-2px)}
+  .extra::placeholder{color:var(--ink-fade);font-style:italic;font-family:var(--serif)}
   .btn{font-family:var(--display);font-size:15px;letter-spacing:.5px;color:var(--cream);background:var(--cherry);
     border:2px solid var(--ink);border-radius:14px;padding:0 24px;height:52px;cursor:pointer;box-shadow:var(--sh-md);
     transition:transform .08s,box-shadow .08s;animation:ctaPulse 2.8s ease-out infinite}
@@ -159,6 +162,7 @@
     <input id="url" value="https://www.piccino.com/" spellcheck="false" />
     <button class="btn" id="go">Build it</button>
   </div>
+  <input id="extra" class="extra" placeholder="Optional — anything the website won't say: hours, policies, what the agent must never promise, when to transfer to a human…" />
   <div class="chips">
     <span class="lab">Instant demos:</span>
     <div class="chip" data-cached="piccino">▶ <b>Piccino</b> · restaurant</div>
@@ -237,6 +241,7 @@ document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
 
 async function run(body){
   reset(); $("#go").disabled=true; $("#go").textContent="Building…";
+  const x=$("#extra").value.trim(); if(x) body.extra_info=x;
   const r=await fetch(ORCH+"/api/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
   sessionId=(await r.json()).session_id;
   es=new EventSource(ORCH+"/api/events/"+sessionId);
