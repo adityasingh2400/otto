@@ -35,6 +35,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemma-4-31b-it")  # Gemma 4 for server-side reasoning
+CRAWL_MAX_PAGES = _i("CRAWL_MAX_PAGES", 6)  # pages to crawl when extracting from a website
 
 # Swarm / eval
 SWARM_MODE = os.getenv("SWARM_MODE", "local")  # local | cekura

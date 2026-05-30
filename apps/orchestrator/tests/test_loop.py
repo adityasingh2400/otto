@@ -30,6 +30,17 @@ def test_specs_load_and_compile():
         assert len(s.compile_prompt()) > 200
 
 
+def test_crawl_link_ranking():
+    from app.extract import _rank_links
+    base = "https://x.com/"
+    links = ["/menu", "/careers", "https://x.com/contact", "https://other.com/z", "/menu", "#top", "mailto:a@b.com"]
+    out = _rank_links(base, links)
+    assert "https://x.com/menu" in out and "https://x.com/contact" in out
+    assert all("other.com" not in u for u in out)                                # same-host only
+    assert out.index("https://x.com/menu") < out.index("https://x.com/careers")  # relevant first
+    assert sum(u.endswith("/menu") for u in out) == 1                            # deduped
+
+
 def test_vertical_routing():
     assert archetypes.vertical_for("Italian restaurant") == "restaurant"
     assert archetypes.vertical_for("construction company") == "contractor"

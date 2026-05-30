@@ -10,7 +10,7 @@ what the swarm discovers and the healer fixes.
 from __future__ import annotations
 
 import asyncio
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 from lineforge_spec import AgentSpec, KnowledgeItem
@@ -20,6 +20,10 @@ from .events import bus
 
 _PICCINO = config.SPEC_DIR / "piccino.json"
 _FACT_DELAY = 0.2  # seconds between streamed facts (timeline cadence)
+
+# pages worth pulling when crawling a business site (ranked above everything else)
+_RELEVANT = ["menu", "about", "service", "contact", "hour", "reserv", "order", "book",
+             "appointment", "faq", "pricing", "price", "gift", "location", "catering"]
 
 
 async def extract(session_id: str, url: str | None, use_cached: bool, cached: str | None = None,
@@ -38,8 +42,13 @@ async def extract(session_id: str, url: str | None, use_cached: bool, cached: st
             spec.business.public_url = url
     else:
         try:
-            text = await _fetch_text(url)
-            spec = await _llm_extract(url, text) if config.llm_available() else _load_cached("piccino")
+            if config.llm_available():
+                text = await _crawl(url, config.CRAWL_MAX_PAGES)
+                await bus.publish(session_id, {"type": "fact", "topic": "crawl",
+                                               "content": f"crawled {text.count('[page]')} page(s)"})
+                spec = await _llm_extract(url, text)
+            else:
+                spec = _load_cached("piccino")
         except Exception as e:
             await bus.publish(session_id, {"type": "fact", "topic": "note",
                                            "content": f"extraction fell back to demo spec ({e})"})
@@ -65,21 +74,57 @@ def _load_cached(name: str = "piccino") -> AgentSpec:
     return AgentSpec.model_validate_json(path.read_text())
 
 
-async def _fetch_text(url: str) -> str:
-    async with httpx.AsyncClient(follow_redirects=True, timeout=15.0,
-                                 headers={"User-Agent": "LineForge/0.1 (+demo)"}) as c:
-        r = await c.get(url)
-        r.raise_for_status()
-        html = r.text
+def _rank_links(base_url: str, hrefs: list[str]) -> list[str]:
+    """Same-host internal links, deduped, ranked so relevant pages (menu/services/…) come first."""
+    host = urlparse(base_url).hostname or ""
+    seen = {base_url.split("#")[0].rstrip("/")}
+    ranked: list[tuple[int, str]] = []
+    for href in hrefs:
+        if not href:
+            continue
+        u = urljoin(base_url, href).split("#")[0]
+        p = urlparse(u)
+        if p.scheme not in ("http", "https") or (p.hostname or "") != host:
+            continue
+        key = u.rstrip("/")
+        if key in seen:
+            continue
+        seen.add(key)
+        ranked.append((sum(1 for kw in _RELEVANT if kw in u.lower()), key))
+    ranked.sort(key=lambda x: -x[0])
+    return [u for _, u in ranked]
+
+
+async def _fetch_page(c: httpx.AsyncClient, url: str) -> tuple[str, list[str]]:
+    r = await c.get(url)
+    r.raise_for_status()
+    html = r.text
     try:
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(html, "html.parser")
+        links = [a.get("href") for a in soup.find_all("a", href=True)]
         for tag in soup(["script", "style", "noscript", "svg"]):
             tag.decompose()
         text = " ".join(soup.get_text(" ").split())
     except Exception:
-        text = html
-    return text[:12000]
+        text, links = html, []
+    return text[:6000], links
+
+
+async def _crawl(base_url: str, max_pages: int) -> str:
+    """Fetch the homepage + the most relevant internal pages; concatenate (capped)."""
+    parts: list[str] = []
+    async with httpx.AsyncClient(follow_redirects=True, timeout=15.0,
+                                 headers={"User-Agent": "LineForge/0.1 (+demo)"}) as c:
+        text, links = await _fetch_page(c, base_url)
+        parts.append(f"[page] {base_url}\n{text}")
+        for u in _rank_links(base_url, links)[: max(0, max_pages - 1)]:
+            try:
+                t, _ = await _fetch_page(c, u)
+                parts.append(f"[page] {u}\n{t}")
+            except Exception:
+                continue
+    return "\n\n".join(parts)[:16000]
 
 
 async def _llm_extract(url: str, text: str) -> AgentSpec:
