@@ -74,6 +74,15 @@ CODE_HEAL = os.getenv("CODE_HEAL", "1").lower() in ("1", "true", "yes")
 CODE_HEAL_APPLY = os.getenv("CODE_HEAL_APPLY", "0").lower() in ("1", "true", "yes")
 CODE_HEAL_MAX_HOPS = _i("CODE_HEAL_MAX_HOPS", 2)  # author→verify→retry rounds per failure (budget cap)
 CODE_HEAL_MODEL = os.getenv("CODE_HEAL_MODEL", "claude-haiku-4-5")  # cheap by default ($50 budget)
+# Escalation: if the cheap model can't produce a VERIFIED fix within CODE_HEAL_MAX_HOPS, take one more
+# attempt on a stronger model. Set empty to disable escalation. Costs more only when the cheap model fails.
+CODE_HEAL_ESCALATE_MODEL = os.getenv("CODE_HEAL_ESCALATE_MODEL", "claude-sonnet-4-6")
+# CODE_HEAL_MERGE=1 turns on the LIVE-LINE merge path (production loop): a locally-verified fix is gated
+# a SECOND time by the conversational harness (Cekura when keyed, else the local sim) against the full
+# pre-launch suite; only if THAT passes is the fix written to the tool layer, hot-reloaded into the
+# running line, and committed. If the harness regresses, the fix is rolled back. Default OFF.
+CODE_HEAL_MERGE = os.getenv("CODE_HEAL_MERGE", "0").lower() in ("1", "true", "yes")
+CODE_HEAL_COMMIT = os.getenv("CODE_HEAL_COMMIT", "1").lower() in ("1", "true", "yes")  # git-commit a merged fix
 
 # failure-taxonomy thresholds (the event-stream eval engine, app/failure.py)
 ACTION_SLA_MS = _i("ACTION_SLA_MS", 1500)        # a tool slower than this = a slow_action failure
