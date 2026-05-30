@@ -171,7 +171,7 @@ def _to_anthropic_messages(messages: list[dict]) -> list[dict]:
 
 
 async def _anthropic_tools(system: str, messages: list[dict], tools: list[dict], temperature: float,
-                           model: str | None = None, max_tokens: int = 1024) -> dict:
+                           model: str | None = None, max_tokens: int = 1024, force_tool: bool = False) -> dict:
     if not config.ANTHROPIC_API_KEY:
         raise LLMUnavailable("ANTHROPIC_API_KEY not set")
     try:
@@ -180,10 +180,11 @@ async def _anthropic_tools(system: str, messages: list[dict], tools: list[dict],
         raise LLMUnavailable("anthropic SDK not installed") from e
     client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
     model = model or (config.LLM_MODEL if config.LLM_PROVIDER == "anthropic" else "claude-haiku-4-5")
+    extra = {"tool_choice": {"type": "any"}} if force_tool else {}  # any => must call SOME tool
     async with _gate():
         resp = await client.messages.create(
             model=model, max_tokens=max_tokens, temperature=temperature, system=system,
-            messages=_to_anthropic_messages(messages), tools=_to_anthropic_tools(tools))
+            messages=_to_anthropic_messages(messages), tools=_to_anthropic_tools(tools), **extra)
     text = "".join(getattr(b, "text", "") for b in resp.content if getattr(b, "type", "") == "text")
     calls = [{"id": getattr(b, "id", "") or "", "name": b.name,
               "args": b.input if isinstance(b.input, dict) else {}}
@@ -193,23 +194,25 @@ async def _anthropic_tools(system: str, messages: list[dict], tools: list[dict],
 
 async def complete_tools(system: str, messages: list[dict], tools: list[dict],
                          *, temperature: float = 0.3, model: str | None = None,
-                         max_tokens: int = 1024) -> dict:
+                         max_tokens: int = 1024, force_tool: bool = False) -> dict:
     """One tool-calling turn. `messages` is an OpenAI-format running history (user/assistant/tool);
     returns the assistant message as {"content": str, "tool_calls": [{"id","name","args"}]}. Raises
     LLMUnavailable if the provider has no tool path. Retries transient API errors with backoff.
-    `model` overrides the provider default (e.g. pin a cheap model for budget-bounded code-heal)."""
+    `model` overrides the provider default (e.g. pin a cheap model for budget-bounded code-heal);
+    `force_tool` requires the model to call a tool rather than reply with prose."""
     if config.LLM_PROVIDER == "anthropic":
-        return await _retry(lambda: _anthropic_tools(system, messages, tools, temperature, model, max_tokens))
+        return await _retry(lambda: _anthropic_tools(system, messages, tools, temperature, model, max_tokens, force_tool))
 
     client, default_model, sys_prefix = _oai_client_model()
     model = model or default_model
     sys_msg = {"role": "system", "content": sys_prefix + system}
+    choice = "required" if force_tool else "auto"
 
     async def once() -> dict:
         async with _gate():
             resp = await client.chat.completions.create(
                 model=model, temperature=temperature, max_tokens=max_tokens,
-                messages=[sys_msg, *messages], tools=tools, tool_choice="auto")
+                messages=[sys_msg, *messages], tools=tools, tool_choice=choice)
         msg = resp.choices[0].message
         calls = []
         for tc in (getattr(msg, "tool_calls", None) or []):

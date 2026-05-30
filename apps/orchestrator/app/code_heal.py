@@ -46,20 +46,24 @@ CODE_SYS = (
     "You are a senior backend engineer fixing a STRUCTURAL bug in a phone agent's tool layer "
     "(mock_services.py). The agent's prompt is fine — the gap is in the CODE: an invariant the "
     "implementation must guarantee (idempotency, always returning a result, refusing a sensitive "
-    "input, a correct status). Fix the root cause in the code, minimally, preserving every other "
-    "behavior and the module's public interface. Return the COMPLETE corrected file via submit_patch."
+    "input, a correct status). Make ONE minimal fix with edit_file: copy a SHORT, exact, UNIQUE "
+    "snippet from the file as old_string and return the corrected new_string. Preserve every other "
+    "behavior and the module's public interface. Keep the edit as small as possible."
 )
 
-_SUBMIT_TOOL = [{
+_EDIT_TOOL = [{
     "type": "function",
     "function": {
-        "name": "submit_patch",
-        "description": "Submit the complete corrected contents of mock_services.py.",
+        "name": "edit_file",
+        "description": ("Apply one exact find-and-replace edit to mock_services.py. old_string must be a "
+                        "verbatim, UNIQUE snippet of the current file; new_string replaces it."),
         "parameters": {
             "type": "object",
-            "properties": {"source": {"type": "string",
-                                      "description": "the entire new file contents, top to bottom"}},
-            "required": ["source"],
+            "properties": {
+                "old_string": {"type": "string", "description": "exact snippet to find (unique in the file)"},
+                "new_string": {"type": "string", "description": "the replacement text"},
+            },
+            "required": ["old_string", "new_string"],
         },
     },
 }]
@@ -202,16 +206,23 @@ def _task_prompt(spec: AgentSpec, fd: dict, trace_dict: dict) -> str:
     )
 
 
-async def _run_agent(messages: list[dict]) -> Optional[str]:
-    """One coding-agent turn: returns the submitted full-file source, or None if it didn't submit."""
-    msg = await llm.complete_tools(CODE_SYS, messages, _SUBMIT_TOOL, temperature=0.0,
-                                   model=config.CODE_HEAL_MODEL, max_tokens=8000)
-    for c in msg["tool_calls"]:
-        if c["name"] == "submit_patch":
-            src = c["args"].get("source")
-            if isinstance(src, str) and src.strip():
-                return src
-    return None
+async def _run_agent(messages: list[dict], current_source: str) -> tuple[Optional[str], str]:
+    """One coding-agent turn. Returns (new_source, note): the patched source if the agent emitted a
+    cleanly-applicable edit, else (None, why) so the caller can feed the reason back and retry."""
+    msg = await llm.complete_tools(CODE_SYS, messages, _EDIT_TOOL, temperature=0.0,
+                                   model=config.CODE_HEAL_MODEL, max_tokens=4000, force_tool=True)
+    edit = next((c for c in msg["tool_calls"] if c["name"] == "edit_file"), None)
+    if not edit:
+        return None, "no edit_file call"
+    old, new = edit["args"].get("old_string"), edit["args"].get("new_string")
+    if not isinstance(old, str) or not isinstance(new, str) or not old:
+        return None, "edit_file missing old_string/new_string"
+    n = current_source.count(old)
+    if n == 0:
+        return None, "old_string not found verbatim in the file"
+    if n > 1:
+        return None, "old_string matched multiple places — make it unique"
+    return current_source.replace(old, new, 1), "ok"
 
 
 # patch_fn lets a test inject a deterministic writer (no LLM, no budget): (failure_dict, current_src) -> new_src
@@ -257,18 +268,29 @@ async def heal_code(session_id: str, spec: AgentSpec, report: dict, personas: li
             fixes.append(CodeFix(target_id, getattr(persona, "id", ""), False,
                                  "no coding-agent backend available (set an LLM key or pass patch_fn)"))
             continue
-        messages = [{"role": "user", "content": _task_prompt(spec, fd, trace)}]
+        messages = [{"role": "user", "content": _task_prompt(spec, fd, trace)
+                     + "\n\n--- CURRENT mock_services.py (copy old_string verbatim from here) ---\n"
+                     + working_source}]
         accepted_fix: Optional[CodeFix] = None
         last_reason = "agent did not submit a patch"
         for hop in range(max(1, config.CODE_HEAL_MAX_HOPS)):
             try:
-                new_source = (patch_fn(fd, working_source) if patch_fn
-                              else await _run_agent(messages))
+                if patch_fn:
+                    new_source, note = patch_fn(fd, working_source), "ok"
+                else:
+                    new_source, note = await _run_agent(messages, working_source)
             except Exception as e:  # noqa: BLE001
                 last_reason = f"agent error: {type(e).__name__}: {e}"
                 break
-            if not new_source:
-                break
+            if not new_source:   # the agent didn't emit an applicable edit — feed back & retry
+                last_reason = note
+                if patch_fn:
+                    break
+                messages.append({"role": "assistant", "content": f"(edit could not be applied: {note})"})
+                messages.append({"role": "user", "content":
+                                 f"That edit failed ({note}). Quote a SHORT, exact, UNIQUE snippet from "
+                                 "the file as old_string and try edit_file again."})
+                continue
             v = await _verify(spec, trace, persona, target_id, working_source, new_source, f"{round_no}_{idx}_{hop}")
             last_reason = v["reason"]
             if v["accepted"]:
