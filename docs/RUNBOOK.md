@@ -30,6 +30,24 @@ Headless proof of the loop: `cd apps/orchestrator && uv run --python 3.12 python
 Only an LLM key is needed to upgrade the swarm from static checks to real conversation
 sims. Everything else lights up the live phone path + sponsor tracks.
 
+## Cheapest path ($0 / free tiers)
+
+| Piece | Free option |
+|---|---|
+| LLM (extract/heal) | **Google AI Studio / Gemini** — free key (Gemma/Flash). Set `LLM_PROVIDER=gemini` |
+| Swarm | `SWARM_MODE=static` + `SWARM_CONCURRENCY=2` — free + instant, won't hit free rate limits |
+| STT | **Deepgram** — $200 free credit, no card, never expires |
+| TTS | **Cartesia** free tier (20k/mo), **ElevenLabs** 10k chars/mo, or **NVIDIA NIM** free |
+| Eval swarm (real audio) | **Cekura** + **Daily** — ask the co-hosts for hackathon credits on-site |
+| Phone | **Twilio** $15 trial (~75 min, 1 number); upgrade ~$20 to drop the trial preamble for a cold judge call |
+| AWS | $200 new-account credits; **set a budget alarm** and tear down AgentCore after |
+
+Realistic total: **$0** without the Twilio upgrade, **~$20** for a frictionless live call.
+
+Traps: (1) don't run a 1000-variation production heal on a paid LLM — each variation is one
+call; keep `PRODUCTION_SWARM_VOLUME` ~30 or push volume through Cekura's credits. (2) Gemini
+free tier is ~10-15 req/min — keep `SWARM_MODE=static` and use the key only for extraction/heal.
+
 ## 2. Go live (the phone call)
 
 ```bash

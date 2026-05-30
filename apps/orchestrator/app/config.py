@@ -38,9 +38,10 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemma-4-31b-it")  # Gemma 4 for server
 CRAWL_MAX_PAGES = _i("CRAWL_MAX_PAGES", 6)  # pages to crawl when extracting from a website
 
 # Swarm / eval
-SWARM_MODE = os.getenv("SWARM_MODE", "local")  # local | cekura
+SWARM_MODE = os.getenv("SWARM_MODE", "local")  # local (LLM sim if keyed, else static) | static (force) | cekura
 PASS_GATE = _f("PASS_GATE", 0.85)
 SWARM_PERSONAS = _i("SWARM_PERSONAS", 12)
+SWARM_CONCURRENCY = _i("SWARM_CONCURRENCY", 6)  # lower to 1-2 for rate-limited free LLM tiers
 MAX_HEAL_ROUNDS = _i("MAX_HEAL_ROUNDS", 3)
 # production loop: how many synthetic calls to throw at a failure detected on a live call
 PRODUCTION_SWARM_VOLUME = _i("PRODUCTION_SWARM_VOLUME", 30)

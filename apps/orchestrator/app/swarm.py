@@ -42,8 +42,9 @@ class CallResult:
 
 
 async def run_swarm(session_id: str, spec: AgentSpec, round_no: int, personas: list[Persona]) -> dict:
+    force_static = config.SWARM_MODE == "static"  # free-tier friendly: never burns LLM calls
     use_cekura = config.SWARM_MODE == "cekura" and config.cekura_available()
-    use_sim = (not use_cekura) and config.llm_available()
+    use_sim = (not use_cekura) and (not force_static) and config.llm_available()
     backend = "cekura" if use_cekura else ("sim" if use_sim else "static")
     await bus.publish(session_id, {"type": "stage", "stage": "swarm", "status": "start",
                                    "detail": f"round {round_no} · {len(personas)} callers · {backend}"})
@@ -65,7 +66,7 @@ async def run_swarm(session_id: str, spec: AgentSpec, round_no: int, personas: l
             use_cekura = False
             use_sim = config.llm_available()
 
-    sem = asyncio.Semaphore(6)
+    sem = asyncio.Semaphore(max(1, config.SWARM_CONCURRENCY))
 
     async def one(p: Persona) -> CallResult:
         async with sem:
