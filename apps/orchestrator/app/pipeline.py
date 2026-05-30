@@ -10,6 +10,7 @@ from otto_spec import AgentSpec
 
 from . import archetypes, config, extract, failure, mock_services, store
 from .events import bus
+from .code_heal import heal_code
 from .heal import heal
 from .observe import _probe_persona
 from .swarm import run_swarm
@@ -71,6 +72,13 @@ async def run_pipeline(session_id: str, url: str | None, use_cached: bool, cache
             report = await run_swarm(session_id, spec, round_no, personas)
             await bus.publish(session_id, {"type": "stage", "stage": "rerun", "status": "done",
                                            "detail": f"pass rate {report['pass_rate']*100:.0f}%"})
+
+        # Route any STRUCTURAL failures the policy healer can't close (idempotency, a tool that always
+        # returns, a secure boundary) to the coding agent: it writes a real diff to the tool layer,
+        # verified by the SAME trace-sim oracle (replay → re-evaluate), and surfaces it for review.
+        # A strict no-op when there are no code-space failures, so it's free on the happy path.
+        if config.CODE_HEAL:
+            await heal_code(session_id, spec, report, personas, round_no)
 
         if report["pass_rate"] >= config.PASS_GATE:
             await activate(session_id, spec)
