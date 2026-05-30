@@ -1,0 +1,258 @@
+{
+  "business": {
+    "name": "Piccino",
+    "type": "Italian-inspired California cuisine restaurant",
+    "location": "1001 Minnesota St, San Francisco, CA 94107, USA",
+    "timezone": "America/Los_Angeles",
+    "public_url": "https://www.piccino.com/",
+    "disclaimer": "This agent is a sandbox demo built from publicly available information; it is not the official line and any bookings or orders made through it are simulated."
+  },
+  "voice": {
+    "persona": "friendly and knowledgeable host",
+    "greeting": "Thank you for calling Piccino. How can I assist you today?",
+    "tts_voice": ""
+  },
+  "knowledge": [
+    {
+      "topic": "description",
+      "content": "Italian-inspired California cuisine featuring a seasonally driven menu with bright & fresh antipasti, hand-tossed pizza, homemade pasta, mouth-watering entrees, a curated wine selection, and craft cocktails.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "address",
+      "content": "1001 Minnesota St, San Francisco, CA 94107",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "phone",
+      "content": "(415) 824-4224",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "hours",
+      "content": "Dinner: Wednesday — Sunday 5:00pm — 9:00pm; Lunch: Wednesday — Friday 11:00am — 2:00pm; Brunch: Saturday — Sunday 11:00am — 2:00pm; Closed: Mondays & Tuesdays.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "surcharge",
+      "content": "A 6% surcharge is added to all checks to help fund employee benefits; gratuity is optional and shared amongst hourly staff.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "private_events",
+      "content": "Piccino offers private event spaces including the Main Dining Room, Guest House (rooftop patio), Bar Piccino, Bill’s Gym lounge, and private dining rooms The Violetta and The Nora. For inquiries, email events@piccino.com or use the form on the Private Events page.",
+      "source_url": "https://www.piccino.com/privateevents",
+      "confidence": 0.95
+    },
+    {
+      "topic": "bar_catering",
+      "content": "Piccino Bar Catering is a premium bartending and beverage service for private gatherings and events (coming soon).",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "coffee_bar",
+      "content": "Piccino Coffee Bar offers coffee from Bassline Coffee, house-made baked goods, and grab‑and‑go items from a take‑away fridge.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "farm",
+      "content": "Piccino grows most of its own produce at the Piccino farm in Healdsburg, CA and sources the rest from local farmers and producers.",
+      "source_url": "https://www.piccino.com/about",
+      "confidence": 0.95
+    },
+    {
+      "topic": "mission",
+      "content": "Mission: to serve the best ingredients in a warm and friendly environment that caters to all.",
+      "source_url": "https://www.piccino.com/about",
+      "confidence": 0.95
+    },
+    {
+      "topic": "online_ordering",
+      "content": "Customers can place orders online for takeout or delivery via the 'Order Online' link.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.9
+    },
+    {
+      "topic": "reservations",
+      "content": "Reservations can be made online or by phone; the restaurant accepts reservations for dinner, lunch, and brunch during operating hours.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.9
+    },
+    {
+      "topic": "gift_cards",
+      "content": "Gift cards are available for purchase.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.9
+    },
+    {
+      "topic": "menu_nature",
+      "content": "The menu changes frequently with the season; dishes are made in-house using peak‑season produce and sustainably raised meat, poultry, and fish.",
+      "source_url": "https://www.piccino.com/menu",
+      "confidence": 0.95
+    },
+    {
+      "topic": "wine_and_cocktails",
+      "content": "A curated wine list focuses on small producers; craft cocktails are offered from the bar.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    }
+  ],
+  "capabilities": [
+    "reserve_table",
+    "order_item",
+    "get_current_menu",
+    "escalate"
+  ],
+  "tools": [
+    {
+      "name": "reserve_table",
+      "description": "Reserve a dining table at Piccino.",
+      "params": [
+        {
+          "name": "date",
+          "type": "string",
+          "description": "Desired date (YYYY-MM-DD)",
+          "required": true
+        },
+        {
+          "name": "time",
+          "type": "string",
+          "description": "Desired time (HH:MM AM/PM)",
+          "required": true
+        },
+        {
+          "name": "party_size",
+          "type": "integer",
+          "description": "Number of guests",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "description": "Name for the reservation",
+          "required": false
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "description": "Contact phone number",
+          "required": false
+        }
+      ],
+      "mock_behavior": {},
+      "execution": {
+        "kind": "stateful",
+        "action": "reserve_table"
+      }
+    },
+    {
+      "name": "order_item",
+      "description": "Place a food or drink order for pickup or delivery.",
+      "params": [
+        {
+          "name": "items",
+          "type": "array",
+          "description": "List of menu items with quantities",
+          "required": true
+        },
+        {
+          "name": "pickup_time",
+          "type": "string",
+          "description": "Desired pickup or delivery time (HH:MM AM/PM)",
+          "required": true
+        },
+        {
+          "name": "contact_name",
+          "type": "string",
+          "description": "Name for the order",
+          "required": false
+        },
+        {
+          "name": "contact_phone",
+          "type": "string",
+          "description": "Phone number for order confirmation",
+          "required": false
+        }
+      ],
+      "mock_behavior": {},
+      "execution": {
+        "kind": "stateful",
+        "action": "order_item"
+      }
+    },
+    {
+      "name": "get_current_menu",
+      "description": "Retrieve the live, up‑to‑date menu from the website.",
+      "params": [],
+      "mock_behavior": {},
+      "execution": {
+        "kind": "live_query",
+        "source_url": "https://www.piccino.com/menu"
+      }
+    },
+    {
+      "name": "escalate",
+      "description": "Transfer the caller to a human staff member for complex requests.",
+      "params": [],
+      "mock_behavior": {},
+      "execution": {
+        "kind": "escalate"
+      }
+    }
+  ],
+  "policies": [
+    {
+      "id": "P1",
+      "category": "safety",
+      "trigger": "request for allergen or nutritional information",
+      "rule": "Inform the caller that detailed allergen or nutritional data is not available via this agent and suggest contacting the restaurant directly for that information.",
+      "severity": "low",
+      "source": "extracted"
+    },
+    {
+      "id": "P2",
+      "category": "booking",
+      "trigger": "attempt to book a reservation outside of operating hours",
+      "rule": "Inform the caller of Piccino's operating hours and suggest the next available time slot within those hours.",
+      "severity": "medium",
+      "source": "extracted"
+    }
+  ],
+  "escalation_rules": [
+    {
+      "id": "E1",
+      "condition": "caller inquires about booking a private event, catering, or large party arrangements",
+      "action": "escalate"
+    },
+    {
+      "id": "E2",
+      "condition": "caller requests specific menu item prices, detailed dish descriptions, or real‑time availability beyond the general seasonal menu",
+      "action": "escalate"
+    }
+  ],
+  "safety_rules": [],
+  "out_of_scope": [
+    "allergen details",
+    "nutritional information",
+    "specific wine list vintages and prices",
+    "exact current menu item list and prices",
+    "gift card balance inquiries",
+    "employment verification or career details",
+    "lost and found items",
+    "delivery area specifics beyond general online ordering"
+  ],
+  "meta": {
+    "version": 1,
+    "parent_version": null,
+    "created_at": "2026-05-30T17:13:24.229953+00:00",
+    "updated_at": "2026-05-30T17:13:24.229964+00:00",
+    "notes": "extracted from https://www.piccino.com/"
+  }
+}

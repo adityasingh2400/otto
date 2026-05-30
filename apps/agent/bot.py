@@ -41,10 +41,10 @@ from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.runner.types import RunnerArguments
-from pipecat.runner.utils import parse_telephony_websocket
-from pipecat.serializers.twilio import TwilioFrameSerializer
-from pipecat.transports.base_transport import BaseTransport
-from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams, FastAPIWebsocketTransport
+from pipecat.runner.utils import create_transport
+from pipecat.transports.base_transport import BaseTransport, TransportParams
+from pipecat.transports.daily.transport import DailyParams
+from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
 
 
 # ── tool schemas from the spec ───────────────────────────────────────────────
@@ -68,14 +68,14 @@ def _json_type(t: str) -> str:
 
 # ── provider selection (reliability default + sponsor swaps via .env) ────────
 def _stt():
-    if os.getenv("STT_PROVIDER") == "nvidia":  # sponsor: NVIDIA Parakeet via NIM (the Nemotron voice blueprint STT)
-        # The module family moved riva.* -> nvidia.* across pipecat versions; try the current
-        # path, fall back to the older one, so a fresh install can't ImportError on the day.
-        try:
-            from pipecat.services.nvidia.stt import NvidiaSTTService as _STT
-        except ImportError:
-            from pipecat.services.riva.stt import RivaSTTService as _STT  # older module family
-        return _STT(api_key=os.getenv("NVIDIA_API_KEY"))
+    if os.getenv("STT_PROVIDER") == "nvidia":  # sponsor: NVIDIA Nemotron Speech Streaming (Parakeet) — full-NVIDIA stack
+        # The hackathon ASR is a raw websocket fleet (NVIDIA_ASR_URL=ws://…:8080), NOT the NIM/Riva
+        # endpoint — so we use the vendored NVidiaWebSocketSTTService that speaks its protocol.
+        from nvidia_stt import NVidiaWebSocketSTTService
+        return NVidiaWebSocketSTTService(
+            url=os.getenv("NVIDIA_ASR_URL", "ws://localhost:8080"),
+            strip_interim_prefix=True,  # the fleet emits cumulative interims
+        )
     from pipecat.services.deepgram.stt import DeepgramSTTService
     return DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
 
@@ -120,6 +120,20 @@ def _llm():
     return OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model=os.getenv("LLM_MODEL", "gpt-4o"))
 
 
+def _today_line(spec: AgentSpec) -> str:
+    """A current-date anchor so the agent resolves 'tonight'/'Saturday' to real dates
+    (and never books in the wrong year). Computed in the business's timezone per call."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    try:
+        now = datetime.now(ZoneInfo(spec.business.timezone or "America/Los_Angeles"))
+    except Exception:
+        now = datetime.now()
+    return (f"\n\n# Current date/time\nRight now it is {now:%A, %B %-d, %Y, %-I:%M %p} "
+            f"({spec.business.timezone}). Resolve relative dates like 'tonight', 'tomorrow', "
+            f"or 'Saturday' against this, and always pass tool dates as YYYY-MM-DD in the current year.")
+
+
 # ── the pipeline ─────────────────────────────────────────────────────────────
 async def run_bot(transport: BaseTransport, spec: AgentSpec) -> None:
     if os.getenv("PIPELINE_MODE") == "s2s":
@@ -127,7 +141,7 @@ async def run_bot(transport: BaseTransport, spec: AgentSpec) -> None:
     rec = _Recorder()  # per-call state — concurrency-safe across simultaneous calls
     stt, tts, llm = _stt(), _tts(spec), _llm()
     context = OpenAILLMContext(
-        messages=[{"role": "system", "content": spec.compile_prompt()}],
+        messages=[{"role": "system", "content": spec.compile_prompt() + _today_line(spec)}],
         tools=build_tool_schemas(spec),
     )
     aggregator = llm.create_context_aggregator(context)
@@ -138,8 +152,13 @@ async def run_bot(transport: BaseTransport, spec: AgentSpec) -> None:
     pipeline = Pipeline([
         transport.input(), stt, aggregator.user(), llm, tts, transport.output(), aggregator.assistant(),
     ])
+    # Telephony (Twilio Media Streams) is genuinely 8kHz; WebRTC/Daily are wideband. NVIDIA's
+    # Parakeet ASR requires 16kHz and the STT service forwards raw transport audio un-resampled,
+    # so an 8kHz pipeline silently breaks transcription. Pick the rate from the transport.
+    is_telephony = "websocket" in type(transport).__module__.lower()  # FastAPIWebsocketTransport = Twilio
+    rate = 8000 if is_telephony else 16000
     task = PipelineTask(pipeline, params=PipelineParams(
-        audio_in_sample_rate=8000, audio_out_sample_rate=8000,  # Twilio Media Streams = 8kHz
+        audio_in_sample_rate=rate, audio_out_sample_rate=rate,
         enable_metrics=True, enable_usage_metrics=True, allow_interruptions=True,
     ))
     await PipelineRunner().run(task)
@@ -159,7 +178,7 @@ async def _run_bot_s2s(transport: BaseTransport, spec: AgentSpec) -> None:
         access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
         region=os.getenv("AWS_REGION", "us-east-1"),
-        settings=AWSNovaSonicLLMService.Settings(voice="matthew", system_instruction=spec.compile_prompt()),
+        settings=AWSNovaSonicLLMService.Settings(voice="matthew", system_instruction=spec.compile_prompt() + _today_line(spec)),
     )
     context = OpenAILLMContext(messages=[], tools=build_tool_schemas(spec))
     aggregator = llm.create_context_aggregator(context)
@@ -215,37 +234,48 @@ async def _report_to_orchestrator(context: OpenAILLMContext, rec: "_Recorder") -
 
 # ── spec loading (shared by the entrypoints) ─────────────────────────────────
 async def load_spec() -> AgentSpec:
+    """Resolve which business this call is for, richest source first:
+      1. a pinned OTTO_SESSION (a specific build), else
+      2. the orchestrator's currently-active business (what the UI last activated), else
+      3. the cached Piccino spec (offline / demo fallback).
+    """
     session = os.getenv("OTTO_SESSION", "")
     orch = os.getenv("ORCH_BASE_URL", "http://localhost:8000")
-    if session:
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as c:
-                r = await c.get(f"{orch}/api/spec/{session}")
-                if r.status_code == 200:
-                    return AgentSpec.model_validate(r.json())
-        except Exception:
-            pass
+    endpoint = f"/api/spec/{session}" if session else "/api/active-spec"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as c:
+            r = await c.get(f"{orch}{endpoint}")
+            if r.status_code == 200:
+                return AgentSpec.model_validate(r.json())
+    except Exception:
+        pass
     cached = pathlib.Path(__file__).resolve().parents[2] / "packages" / "spec" / "piccino.json"
     return AgentSpec.model_validate_json(cached.read_text())
 
 
-# ── Twilio entrypoint via Pipecat's runner ───────────────────────────────────
-async def bot(runner_args: RunnerArguments) -> None:
-    """Called by `pipecat.runner` per inbound call. Run: uv run bot.py --transport twilio --proxy <host>"""
-    transport_type, call_data = await parse_telephony_websocket(runner_args.websocket)
-    serializer = TwilioFrameSerializer(
-        stream_sid=call_data["stream_id"],
-        call_sid=call_data["call_id"],
-        account_sid=os.getenv("TWILIO_ACCOUNT_SID"),
-        auth_token=os.getenv("TWILIO_AUTH_TOKEN"),
-    )
-    transport = FastAPIWebsocketTransport(
-        websocket=runner_args.websocket,
-        params=FastAPIWebsocketParams(
+# ── unified entrypoint via Pipecat's runner ──────────────────────────────────
+# ONE bot() for every front door — the architecture's whole point. The runner picks
+# the transport and create_transport builds it from this factory dict:
+#   webrtc → local browser dev (uv run bot.py → http://localhost:7860)
+#   daily  → the Cekura swarm + Pipecat Cloud (room is injected by the runner)
+#   twilio → the live phone call (the Twilio serializer is wired automatically)
+def _transport_params() -> dict:
+    return {
+        "webrtc": lambda: TransportParams(
+            audio_in_enabled=True, audio_out_enabled=True, vad_analyzer=SileroVADAnalyzer()),
+        "daily": lambda: DailyParams(
+            audio_in_enabled=True, audio_out_enabled=True, vad_analyzer=SileroVADAnalyzer()),
+        "twilio": lambda: FastAPIWebsocketParams(
             audio_in_enabled=True, audio_out_enabled=True, add_wav_header=False,
-            vad_analyzer=SileroVADAnalyzer(), serializer=serializer,
-        ),
-    )
+            vad_analyzer=SileroVADAnalyzer()),  # add_wav_header + serializer set automatically
+    }
+
+
+async def bot(runner_args: RunnerArguments) -> None:
+    """Pipecat runner entrypoint — local dev (WebRTC), the Cekura swarm + Pipecat Cloud
+    (Daily), and the live phone (Twilio), all from the same pipeline. The swarm tests the
+    exact code that answers the phone. Run locally: `uv run bot.py` → http://localhost:7860"""
+    transport = await create_transport(runner_args, _transport_params())
     spec = await load_spec()
     await run_bot(transport, spec)
 

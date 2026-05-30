@@ -1,0 +1,15 @@
+# Pipecat Cloud deploy for the Otto voice agent.
+#   pc cloud auth login                         # one-time (your Pipecat Cloud account)
+#   pc cloud secrets set otto-agent-secrets --file ../../.env   # upload runtime secrets
+#   pc cloud deploy                             # build (Dockerfile.pcc) + deploy
+# The agent fetches its AgentSpec from ORCH_BASE_URL (your Render orchestrator) at call time
+# via /api/active-spec, so it answers as whatever business the UI last activated.
+agent_name = "otto-agent"
+secret_set = "otto-agent-secrets"
+agent_profile = "agent-1x"
+
+[krisp_viva]
+	audio_filter = "tel"          # noise suppression tuned for phone calls
+
+[scaling]
+	min_agents = 1                # keep one warm so the judge's call connects instantly

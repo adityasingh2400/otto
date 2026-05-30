@@ -29,7 +29,7 @@ ROOT = _ROOT
 SPEC_DIR = _ROOT / "packages" / "spec"
 
 # LLM (server-side reasoning)
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "nvidia")  # default: NVIDIA Nemotron via NIM (theme #1, open-weights)
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
@@ -39,7 +39,7 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemma-3-27b-it")  # open-weights Gemma
 # This is the hackathon's "NVIDIA-accelerated open-weights" theme + the Daily/NVIDIA voice blueprint LLM.
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 NVIDIA_BASE_URL = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
-NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/llama-3.3-nemotron-super-49b-v1")  # confirm exact id on build.nvidia.com
+NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-3-nano-30b-a3b")  # fast MoE; verified live on build.nvidia.com
 CRAWL_MAX_PAGES = _i("CRAWL_MAX_PAGES", 6)  # pages to crawl when extracting from a website
 # LLM resilience — server-side reasoning is latency-tolerant, so retry transient API errors (429/
 # timeout/5xx) AND unparseable output with backoff, and cap outbound concurrency so a burst (many
@@ -88,6 +88,9 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "")
 OWNER_PHONE = os.getenv("OWNER_PHONE", "")  # business owner's number for event SMS alerts
+# Demo fallback: when a caller's number is missing/garbled (ASR mis-hears digits), text this
+# instead so a live test call always lands a real confirmation SMS. Empty in prod.
+DEMO_RESERVER_PHONE = os.getenv("DEMO_RESERVER_PHONE", "")
 
 # Daily (Cekura WebRTC swarm joins this room; also the agent's WebRTC transport)
 DAILY_API_KEY = os.getenv("DAILY_API_KEY", "")
