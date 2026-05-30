@@ -50,10 +50,11 @@ async def extract(session_id: str, url: str | None, use_cached: bool, cached: st
     else:
         signals: dict = {}
         try:
-            text, signals = await _crawl(url, config.CRAWL_MAX_PAGES)
-            await bus.publish(session_id, {"type": "fact", "topic": "crawl",
-                                           "content": f"crawled {text.count('[page]')} page(s) · {len(text)} chars"})
+            text, signals = await _crawl(url, config.CRAWL_MAX_PAGES, session_id)
             if config.llm_available() and text.strip():
+                _m = config.EXTRACT_MODEL.split("/")[-1]
+                await bus.publish(session_id, {"type": "fact", "topic": "crawl",
+                                               "content": f"understanding the business · {_m} · ~{config.EXTRACT_EXPECTED_S}s deep parse"})
                 spec = await _llm_extract(url, text, signals)
             else:
                 # no LLM key (or empty crawl): build from deterministic site signals — the right
@@ -64,6 +65,7 @@ async def extract(session_id: str, url: str | None, use_cached: bool, cached: st
             await bus.publish(session_id, {"type": "fact", "topic": "note",
                                            "content": f"extraction degraded ({type(e).__name__})"})
             spec = _fallback_spec(url, signals)
+        _ensure_default_tools(spec)  # functional even on the fallback/fast path
 
     # "Website + relevant additional info": fold an owner-provided note into the spec's
     # knowledge as high-confidence (it enters the compiled prompt the agent runs on).
@@ -206,20 +208,36 @@ async def _fetch_page(c: httpx.AsyncClient, url: str) -> tuple[str, list[str], d
     return text[:6000], links, signals
 
 
-async def _crawl(base_url: str, max_pages: int) -> tuple[str, dict]:
-    """Fetch the homepage + the most relevant internal pages. Returns (concatenated text, signals)
-    where signals are the deterministic head/JSON-LD facts from the homepage (the richest page)."""
+async def _crawl(base_url: str, max_pages: int, session_id: str | None = None) -> tuple[str, dict]:
+    """Fetch the homepage + the most relevant internal pages, narrating each fetch LIVE so the
+    dashboard can show what it's reading in real time (the crawl is the slow part). Returns
+    (concatenated text, signals) where signals are the deterministic head/JSON-LD facts."""
+    async def say(content: str) -> None:
+        if session_id:
+            await bus.publish(session_id, {"type": "fact", "topic": "crawl", "content": content})
+
     parts: list[str] = []
+    host = urlparse(base_url).hostname or base_url
     async with httpx.AsyncClient(follow_redirects=True, timeout=15.0,
                                  headers={"User-Agent": _UA, "Accept-Language": "en-US,en;q=0.9"}) as c:
+        await say(f"opening {host}")
         text, links, signals = await _fetch_page(c, base_url)
+        name = signals.get("ld_name") or signals.get("site_name") or signals.get("title")
+        await say(f"homepage read — {name}" if name else "homepage read")
         parts.append(f"[page] {base_url}\n{_signal_header(signals)}{text}")
-        for u in _rank_links(base_url, links)[: max(0, max_pages - 1)]:
+        ranked = _rank_links(base_url, links)[: max(0, max_pages - 1)]
+        if ranked:
+            await say(f"found {len(ranked)} more page(s) to read")
+        for u in ranked:
+            path = (urlparse(u).path or "/").rstrip("/") or "/"
+            await say(f"reading {path}")
             try:
                 t, _, _ = await _fetch_page(c, u)
                 parts.append(f"[page] {u}\n{t}")
             except Exception:
+                await say(f"skipped {path} (unreadable)")
                 continue
+        await say("done reading the site")
     return "\n\n".join(parts)[:16000], signals
 
 
@@ -278,7 +296,7 @@ async def _llm_extract(url: str, text: str, signals: dict | None = None) -> Agen
         "line, and that bookings are mocked. category is one of safety|booking|knowledge|voice_behavior."
     )
     try:
-        data = await llm.complete_json(sys, user)
+        data = await llm.complete_json(sys, user, model=config.EXTRACT_MODEL)  # rich reasoner → deep spec
     except Exception:
         # LLM/network down even after retries — build from the deterministic site signals
         # (title/meta/JSON-LD) so we keep the RIGHT business with real facts, never an empty agent.
@@ -286,6 +304,7 @@ async def _llm_extract(url: str, text: str, signals: dict | None = None) -> Agen
     spec = _coerce_to_spec(data, url)  # robust: keep the right business even if sub-fields are loose
     _enrich_from_signals(spec, url, signals)  # backfill name/type/knowledge the LLM missed
     _normalize_tools(spec, url)        # platform authors the execution half (the LLM only proposes it)
+    _ensure_default_tools(spec)        # guarantee the vertical's core tools so a FAST model still works
     return spec
 
 
@@ -525,6 +544,48 @@ def _normalize_tools(spec: AgentSpec, url: str) -> None:
                           else "send_sms" if "sms" in ln or "text" in ln
                           else t.name)  # unknown → generic recorded action (honest "queued for staff")
             t.execution = {"kind": "stateful", "action": action}
+
+
+def _default_tools(business_type: str) -> list[ToolSpec]:
+    """The standard tools for a vertical, wired by the PLATFORM (not the LLM) — so a fast/thin
+    extraction still yields a FUNCTIONAL agent. The model proposes business facts + policies; the
+    platform guarantees the agent can actually act (book, order, text, escalate)."""
+    from . import archetypes
+    v = archetypes.vertical_for(business_type)
+
+    def P(n: str, d: str) -> ToolParam:
+        return ToolParam(name=n, type="string", description=d, required=True)
+    sms = ToolSpec(name="send_sms", description="Text the caller a confirmation or details.",
+                   params=[P("phone", "the caller's phone number"), P("body", "the message")],
+                   execution={"kind": "stateful", "action": "send_sms"})
+    esc = ToolSpec(name="escalate", description="Hand the call off to a human staff member.",
+                   params=[P("reason", "why you're escalating")], execution={"kind": "escalate"})
+    if v == "restaurant":
+        return [
+            ToolSpec(name="check_availability", description="Check table availability for a date, time, and party size.",
+                     params=[P("date", "date"), P("time", "time"), P("party_size", "number of guests")],
+                     execution={"kind": "stateful", "action": "check_availability"}),
+            ToolSpec(name="reserve_table", description="Book a table once availability is confirmed.",
+                     params=[P("name", "guest name"), P("date", "date"), P("time", "time"), P("party_size", "guests")],
+                     execution={"kind": "stateful", "action": "reserve_table"}),
+            ToolSpec(name="order_item", description="Place a pickup or takeout order.",
+                     params=[P("item", "menu item"), P("qty", "quantity")],
+                     execution={"kind": "stateful", "action": "order_item"}),
+            sms, esc]
+    return [
+        ToolSpec(name="book_appointment", description="Book or schedule an appointment.",
+                 params=[P("name", "the caller's name"), P("time", "preferred date/time")],
+                 execution={"kind": "stateful", "action": "book_appointment"}),
+        sms, esc]
+
+
+def _ensure_default_tools(spec: AgentSpec) -> None:
+    """Guarantee the agent has its vertical's core tools even if the LLM proposed few/none — so a
+    fast-model extraction is still a working phone agent that can book, order, text, and escalate."""
+    have = {t.name for t in spec.tools}
+    for t in _default_tools(spec.business.type):
+        if t.name not in have:
+            spec.tools.append(t)
 
 
 async def _stream_facts(session_id: str, spec: AgentSpec) -> None:

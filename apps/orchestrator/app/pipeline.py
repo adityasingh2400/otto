@@ -6,6 +6,8 @@ does not go live until the agent clears the bar, which is the whole point.
 
 from __future__ import annotations
 
+import asyncio
+
 from otto_spec import AgentSpec
 
 from . import archetypes, config, extract, failure, mock_services, store
@@ -51,6 +53,8 @@ async def run_pipeline(session_id: str, url: str | None, use_cached: bool, cache
         await bus.publish(session_id, {"type": "fact", "topic": "swarm",
                                        "content": f"{archetypes.vertical_for(spec.business.type)} archetype · {len(personas)} caller types"})
 
+        if config.DEMO_PACING:
+            await asyncio.sleep(2.5)  # let the agent profile land before the swarm attack streams in
         round_no = 1
         report = await run_swarm(session_id, spec, round_no, personas)
 

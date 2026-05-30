@@ -52,32 +52,36 @@ async def _retry(fn):
     raise last  # type: ignore[misc]
 
 
-async def _dispatch(system: str, user: str, json_mode: bool, temperature: float) -> str:
+async def _dispatch(system: str, user: str, json_mode: bool, temperature: float,
+                    model: str | None = None) -> str:
     provider = config.LLM_PROVIDER
     async with _gate():
         if provider == "openai":
-            return await _openai(system, user, json_mode, temperature)
+            return await _openai(system, user, json_mode, temperature, model)
         if provider == "anthropic":
-            return await _anthropic(system, user, json_mode, temperature)
+            return await _anthropic(system, user, json_mode, temperature, model)
         if provider == "gemini":  # open-weights Gemma via Google's OpenAI-compatible endpoint ($0 path)
-            return await _gemini(system, user, json_mode, temperature)
+            return await _gemini(system, user, json_mode, temperature, model)
         if provider == "nvidia":  # NVIDIA Nemotron open-weights via NIM (OpenAI-compatible) — theme #1
-            return await _nvidia(system, user, json_mode, temperature)
+            return await _nvidia(system, user, json_mode, temperature, model)
         # bedrock (AWS) runs in the agent via boto3; server-side here falls back to OpenAI if keyed.
         if config.OPENAI_API_KEY:
-            return await _openai(system, user, json_mode, temperature)
+            return await _openai(system, user, json_mode, temperature, model)
         raise LLMUnavailable(f"no LLM configured for provider={provider}")
 
 
-async def complete(system: str, user: str, *, json_mode: bool = False, temperature: float = 0.4) -> str:
-    return await _retry(lambda: _dispatch(system, user, json_mode, temperature))
+async def complete(system: str, user: str, *, json_mode: bool = False, temperature: float = 0.4,
+                   model: str | None = None) -> str:
+    # `model` overrides the provider default for THIS call — e.g. a rich reasoner for extraction vs a
+    # fast model for the high-volume swarm — without changing the provider or wiring a second client.
+    return await _retry(lambda: _dispatch(system, user, json_mode, temperature, model))
 
 
-async def complete_json(system: str, user: str, *, temperature: float = 0.3) -> Any:
+async def complete_json(system: str, user: str, *, temperature: float = 0.3, model: str | None = None) -> Any:
     # Retries cover BOTH a transient API error AND a model that returned prose we couldn't parse —
     # re-sampling often yields clean JSON. (complete() also retries the API layer; parse retries here.)
     async def once() -> Any:
-        raw = await complete(system, user, json_mode=True, temperature=temperature)
+        raw = await complete(system, user, json_mode=True, temperature=temperature, model=model)
         return _loads_lenient(raw)
     return await _retry(once)
 
@@ -230,7 +234,7 @@ async def complete_tools(system: str, messages: list[dict], tools: list[dict],
     return await _retry(once)
 
 
-async def _openai(system: str, user: str, json_mode: bool, temperature: float) -> str:
+async def _openai(system: str, user: str, json_mode: bool, temperature: float, model: str | None = None) -> str:
     if not config.OPENAI_API_KEY:
         raise LLMUnavailable("OPENAI_API_KEY not set")
     try:
@@ -239,7 +243,7 @@ async def _openai(system: str, user: str, json_mode: bool, temperature: float) -
         raise LLMUnavailable("openai SDK not installed") from e
     client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
     kwargs: dict[str, Any] = {
-        "model": config.LLM_MODEL,
+        "model": model or config.LLM_MODEL,
         "temperature": temperature,
         "messages": [
             {"role": "system", "content": system},
@@ -252,7 +256,7 @@ async def _openai(system: str, user: str, json_mode: bool, temperature: float) -
     return resp.choices[0].message.content or ""
 
 
-async def _gemini(system: str, user: str, json_mode: bool, temperature: float) -> str:
+async def _gemini(system: str, user: str, json_mode: bool, temperature: float, model: str | None = None) -> str:
     # Open-weights Gemma for non-latency-critical server-side reasoning (the $0 path; lines up
     # with the "open-weights models" theme). Google's OpenAI-compatible endpoint, no extra dep.
     if not config.GEMINI_API_KEY:
@@ -264,7 +268,7 @@ async def _gemini(system: str, user: str, json_mode: bool, temperature: float) -
     client = AsyncOpenAI(api_key=config.GEMINI_API_KEY,
                          base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
     kwargs: dict[str, Any] = {
-        "model": config.GEMINI_MODEL,
+        "model": model or config.GEMINI_MODEL,
         "temperature": temperature,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
     }
@@ -274,7 +278,7 @@ async def _gemini(system: str, user: str, json_mode: bool, temperature: float) -
     return resp.choices[0].message.content or ""
 
 
-async def _nvidia(system: str, user: str, json_mode: bool, temperature: float) -> str:
+async def _nvidia(system: str, user: str, json_mode: bool, temperature: float, model: str | None = None) -> str:
     # NVIDIA Nemotron (open-weights) served via NIM — build.nvidia.com, OpenAI-compatible, so
     # this is the same client as the OpenAI/Gemini branches with a base_url swap. This is the
     # hackathon's "NVIDIA-accelerated open-weights" theme #1, and the Daily+NVIDIA voice
@@ -291,13 +295,13 @@ async def _nvidia(system: str, user: str, json_mode: bool, temperature: float) -
     # clean object, not a <think> trace (which both bloats latency and breaks parsing on big specs).
     sys = "detailed thinking off\n\n" + system
     resp = await client.chat.completions.create(
-        model=config.NVIDIA_MODEL, temperature=temperature,
+        model=model or config.NVIDIA_MODEL, temperature=temperature,
         messages=[{"role": "system", "content": sys}, {"role": "user", "content": user}],
     )
     return resp.choices[0].message.content or ""
 
 
-async def _anthropic(system: str, user: str, json_mode: bool, temperature: float) -> str:
+async def _anthropic(system: str, user: str, json_mode: bool, temperature: float, model: str | None = None) -> str:
     if not config.ANTHROPIC_API_KEY:
         raise LLMUnavailable("ANTHROPIC_API_KEY not set")
     try:
@@ -307,7 +311,7 @@ async def _anthropic(system: str, user: str, json_mode: bool, temperature: float
     client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
     sys = system + ("\n\nRespond with a single valid JSON object and nothing else." if json_mode else "")
     resp = await client.messages.create(
-        model=config.LLM_MODEL if config.LLM_PROVIDER == "anthropic" else "claude-sonnet-4-6",
+        model=model or (config.LLM_MODEL if config.LLM_PROVIDER == "anthropic" else "claude-sonnet-4-6"),
         max_tokens=2048,
         temperature=temperature,
         system=sys,

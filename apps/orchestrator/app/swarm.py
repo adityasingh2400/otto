@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import random
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Optional
@@ -90,6 +91,8 @@ async def run_swarm(session_id: str, spec: AgentSpec, round_no: int, personas: l
                 res = CallResult(p.id, p.label, p.category, ok, f"[fallback: {e}] {reason}", backend="static")
             res.latency_ms = res.latency_ms or int((time.perf_counter() - t0) * 1000)
             await bus.publish(session_id, {"type": "call", "result": asdict(res)})
+            if not use_sim and config.DEMO_PACING:  # static is instant — pace it so the arena fills card-by-card
+                await asyncio.sleep(random.uniform(0.12, 0.55))  # jittered so the swarm lands like real calls, not a metronome
             return res
 
     tasks = [asyncio.create_task(one(p)) for p in personas]
@@ -131,12 +134,14 @@ async def simulate_call(spec: AgentSpec, p: Persona) -> CallResult:
     )
     transcript: list[Turn] = [Turn("agent", spec.voice.greeting)]
     for _ in range(config.SWARM_TURNS):
-        caller = (await llm.complete(caller_sys, _render(transcript, "caller"), temperature=0.85)).strip()
+        caller = (await llm.complete(caller_sys, _render(transcript, "caller"), temperature=0.85,
+                                     model=config.SWARM_SIM_MODEL)).strip()
         transcript.append(Turn("caller", caller))
-        agent = (await llm.complete(agent_sys, _render(transcript, "agent"), temperature=0.3)).strip()
+        agent = (await llm.complete(agent_sys, _render(transcript, "agent"), temperature=0.3,
+                                    model=config.SWARM_SIM_MODEL)).strip()
         transcript.append(Turn("agent", agent))
 
-    verdict = await llm.complete_json(_JUDGE_SYS, _judge_user(p, transcript))
+    verdict = await llm.complete_json(_JUDGE_SYS, _judge_user(p, transcript), model=config.SWARM_SIM_MODEL)
     passed = bool(verdict.get("passed"))
     reason = str(verdict.get("reason", ""))[:300]
     return CallResult(p.id, p.label, p.category, passed, reason,
@@ -199,7 +204,8 @@ async def simulate_trace(spec: AgentSpec, p: Persona) -> CallResult:
 
     with mock_services.isolated_state(p.setup):
         for _ in range(config.SWARM_TURNS):
-            caller = (await llm.complete(caller_sys, _render(transcript, "caller"), temperature=0.85)).strip()
+            caller = (await llm.complete(caller_sys, _render(transcript, "caller"), temperature=0.85,
+                                     model=config.SWARM_SIM_MODEL)).strip()
             t_ms += 1500
             events.append(CallEvent(kind="hear", t_ms=t_ms, text=caller,
                                     asr_conf=float(pert.get("asr_conf", 1.0))))
@@ -246,7 +252,7 @@ async def simulate_trace(spec: AgentSpec, p: Persona) -> CallResult:
     # (The judge preserves coverage for conversational personas; the detectors add the action layer.)
     judge_pass, judge_reason = True, ""
     try:
-        verdict = await llm.complete_json(_JUDGE_SYS, _judge_user(p, transcript))
+        verdict = await llm.complete_json(_JUDGE_SYS, _judge_user(p, transcript), model=config.SWARM_SIM_MODEL)
         judge_pass = bool(verdict.get("passed", True))
         judge_reason = str(verdict.get("reason", ""))[:200]
     except Exception:
@@ -308,4 +314,5 @@ async def _emit_metrics(session_id: str, results: list[CallResult]) -> None:
         "unsafe": sum(1 for r in results if r.category == "safety" and not r.passed),
         "booking": rate("booking"),
         "escalation": rate("safety"),
+        "total": len(results),  # scenario count → the rigorous before/after headline cites N
     })

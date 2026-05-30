@@ -40,6 +40,17 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemma-3-27b-it")  # open-weights Gemma
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 NVIDIA_BASE_URL = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-3-nano-30b-a3b")  # fast MoE; verified live on build.nvidia.com
+# Extraction reads the WHOLE site (≈16k chars) into one structured spec, so it runs on a RICHER
+# reasoning model (Nemotron Super 49B) than the swarm: deeper menus/policies/edge-cases, fewer misses.
+# It's a single call that takes tens of seconds — the dashboard advertises the time and fills the wait.
+EXTRACT_MODEL = os.getenv("EXTRACT_MODEL", "") or ("nvidia/nemotron-3-super" if LLM_PROVIDER == "nvidia" else NVIDIA_MODEL)
+EXTRACT_EXPECTED_S = _i("EXTRACT_EXPECTED_S", 50)  # advertised deep-parse time → drives the live ETA/progress
+# The swarm fires MANY calls (callers + judge, every persona, every heal round); keep those on the
+# configured fast model (NVIDIA_MODEL) so the arena stays live even when EXTRACT_MODEL is a heavier
+# reasoner — set SWARM_SIM_MODEL explicitly to pin a different one. The agent-under-test still answers
+# on AGENT_NVIDIA_MODEL, and the gating verdict is the DETERMINISTIC failure taxonomy
+# (model-independent) — the judge model only adds a conversational second opinion.
+SWARM_SIM_MODEL = os.getenv("SWARM_SIM_MODEL", "") or NVIDIA_MODEL
 CRAWL_MAX_PAGES = _i("CRAWL_MAX_PAGES", 6)  # pages to crawl when extracting from a website
 # LLM resilience — server-side reasoning is latency-tolerant, so retry transient API errors (429/
 # timeout/5xx) AND unparseable output with backoff, and cap outbound concurrency so a burst (many
@@ -66,6 +77,10 @@ PRODUCTION_SWARM_VOLUME = _i("PRODUCTION_SWARM_VOLUME", 30)
 # it emits `awaiting_deploy` and waits for the owner to press Deploy (POST /api/activate). The human
 # putting the line live is the trust beat. OFF = auto-activate the instant the gate clears (tests/smoke).
 REQUIRE_APPROVAL = os.getenv("REQUIRE_APPROVAL", "1").lower() in ("1", "true", "yes")
+# DEMO_PACING (default ON): small, intentional delays that make the UI legible — a beat after the
+# agent is built so the profile lands, and a per-call stagger so the swarm arena fills card-by-card
+# (the "watch it attack" process). Tests/smoke set it OFF so the hermetic suite stays fast.
+DEMO_PACING = os.getenv("DEMO_PACING", "1").lower() in ("1", "true", "yes")
 
 # Code-heal: route CODE_SPACE failures (tool-layer invariants no prompt can fix) to a coding agent
 # that writes a real diff, verified by the trace-sim replay oracle. Sibling of the policy heal loop.

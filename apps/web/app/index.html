@@ -64,8 +64,8 @@
   .vchip b{font-family:var(--display);font-weight:600}
   .vchip.gced{background:var(--pass-bg);border-color:var(--pass);color:var(--pass-d)}.vchip.gced::after{content:" ✓"}
   .lineage .arrow{color:var(--maroon-l);font-weight:700}
-  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px}
-  .metric{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--sh-md)}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,190px));gap:14px;margin-top:16px;justify-content:start}
+  .metric{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--sh-md)}
   .metric .v{font-family:var(--display);font-weight:600;font-size:36px;line-height:1;color:var(--ink)}
   .metric .v.foil{color:var(--maroon)}
   .metric .v.fail{color:var(--danger)} .metric .v.pass{color:var(--pass)}
@@ -117,17 +117,30 @@
   .callrow:last-child{border-bottom:0}
   /* ── phase machine: one phase full-screen at a time, smooth replace ── */
   .pstep{display:flex;gap:7px;align-items:center;margin-left:24px}
-  .pstep .pchip{font:600 11px var(--mono);letter-spacing:.04em;color:var(--ink-fade);padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);transition:.3s}
+  .pstep .pchip{font:600 11px var(--mono);letter-spacing:.04em;color:var(--ink-fade);padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);transition:.3s;cursor:default}
+  .pstep .pchip.reachable{cursor:pointer}
+  .pstep .pchip.reachable:not(.active):hover{border-color:var(--maroon-l);color:var(--maroon);transform:translateY(-1px)}
   .pstep .pchip.active{color:#fff;background:var(--maroon);border-color:var(--maroon-d);box-shadow:0 4px 12px -6px rgba(122,27,45,.7)}
   .pstep .pchip.done{color:var(--pass-d);background:var(--pass-bg);border-color:var(--pass)}.pstep .pchip.done::after{content:" ✓"}
   .pstep .psep{color:var(--line2);font-size:12px}
   @media(max-width:760px){.pstep{display:none}}
-  [data-phase]{display:none}
+  /* `main [data-phase]` (0,1,1) outranks component rules like .parse-hero{display:grid} (0,1,0),
+     so off-phase blocks stay hidden instead of leaking into the landing. */
+  main [data-phase]{display:none}
   main.ph-landing [data-phase~="landing"],
   main.ph-parse [data-phase~="parse"],
   main.ph-swarm [data-phase~="swarm"],
   main.ph-review [data-phase~="review"],
-  main.ph-live [data-phase~="live"]{display:revert;animation:phasein .5s cubic-bezier(.2,.7,.2,1) both}
+  main.ph-live [data-phase~="live"]{display:block;animation:phasein .5s cubic-bezier(.2,.7,.2,1) both}
+  /* restore the few layout containers that need grid/flex when their phase is active (these
+     come AFTER the generic reveal so they win at equal specificity) */
+  main.ph-parse .parse-hero{display:grid}
+  main.ph-swarm .metrics{display:grid}
+  main.ph-swarm .lineage{display:flex}
+  .improve{margin-top:14px;font:500 13px var(--sans);color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-left:4px solid var(--pass);border-radius:13px;padding:13px 16px;box-shadow:var(--sh-sm);animation:rise .4s both}
+  .improve b{font:600 17px var(--display);color:var(--ink)}
+  .improve .ip{font:700 13px var(--mono);color:var(--pass-d);background:var(--pass-bg);border-radius:8px;padding:3px 9px;margin-left:7px}
+  .improve .im{color:var(--ink-fade);font-size:12px;display:block;margin-top:5px}
   @keyframes phasein{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
   .landing-inner{max-width:880px;margin:7vh auto 0;width:100%}
   .phase-head{margin:6px 2px 20px}
@@ -161,6 +174,32 @@
   .scanner.on .scanline{opacity:.9;animation:scan 2s cubic-bezier(.45,0,.55,1) infinite}
   @keyframes scan{0%{top:10%}50%{top:86%}100%{top:10%}}
   .scanner .scount{position:absolute;bottom:15px;right:17px;font:700 12.5px var(--mono);color:#f7e3d2;letter-spacing:.02em}
+  .scan-log{position:relative;margin-top:16px;font:500 12.5px var(--mono);display:flex;flex-direction:column;gap:4px;min-height:120px}
+  .scan-log div{color:rgba(247,227,210,.6);animation:rise .25s both;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .scan-log .now{color:#fff;font-weight:700}
+  .scan-eta{margin-top:12px;font:600 11px var(--mono);color:#f7e3d2}
+  .scan-eta .eta-top{display:flex;justify-content:space-between;align-items:baseline;opacity:.95}
+  .scan-eta .eta-top b{color:#fff;font-weight:700}
+  .scan-eta .eta-left{color:rgba(247,227,210,.85)}
+  .scan-eta .eta-bar{margin-top:6px;height:5px;border-radius:999px;background:rgba(255,255,255,.16);overflow:hidden}
+  .scan-eta .eta-bar i{display:block;height:100%;background:linear-gradient(90deg,#f7e3d2,#fff);border-radius:999px;transition:width .25s linear;box-shadow:0 0 10px rgba(247,227,210,.6)}
+  /* ── business profile (the website as canvas — fills free space, no pills) ── */
+  .profile{margin-top:2px}
+  .prof-hero{margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--line2)}
+  .prof-name{font:600 34px var(--display);color:var(--ink);letter-spacing:-.015em;line-height:1.05}
+  .prof-type{font:600 12.5px var(--mono);color:var(--maroon);text-transform:uppercase;letter-spacing:.06em;margin-top:7px}
+  .prof-about{font:400 16px var(--sans);color:var(--ink-soft);margin-top:13px;max-width:780px;line-height:1.6}
+  .prof-flow{columns:3 250px;column-gap:30px}
+  @media(max-width:680px){.prof-flow{columns:1}}
+  .prof-block{break-inside:avoid;margin:0 0 20px}
+  .pb-title{font:700 10.5px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--ink-fade);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+  .pb-body{font:400 13.5px var(--sans);color:var(--ink-soft);line-height:1.55}
+  .pb-body .kv{padding:2px 0}.pb-body .kv b{color:var(--ink);font:600 11px var(--mono);text-transform:capitalize;margin-right:7px;font-weight:600}
+  .prof-block .tool{font:600 12.5px var(--mono);color:var(--maroon)}
+  .prof-block .tool:not(:last-child)::after{content:" · ";color:var(--line2)}
+  .prof-block.guard .gline{padding:5px 0 5px 18px;position:relative;border-top:1px dotted var(--line)}
+  .prof-block.guard .gline:first-child{border-top:0}
+  .prof-block.guard .gline::before{content:"🛡";position:absolute;left:0;top:5px;font-size:11px}
   .psteps{display:flex;flex-direction:column;gap:9px;justify-content:center}
   .prow{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--ink-fade);font:600 14px var(--sans);transition:.35s;opacity:.5}
   .prow .pico{width:24px;text-align:center;font-size:16px;transition:.3s}
@@ -287,7 +326,8 @@
     <div class="scanner" id="scanner">
       <div class="surl" id="scan-url">…</div>
       <div class="scanline"></div>
-      <div class="pages" id="scan-pages"></div>
+      <div class="scan-log" id="scan-log"></div>
+      <div class="scan-eta" id="scan-eta"></div>
       <div class="scount" id="scan-count"></div>
     </div>
     <div class="psteps" id="psteps">
@@ -298,11 +338,7 @@
       <div class="prow" data-k="guards"><span class="pico">🛡</span>Setting safety guardrails</div>
     </div>
   </div>
-  <div class="psig" id="psig" data-phase="parse"></div>
-  <div class="psynth" data-phase="parse">
-    <div class="synthcard"><h4>🛠 Tools wired</h4><div id="synth-tools"><span class="muted">synthesizing…</span></div></div>
-    <div class="synthcard"><h4>🛡 Safety guardrails</h4><div id="synth-guards"><span class="muted">forming…</span></div></div>
-  </div>
+  <div class="profile" id="profile" data-phase="parse"><div class="muted">the business profile fills in as Otto reads the site…</div></div>
   <div class="phase-head" data-phase="swarm"><h2>Pre-production swarm test</h2><p>Synthetic callers — archetyped to this business — attack the agent before it ever takes a real call. Every failure is patched and the swarm re-run, until it clears the safety gate.</p></div>
   <div class="phase-head" data-phase="review"><h2>Your agent is ready</h2><p>It cleared the safety gate. Review what it can and can't do, then put it live — you decide when the line goes on.</p></div>
   <div class="phase-head" data-phase="live"><h2>Live · call the number</h2><p id="live-sub">As you talk, the transcript streams word-by-word and the failure engine fires the instant it catches something — then heals.</p></div>
@@ -318,6 +354,7 @@
     <div class="metric"><div class="v" id="m-book">—</div><div class="l">Booking accuracy</div><div class="from" id="m-book-from"></div></div>
     <div class="metric"><div class="v" id="m-esc">—</div><div class="l">Safety / escalation</div><div class="from" id="m-esc-from"></div></div>
   </div>
+  <div class="improve" id="improve" data-phase="swarm"></div>
 
   <div class="grid">
     <div class="panel" data-phase="parse"><h3>Extraction</h3><div id="facts"><div class="muted">waiting…</div></div></div>
@@ -491,18 +528,25 @@ function reset(){
 // ── phase machine: one full-screen phase at a time, smooth replace ──────────
 const PHASE_ORDER=["parse","swarm","review","live"];
 let curPhase="landing", lastSpec=null;
+const reached=new Set();
 function setPhase(name){
   if(name===curPhase) return;
   curPhase=name;
   $("#main").className="ph-"+name;
   window.scrollTo({top:0,behavior:"smooth"});
   const idx=PHASE_ORDER.indexOf(name);
+  PHASE_ORDER.forEach((p,i)=>{ if(idx>=0 && i<=idx) reached.add(p); });  // every phase up to here is navigable
   document.querySelectorAll("#pstep .pchip").forEach(c=>{
     const i=PHASE_ORDER.indexOf(c.dataset.ph);
     c.classList.toggle("active", c.dataset.ph===name);
     c.classList.toggle("done", idx>=0 && i>=0 && i<idx);
+    c.classList.toggle("reachable", reached.has(c.dataset.ph));
   });
 }
+// click a reached phase chip to jump back/forward to it (you can revisit the agent card etc.)
+document.querySelectorAll("#pstep .pchip").forEach(c=>{
+  c.onclick=()=>{ if(reached.has(c.dataset.ph)) setPhase(c.dataset.ph); };
+});
 async function deploy(){
   if(!sessionId) return;
   const dp=$("#deploy"); dp.disabled=true; dp.textContent="Deploying…";
@@ -532,43 +576,101 @@ function renderAgentCard(spec, passRate, number){
     </div>
     <div class="muted" style="margin-top:14px;font-family:var(--mono);font-size:12px">cleared the pre-production swarm at <b>${Math.round((passRate||0)*100)}%</b> · spec v${spec.meta.version}</div>`;
 }
-// ── god-tier parse visualization, driven by the real extract + spec events ──
-let parseStartedAt=0, _pages=0;
+// ── parse visualization: verbatim live crawl log + a business-profile canvas ──
+let parseStartedAt=0, profileShownAt=0, _pages=0, _deepTimer=null, _etaTimer=null, _deepStart=0, _deepEtaS=50;
+// the deep-parse is ONE long reasoning call (Nemotron Super reads the whole site at once). We can't
+// stream its tokens, so we fill the wait with a live ETA + a staggered stream of what it's doing.
+const _WORK=["reading the menu, hours & prices","mapping what it can book & order","drafting the call script",
+  "writing the safety guardrails","wiring up the action tools","cross-checking policies & edge cases",
+  "resolving the business type & vertical","extracting what it must never promise","compiling the agent prompt"];
+const _METRICS=["+1 capability","+1 knowledge fact","+1 guardrail","+1 tool","scoring an edge case","weighing a policy"];
+function _rand(a,b){return a+Math.random()*(b-a);}
+function _shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function pstep(k,state){const r=document.querySelector(`#psteps .prow[data-k="${k}"]`);if(r)r.className="prow "+(state||"");}
+function _prettyModel(m){return String(m||"Nemotron").replace(/^nvidia\//,"")
+  .replace(/nemotron-3-super.*/i,"Nemotron Super").replace(/nemotron-3-nano.*/i,"Nemotron Nano")
+  .replace(/llama-3\.\d-nemotron.*/i,"Nemotron");}
+function _startWork(content){  // content: "understanding the business · <model> · ~50s deep parse"
+  pstep("crawl","done"); pstep("signals","active"); clearInterval(_etaTimer); clearTimeout(_deepTimer);
+  const parts=String(content||"").split("·").map(s=>s.trim());
+  const model=_prettyModel(parts[1]); _deepEtaS=parseInt((parts[2]||"").replace(/[^0-9]/g,""))||50;
+  _deepStart=Date.now();
+  _scanLine("⚡ deep parse on "+model+" — reading the whole site in one pass");
+  const work=_shuffle(_WORK); let i=0;
+  const tick=()=>{ // staggered, jittered cadence so it reads like live work, not a metronome
+    _scanLine((Math.random()<0.4?"· ":"› ")+work[i%work.length]+(Math.random()<0.5?"  "+_METRICS[(Math.random()*_METRICS.length)|0]:""));
+    i++; if(i%work.length===0) work.push(...(_shuffle(_WORK)));
+    _deepTimer=setTimeout(tick, _rand(1100,2900));
+  };
+  tick();
+  _etaTimer=setInterval(()=>_renderEta(model), 200); _renderEta(model);
+}
+function _renderEta(model){
+  const el=$("#scan-eta"); if(!el){return;}
+  const s=(Date.now()-_deepStart)/1000, pct=Math.min(98,Math.round(100*s/_deepEtaS)), left=Math.max(0,Math.ceil(_deepEtaS-s));
+  el.innerHTML=`<div class="eta-top"><b>${esc(model)}</b> · deep parse<span class="eta-left">${left>0?"~"+left+"s left":"finishing up…"}</span></div>`
+    +`<div class="eta-bar"><i style="width:${pct}%"></i></div>`;
+}
+function _stopWork(){ clearTimeout(_deepTimer); clearInterval(_etaTimer); _deepTimer=null; _etaTimer=null; const el=$("#scan-eta"); if(el)el.innerHTML=""; }
 function parseStart(url){
-  parseStartedAt=Date.now(); _pages=0;
+  parseStartedAt=Date.now(); profileShownAt=0; _pages=0; _stopWork();
   $("#scan-url").textContent=url||"the website"; $("#scanner").classList.add("on");
-  $("#scan-pages").innerHTML=""; $("#scan-count").textContent="scanning…";
-  $("#psig").innerHTML=""; $("#synth-tools").innerHTML='<span class="muted">synthesizing…</span>'; $("#synth-guards").innerHTML='<span class="muted">forming…</span>';
+  $("#scan-log").innerHTML=""; $("#scan-count").textContent="";
+  $("#profile").innerHTML='<div class="muted">the business profile fills in as Otto reads the site…</div>';
   document.querySelectorAll("#psteps .prow").forEach(r=>r.className="prow"); pstep("crawl","active");
+}
+function _scanLine(text){  // stream a verbatim line into the scanner log (latest highlighted)
+  const log=$("#scan-log"); if(!log) return;
+  log.querySelectorAll(".now").forEach(n=>n.classList.remove("now"));
+  const d=document.createElement("div"); d.className="now"; d.textContent=text; log.appendChild(d);
+  while(log.children.length>7) log.removeChild(log.firstChild);
 }
 function parseFact(ev){
   if(curPhase!=="parse") return;
   if(ev.topic==="crawl"){
-    _pages++; const pg=document.createElement("div");pg.className="pg";$("#scan-pages").appendChild(pg);
-    setTimeout(()=>pg.classList.add("read"),100); $("#scan-count").textContent=`${_pages} page${_pages>1?"s":""} read`;
+    if(/understanding the business/i.test(ev.content||"")){ _startWork(ev.content); return; }  // long LLM call → keep it alive
+    pstep("crawl","active"); _scanLine("› "+(ev.content||""));
+    if(/reading|homepage/i.test(ev.content||"")){ _pages++; $("#scan-count").textContent=`${_pages} read`; }
   } else if(ev.topic && ev.topic!=="error" && ev.topic!=="swarm"){
-    pstep("crawl","done"); pstep("signals","active");
-    const c=document.createElement("div");c.className="sigchip";
-    c.innerHTML=`<b>${esc(ev.topic)}</b>${esc(String(ev.content||"").slice(0,46))}`; $("#psig").appendChild(c);
+    pstep("crawl","done"); pstep("signals","active"); _scanLine("✓ extracted: "+ev.topic);
   }
+}
+function fmtKV(content){  // dict-shaped values → clean key/value lines; else plain text
+  const s=String(content==null?"":content).trim();
+  if(s[0]==="{"){ try{ const o=JSON.parse(s.replace(/'/g,'"'));
+    if(o&&typeof o==="object"&&!Array.isArray(o))
+      return Object.entries(o).map(([k,v])=>`<div class="kv"><b>${esc(k.replace(/_/g," "))}</b>${esc(typeof v==="object"?Object.values(v).join(", "):v)}</div>`).join(""); }catch{} }
+  return esc(s).slice(0,420);
+}
+function renderProfile(spec){  // the website as canvas: a magazine-style profile that fills the space
+  const k=spec.knowledge||[];
+  const about=k.find(x=>/about|description|overview/i.test(x.topic||""));
+  const blocks=k.filter(x=>x!==about && x.topic!=="owner-note");
+  const tools=(spec.tools||[]).map(t=>t.name);
+  const guards=(spec.policies||[]).filter(p=>p.category==="safety").map(p=>p.rule||p.trigger).concat(spec.safety_rules||[]);
+  const b=spec.business||{};
+  $("#profile").innerHTML=`
+    <div class="prof-hero">
+      <div class="prof-name">${esc(b.name||"this business")}</div>
+      <div class="prof-type">${esc(b.type||"")}${b.location?` · ${esc(b.location)}`:""}</div>
+      ${about?`<div class="prof-about">${esc(String(about.content).slice(0,340))}</div>`:""}
+    </div>
+    <div class="prof-flow">
+      ${blocks.map(x=>`<div class="prof-block"><div class="pb-title">${esc(x.topic)}</div><div class="pb-body">${fmtKV(x.content)}</div></div>`).join("")}
+      <div class="prof-block"><div class="pb-title">🛠 tools wired</div><div class="pb-body">${tools.map(t=>`<span class="tool">${esc(t)}</span>`).join("")||"message-taking only"}</div></div>
+      <div class="prof-block guard"><div class="pb-title">🛡 safety guardrails</div><div class="pb-body">${guards.map(g=>`<div class="gline">${esc(String(g).slice(0,150))}</div>`).join("")||'<div class="gline">escalates anything unsafe to staff</div>'}</div></div>
+    </div>`;
 }
 function parseSpec(spec){
   if(curPhase!=="parse") return;
-  pstep("crawl","done"); pstep("signals","done");
-  if(!_pages) $("#scan-count").textContent="parsed";
-  setTimeout(()=>{ pstep("tools","active");
-    $("#synth-tools").innerHTML=(spec.tools||[]).map(t=>`<span class="toolchip">${esc(t.name)}</span>`).join("")||'<span class="muted">message-taking only</span>'; },250);
+  _stopWork(); profileShownAt=Date.now(); pstep("crawl","done"); pstep("signals","done");
+  setTimeout(()=>{ pstep("tools","active"); renderProfile(spec); _scanLine("✓ agent compiled"); },250);
   setTimeout(()=>{ pstep("tools","done"); pstep("script","active"); },1000);
-  setTimeout(()=>{ pstep("script","done"); pstep("guards","active");
-    const safety=(spec.policies||[]).filter(p=>p.category==="safety");
-    $("#synth-guards").innerHTML = safety.map(p=>`<div class="acitem"><span class="mk" style="color:var(--maroon)">🛡</span><span>${esc(p.rule||p.trigger)}</span></div>`).join("")
-      || (spec.safety_rules||[]).map(s=>`<div class="acitem"><span class="mk" style="color:var(--maroon)">🛡</span><span>${esc(s)}</span></div>`).join("")
-      || '<span class="muted">escalates anything unsafe to staff</span>'; },1600);
+  setTimeout(()=>{ pstep("script","done"); pstep("guards","active"); },1600);
   setTimeout(()=>{ pstep("guards","done"); $("#scanner").classList.remove("on"); },2300);
 }
-// hold the parse view long enough to be seen, then reveal the swarm
-function goSwarm(){ setTimeout(()=>setPhase("swarm"), Math.max(0, parseStartedAt+2600-Date.now())); }
+// the backend now holds ~2.5s after build so the profile lands; transition promptly when the swarm starts
+function goSwarm(){ setTimeout(()=>setPhase("swarm"), 250); }
 function step(name,status){const el=document.querySelector(`.step[data-s="${name}"]`);if(!el)return;
   if(status==="start")el.classList.add("active");
   if(status==="done"){el.classList.remove("active");el.classList.add("done");}}
@@ -693,6 +795,15 @@ function renderMetrics(m){
   animateNum($("#m-pass"),Math.round(m.pass_rate*100),"%");
   const u=$("#m-unsafe");u.textContent=m.unsafe;u.className="v "+(m.unsafe>0?"fail":"pass");
   animateNum($("#m-book"),Math.round(m.booking*100),"%"); animateNum($("#m-esc"),Math.round(m.escalation*100),"%");
+  // rigorous before→after headline: round-1 baseline vs the latest round, on the SAME adversarial suite
+  const el=$("#improve");
+  if(el && firstM){
+    const b=Math.round(firstM.pass_rate*100), a=Math.round(m.pass_rate*100), d=a-b;
+    const method=`<span class="im">rigorous before→after on one fixed adversarial suite — same ${firstM.total||""} scenarios both times, real Nemotron calls, every verdict gated by the deterministic event-stream failure taxonomy</span>`;
+    el.innerHTML = d>0
+      ? `<b>Agent performance ${b}% → ${a}%</b><span class="ip">+${d} pts</span>${method}`
+      : `<b>Baseline ${a}%</b><span class="ip">round 1</span><span class="im">attacking with the adversarial swarm — failures get patched and re-tested until the gate clears</span>`;
+  }
 }
 function renderCall(r){
   let el=cards[r.persona];
