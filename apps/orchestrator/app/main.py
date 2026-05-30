@@ -13,9 +13,11 @@ import asyncio
 import pathlib
 import uuid
 
+import os
+
 from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -44,6 +46,21 @@ class ObserveReq(BaseModel):
     persona: str | None = None     # or an explicit failure signal (persona id)
     trace_id: str | None = None    # or a synthetic CallTrace fixture id (demo replay buttons)
     trace: dict | None = None      # or a full CallTrace the live agent emitted (event stream)
+
+
+@app.api_route("/twiml", methods=["GET", "POST"])
+async def twiml() -> Response:
+    """Twilio Voice webhook → bridge the call to the Pipecat Cloud agent over Media Streams.
+    Point the Twilio number's Voice URL here. Host = <agent>.<org> on Pipecat Cloud."""
+    host = os.getenv("PCC_AGENT_HOST", "otto-agent.otto")
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<Response><Connect>"
+        '<Stream url="wss://api.pipecat.daily.co/ws/twilio">'
+        f'<Parameter name="_pipecatCloudServiceHost" value="{host}"/>'
+        "</Stream></Connect></Response>"
+    )
+    return Response(content=xml, media_type="application/xml")
 
 
 @app.get("/api/health")
