@@ -406,32 +406,60 @@ def _agent_said(trace: CallTrace, pattern: re.Pattern) -> bool:
     return any(pattern.search(s.text) for s in trace.says())
 
 
+# Verbatim disfluency markers — fillers, elongations, and false starts a clean transcriber scrubs.
+# We deliberately KEEP them (STT must run verbatim: Deepgram filler_words=true / smart_format off),
+# because a turn full of "uhh… ehm… table for, eh, ni—" is a struggling/hesitant caller — real signal.
+_FILLER_RE = re.compile(r"\b(u+h+|u+m+|e+r+m?|e+h+m?|h+m+|mm+|err+|uh+huh)\b|—|\.\.\.|\b\w+—", re.I)
+
+
+def _disfluency_markers(text: str) -> int:
+    return len(_FILLER_RE.findall(text or ""))
+
+
+def _is_struggling(ev) -> bool:
+    """A 'hard to serve' caller turn: low ASR confidence, an explicit repeat request, an elevated
+    disfluency score, OR >=2 verbatim disfluencies in the text. Captures accent AND hesitation."""
+    a = _aud(ev)
+    if ev.asr_conf and ev.asr_conf < config.ACCENT_ASR_CONF:
+        return True
+    if a and a.repeat_request:
+        return True
+    if a and a.disfluency is not None and a.disfluency >= config.DISFLUENCY_MIN:
+        return True
+    return _disfluency_markers(ev.text) >= 2
+
+
 def _d_unhandled_accent(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:
-    """Sustained low intelligibility (a thick accent, mumbling, non-native speech) — many low-ASR
-    turns and/or explicit 'can you repeat that' — that the agent never adapted to (no read-back,
-    no slowing, no hand-off). A transcript looks fine; the *signal* says the caller wasn't understood."""
-    low = [h for h in trace.hears() if (h.asr_conf and h.asr_conf < config.ACCENT_ASR_CONF)]
-    repeats = [h for h in trace.hears() if _aud(h) and _aud(h).repeat_request]
-    if len(low) < config.ACCENT_MIN_LOW and not repeats:
+    """Sustained low intelligibility (thick accent, mumbling, hesitant/disfluent speech) — turns the
+    ASR was unsure of, explicit 'can you repeat that', OR heavy verbatim disfluency (uhh/ehm/false
+    starts) — that the agent never adapted to (no read-back, no slowing, no hand-off). A *cleaned*
+    transcript looks fine; the raw signal says the caller wasn't understood."""
+    struggling = [h for h in trace.hears() if _is_struggling(h)]
+    if len(struggling) < config.ACCENT_MIN_LOW:
         return []
     if _agent_said(trace, _ADAPT_RE):  # the agent already coped — read back / slowed / handed off
         return []
+    low = [h for h in struggling if h.asr_conf and h.asr_conf < config.ACCENT_ASR_CONF]
+    repeats = [h for h in struggling if _aud(h) and _aud(h).repeat_request]
+    disfluent = [h for h in struggling if _disfluency_markers(h.text) >= 2
+                 or (_aud(h) and _aud(h).disfluency is not None and _aud(h).disfluency >= config.DISFLUENCY_MIN)]
     signal = []
     if low:
         signal.append(f"{len(low)} low-confidence turn(s) (worst {min(h.asr_conf for h in low):.2f})")
+    if disfluent:
+        signal.append(f"{len(disfluent)} disfluent turn(s) (uhh/ehm/false-starts)")
     if repeats:
         signal.append(f"{len(repeats)} explicit repeat request(s)")
-    trigger = low[0] if low else repeats[0]
     return [FailureInstance(
         id="unhandled_accent", dimension="conversation", title="Didn't adapt to a hard-to-understand caller",
         severity="high",
         reason=f"The caller was hard to make out — {', '.join(signal)} — but the agent never read details back, "
                "slowed down, or offered a person; it kept going as if it understood.",
-        evidence=[_quote(trigger)] + ([f'repeat requested: "{repeats[0].text[:60]}"'] if repeats else []),
+        evidence=[_quote(struggling[0])] + ([f'repeat requested: "{repeats[0].text[:60]}"'] if repeats else []),
         heal_category="voice_behavior", heal_policy_id="adapt-to-low-intelligibility", persona_hint="bad_audio",
-        heal_rule="when ASR confidence is low or the caller is hard to understand, slow down, read key details "
-                  "back and confirm before acting; if you still can't understand after a couple tries, offer to "
-                  "connect them to a person rather than guessing.")]
+        heal_rule="when ASR confidence is low or the caller is hesitant/hard to understand, slow down, read key "
+                  "details back and confirm before acting; if you still can't understand after a couple tries, "
+                  "offer to connect them to a person rather than guessing.")]
 
 
 def _d_caller_distress(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:

@@ -90,6 +90,92 @@
   .call .why{font-size:12px;color:var(--ink-soft);margin-top:8px;line-height:1.4}
   .pill{position:absolute;top:11px;right:11px;font:600 10px var(--mono);letter-spacing:.4px;padding:3px 9px;border-radius:999px}
   .pill.pass{background:var(--pass);color:#fff}.pill.fail{background:var(--danger);color:#fff}
+  /* ── live call view ── */
+  .livedot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--line2);margin-left:8px;vertical-align:middle}
+  .livedot.on{background:#e0303a;animation:lpulse 1.2s infinite}
+  @keyframes lpulse{0%{box-shadow:0 0 0 0 rgba(224,48,58,.55)}70%{box-shadow:0 0 0 9px rgba(224,48,58,0)}100%{box-shadow:0 0 0 0 rgba(224,48,58,0)}}
+  .simrow{display:flex;align-items:center;gap:10px;margin:12px 0 6px;flex-wrap:wrap}
+  #livestage{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-top:6px}
+  @media(max-width:760px){#livestage{grid-template-columns:1fr}}
+  .transcript{font:500 13.5px var(--mono);min-height:130px;max-height:360px;overflow:auto;padding:12px;background:var(--paper);border:1px solid var(--line);border-radius:13px}
+  .tline{padding:5px 0;display:flex;gap:10px;align-items:baseline;animation:rise .25s both}
+  .tline .who{min-width:50px;color:var(--ink-fade);text-transform:uppercase;font-size:10px;letter-spacing:.05em;font-weight:700}
+  .tline.caller .who{color:var(--maroon)} .tline.agent .who{color:var(--pass-d)} .tline.tool .who{color:var(--gold)}
+  .tline.tool{opacity:.8;font-style:italic}
+  .tline.lowconf{background:var(--danger-bg);border-radius:6px;padding:5px 8px;border:1px solid var(--danger)}
+  .tline.partial .txt{opacity:.7}
+  .tline .conf{margin-left:auto;font-size:10.5px;color:var(--danger);white-space:nowrap;font-weight:700}
+  .disf{color:var(--danger);font-weight:700;background:var(--gold-light);border-radius:3px;padding:0 2px}
+  .cursor{animation:blink 1s steps(1) infinite;color:var(--maroon)}@keyframes blink{50%{opacity:0}}
+  .detectcol{display:flex;flex-direction:column;gap:9px}
+  .dcard{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--danger);border-radius:9px;padding:9px 11px;box-shadow:var(--sh-sm);animation:pop .35s ease both}
+  .dcard.monitor{border-left-color:var(--gold)}
+  .dcard .dh{font:700 13px var(--sans);color:var(--ink)} .dcard .dtag{font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.04em;color:var(--ink-fade);margin:2px 0 4px}
+  .dcard .dm{font:500 12px var(--sans);color:var(--ink-soft)}
+  @keyframes pop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+  .callrow{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);font:500 13px var(--mono)}
+  .callrow:last-child{border-bottom:0}
+  /* ── phase machine: one phase full-screen at a time, smooth replace ── */
+  .pstep{display:flex;gap:7px;align-items:center;margin-left:24px}
+  .pstep .pchip{font:600 11px var(--mono);letter-spacing:.04em;color:var(--ink-fade);padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);transition:.3s}
+  .pstep .pchip.active{color:#fff;background:var(--maroon);border-color:var(--maroon-d);box-shadow:0 4px 12px -6px rgba(122,27,45,.7)}
+  .pstep .pchip.done{color:var(--pass-d);background:var(--pass-bg);border-color:var(--pass)}.pstep .pchip.done::after{content:" ✓"}
+  .pstep .psep{color:var(--line2);font-size:12px}
+  @media(max-width:760px){.pstep{display:none}}
+  [data-phase]{display:none}
+  main.ph-landing [data-phase~="landing"],
+  main.ph-parse [data-phase~="parse"],
+  main.ph-swarm [data-phase~="swarm"],
+  main.ph-review [data-phase~="review"],
+  main.ph-live [data-phase~="live"]{display:revert;animation:phasein .5s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes phasein{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+  .landing-inner{max-width:880px;margin:7vh auto 0;width:100%}
+  .phase-head{margin:6px 2px 20px}
+  .phase-head h2{font:600 30px var(--display);color:var(--ink);margin:0;letter-spacing:-.01em}
+  .phase-head p{color:var(--ink-soft);margin:7px 0 0;font-size:15px;max-width:760px}
+  /* ── agent card (review phase) ── */
+  .agentcard{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--sh-lg);padding:26px;max-width:920px}
+  .achead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:16px}
+  .acname{font:600 26px var(--display);color:var(--ink)}
+  .actype{font:500 13px var(--mono);color:var(--ink-fade)}
+  .acnum{margin-left:auto;font:600 18px var(--mono);color:var(--maroon);background:var(--cream2);border:1px solid var(--line2);border-radius:12px;padding:8px 14px}
+  .acgreet{font:500 15px var(--sans);font-style:italic;color:var(--ink-soft);background:var(--paper);border-left:3px solid var(--maroon);border-radius:8px;padding:11px 14px;margin-bottom:18px}
+  .accols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:680px){.accols{grid-template-columns:1fr}}
+  .accol h4{font:700 12px var(--mono);text-transform:uppercase;letter-spacing:.05em;margin:0 0 9px}
+  .accol.can h4{color:var(--pass-d)} .accol.cant h4{color:var(--maroon)}
+  .acitem{display:flex;gap:8px;align-items:baseline;padding:5px 0;font-size:13.5px;color:var(--ink-soft)}
+  .acitem .mk{flex:0 0 auto;font-weight:700}.accol.can .mk{color:var(--pass)}.accol.cant .mk{color:var(--maroon)}
+  .btn.deploy{margin-top:22px;height:58px;font-size:16px;width:100%;background:var(--pass-d);box-shadow:0 10px 24px -10px rgba(58,96,36,.7)}
+  .btn.deploy:hover{background:var(--pass)}
+  .btn.deploy:disabled{opacity:.6;cursor:default}
+  /* ── god-tier parse viz ── */
+  .parse-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;margin-bottom:16px}
+  @media(max-width:760px){.parse-hero{grid-template-columns:1fr}}
+  .scanner{position:relative;background:linear-gradient(155deg,#3a0f18,#7A1B2D 70%,#9A3040);border-radius:18px;padding:20px;color:#fff;overflow:hidden;min-height:236px;box-shadow:var(--sh-lg)}
+  .scanner .surl{font:600 12.5px var(--mono);color:#f7e3d2;opacity:.92;word-break:break-all;max-width:90%}
+  .scanner .pages{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
+  .scanner .pg{width:32px;height:42px;border-radius:5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);transition:.45s}
+  .scanner .pg.read{background:rgba(247,227,210,.92);border-color:#fff;box-shadow:0 0 14px rgba(247,227,210,.55)}
+  .scanline{position:absolute;left:0;right:0;top:8%;height:2px;background:linear-gradient(90deg,transparent,#f7e3d2,transparent);box-shadow:0 0 14px #f7e3d2;opacity:0}
+  .scanner.on .scanline{opacity:.9;animation:scan 2s cubic-bezier(.45,0,.55,1) infinite}
+  @keyframes scan{0%{top:10%}50%{top:86%}100%{top:10%}}
+  .scanner .scount{position:absolute;bottom:15px;right:17px;font:700 12.5px var(--mono);color:#f7e3d2;letter-spacing:.02em}
+  .psteps{display:flex;flex-direction:column;gap:9px;justify-content:center}
+  .prow{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--ink-fade);font:600 14px var(--sans);transition:.35s;opacity:.5}
+  .prow .pico{width:24px;text-align:center;font-size:16px;transition:.3s}
+  .prow.active{opacity:1;color:var(--ink);border-color:var(--maroon);background:var(--cream2);box-shadow:0 7px 18px -11px rgba(122,27,45,.6)}
+  .prow.active .pico{animation:ppulse 1s ease-in-out infinite}
+  .prow.done{opacity:1;color:var(--pass-d);border-color:var(--pass);background:var(--pass-bg)} .prow.done .pico::after{content:"";} .prow.done::after{content:"✓";margin-left:auto;color:var(--pass-d);font-weight:700}
+  @keyframes ppulse{50%{transform:scale(1.3)}}
+  .psig{display:flex;flex-wrap:wrap;gap:7px;margin:2px 0 14px}
+  .sigchip{font:600 11px var(--mono);background:var(--cream2);border:1px solid var(--line2);border-radius:999px;padding:5px 11px;color:var(--ink-soft);animation:pop .35s both}
+  .sigchip b{color:var(--maroon);text-transform:uppercase;letter-spacing:.03em;margin-right:5px}
+  .psynth{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:6px}
+  @media(max-width:680px){.psynth{grid-template-columns:1fr}}
+  .synthcard{border:1px solid var(--line);border-radius:15px;padding:15px;background:var(--card);box-shadow:var(--sh-sm)}
+  .synthcard h4{font:700 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-fade);margin:0 0 10px}
+  .toolchip{display:inline-block;font:600 12px var(--mono);background:var(--paper);border:1px solid var(--line2);border-radius:9px;padding:5px 10px;margin:0 6px 6px 0;color:var(--maroon);animation:pop .3s both}
   .cluster{margin-bottom:12px}.cluster .ch{font:600 12px var(--mono);color:var(--danger);text-transform:uppercase}
   .cluster ul{margin:5px 0 0;padding-left:18px;color:var(--ink-soft);font-size:13px}
   .diff{border:1px solid var(--line);border-radius:13px;padding:13px;margin-bottom:11px;background:var(--card);box-shadow:var(--sh-sm);animation:rise .4s both}
@@ -166,40 +252,67 @@
 <header>
   <a href="/" class="word" style="text-decoration:none">Otto<span class="lf">.</span></a>
   <div class="tag">website → a phone line that heals itself</div>
+  <div class="pstep" id="pstep">
+    <span class="pchip" data-ph="parse">Parse</span><span class="psep">›</span>
+    <span class="pchip" data-ph="swarm">Test</span><span class="psep">›</span>
+    <span class="pchip" data-ph="review">Review</span><span class="psep">›</span>
+    <span class="pchip" data-ph="live">Live</span>
+  </div>
   <div class="vbadge" id="vbadge"></div>
   <div class="health" id="health">connecting…</div>
 </header>
 
-<main>
-  <div class="launch">
-    <input id="url" value="https://www.piccino.com/" spellcheck="false" />
-    <button class="btn" id="go">Build it</button>
-  </div>
-  <input id="extra" class="extra" placeholder="Optional — anything the website won't say: hours, policies, what the agent must never promise, when to transfer to a human…" />
-  <div class="chips">
-    <span class="lab">Instant demos:</span>
-    <div class="chip" data-cached="piccino">▶ <b>Piccino</b> · restaurant</div>
-    <div class="chip" data-cached="contractor">▶ <b>Bayview Builders</b> · contractor</div>
-    <div class="chip" data-cached="clinic">▶ <b>Dogpatch Family Health</b> · clinic</div>
-    <div class="chip" data-cached="salon">▶ <b>Mission Bloom</b> · salon</div>
-    <div class="chip" data-cached="law">▶ <b>Bayview Law Group</b> · law firm</div>
-    <div class="chip" data-cached="ocean_vet">🌉 <b>Ocean Ave Vet</b> · real SF site</div>
-    <div class="chip" data-cached="soma_restaurant">🌉 <b>SOMA Restaurant</b> · real SF site</div>
-  </div>
-  <div class="hint">Extract the rules → attack the agent with synthetic callers → patch every failure → put the line live. Sandbox demo, public info.</div>
-
-  <div class="steps" id="steps">
-    <div class="step" data-s="extract"><span class="n">01</span>Extract</div>
-    <div class="step" data-s="build"><span class="n">02</span>Build agent</div>
-    <div class="step" data-s="swarm"><span class="n">03</span>Swarm test</div>
-    <div class="step" data-s="heal"><span class="n">04</span>Self-heal</div>
-    <div class="step" data-s="rerun"><span class="n">05</span>Re-run</div>
-    <div class="step" data-s="activate"><span class="n">06</span>Activate</div>
+<main id="main" class="ph-landing">
+  <div class="landing-inner" data-phase="landing">
+    <div class="launch">
+      <input id="url" value="https://www.piccino.com/" spellcheck="false" />
+      <button class="btn" id="go">Build it</button>
+    </div>
+    <input id="extra" class="extra" placeholder="Optional — anything the website won't say: hours, policies, what the agent must never promise, when to transfer to a human…" />
+    <div class="chips">
+      <span class="lab">Instant demos:</span>
+      <div class="chip" data-cached="piccino">▶ <b>Piccino</b> · restaurant</div>
+      <div class="chip" data-cached="contractor">▶ <b>Bayview Builders</b> · contractor</div>
+      <div class="chip" data-cached="clinic">▶ <b>Dogpatch Family Health</b> · clinic</div>
+      <div class="chip" data-cached="salon">▶ <b>Mission Bloom</b> · salon</div>
+      <div class="chip" data-cached="law">▶ <b>Bayview Law Group</b> · law firm</div>
+      <div class="chip" data-cached="ocean_vet">🌉 <b>Ocean Ave Vet</b> · real SF site</div>
+      <div class="chip" data-cached="soma_restaurant">🌉 <b>SOMA Restaurant</b> · real SF site</div>
+    </div>
+    <div class="hint">Extract the rules → attack the agent with synthetic callers → patch every failure → put the line live. Sandbox demo, public info.</div>
   </div>
 
-  <div class="lineage" id="lineage"><span class="ll">learns:</span></div>
+  <div class="phase-head" data-phase="parse"><h2>Reading the website</h2><p>Crawling the site, extracting the business rules, and synthesizing the agent's tools, call script, and safety guardrails.</p></div>
+  <div class="parse-hero" data-phase="parse">
+    <div class="scanner" id="scanner">
+      <div class="surl" id="scan-url">…</div>
+      <div class="scanline"></div>
+      <div class="pages" id="scan-pages"></div>
+      <div class="scount" id="scan-count"></div>
+    </div>
+    <div class="psteps" id="psteps">
+      <div class="prow" data-k="crawl"><span class="pico">🌐</span>Crawling the site</div>
+      <div class="prow" data-k="signals"><span class="pico">🔎</span>Extracting business signals</div>
+      <div class="prow" data-k="tools"><span class="pico">🛠</span>Synthesizing tools + script</div>
+      <div class="prow" data-k="script"><span class="pico">📝</span>Compiling the call agent</div>
+      <div class="prow" data-k="guards"><span class="pico">🛡</span>Setting safety guardrails</div>
+    </div>
+  </div>
+  <div class="psig" id="psig" data-phase="parse"></div>
+  <div class="psynth" data-phase="parse">
+    <div class="synthcard"><h4>🛠 Tools wired</h4><div id="synth-tools"><span class="muted">synthesizing…</span></div></div>
+    <div class="synthcard"><h4>🛡 Safety guardrails</h4><div id="synth-guards"><span class="muted">forming…</span></div></div>
+  </div>
+  <div class="phase-head" data-phase="swarm"><h2>Pre-production swarm test</h2><p>Synthetic callers — archetyped to this business — attack the agent before it ever takes a real call. Every failure is patched and the swarm re-run, until it clears the safety gate.</p></div>
+  <div class="phase-head" data-phase="review"><h2>Your agent is ready</h2><p>It cleared the safety gate. Review what it can and can't do, then put it live — you decide when the line goes on.</p></div>
+  <div class="phase-head" data-phase="live"><h2>Live · call the number</h2><p id="live-sub">As you talk, the transcript streams word-by-word and the failure engine fires the instant it catches something — then heals.</p></div>
 
-  <div class="metrics">
+  <div class="agentcard" data-phase="review" id="agentcard"><div class="muted">building the agent card…</div></div>
+  <button class="btn deploy" data-phase="review" id="deploy">🚀 Deploy this agent — put the line live</button>
+
+  <div class="lineage" data-phase="swarm" id="lineage"><span class="ll">learns:</span></div>
+
+  <div class="metrics" data-phase="swarm">
     <div class="metric"><div class="v foil" id="m-pass">—</div><div class="l">Pass rate</div><div class="from" id="m-pass-from"></div></div>
     <div class="metric"><div class="v fail" id="m-unsafe">—</div><div class="l">Unsafe answers</div><div class="from" id="m-unsafe-from"></div></div>
     <div class="metric"><div class="v" id="m-book">—</div><div class="l">Booking accuracy</div><div class="from" id="m-book-from"></div></div>
@@ -207,12 +320,12 @@
   </div>
 
   <div class="grid">
-    <div class="panel"><h3>Extraction</h3><div id="facts"><div class="muted">waiting…</div></div></div>
-    <div class="panel"><h3>Agent</h3><div id="agent"><div class="muted">greeting + policies appear after build</div></div></div>
-    <div class="panel span2"><h3>Swarm arena <span class="roundtag" id="roundtag"></span></h3><div id="arena"><div class="muted">synthetic callers appear here, archetyped to the business</div></div></div>
-    <div class="panel"><h3>Failure map</h3><div id="failmap"><div class="muted">no failures yet</div></div></div>
-    <div class="panel"><h3>Auto-patch diff</h3><div id="diffs"><div class="muted">policies the healer rewrote appear here</div></div></div>
-    <div class="panel span2" id="prod">
+    <div class="panel" data-phase="parse"><h3>Extraction</h3><div id="facts"><div class="muted">waiting…</div></div></div>
+    <div class="panel" data-phase="parse"><h3>Agent taking shape</h3><div id="agent"><div class="muted">greeting + policies appear after build</div></div></div>
+    <div class="panel span2" data-phase="swarm"><h3>Swarm arena <span class="roundtag" id="roundtag"></span></h3><div id="arena"><div class="muted">synthetic callers appear here, archetyped to the business</div></div></div>
+    <div class="panel" data-phase="swarm"><h3>Failure map</h3><div id="failmap"><div class="muted">no failures yet</div></div></div>
+    <div class="panel" data-phase="swarm"><h3>Auto-patch diff</h3><div id="diffs"><div class="muted">policies the healer rewrote appear here</div></div></div>
+    <div class="panel span2" data-phase="live" id="prod">
       <h3>Production loop — every live call is evaluated</h3>
       <div class="muted">A failure on a real call triggers a targeted, high-volume swarm-heal on that one thing. Replay a live call — a tricky <b>voice</b> moment:</div>
       <div class="pbtns" id="pbtns"></div>
@@ -220,19 +333,30 @@
       <div class="pbtns" id="tracebtns"></div>
       <div id="pstatus"></div>
     </div>
-    <div class="panel span2"><h3>Failure taxonomy · live-call analysis</h3>
+    <div class="panel span2" data-phase="live"><h3>Failure taxonomy · live-call analysis</h3>
       <div class="muted">Every call is classified across four dimensions — what it <b>said</b>, what it <b>did</b>, the <b>outcome</b>, and the <b>experience</b>. A perfect-sounding call still fails if the action was wrong, slow, unauthorized, or never happened.</div>
       <div class="fdims" id="fdims"></div>
       <div id="failstatus"></div>
       <div id="failreport"><div class="muted">replay a live call above to classify it across the failure taxonomy</div></div>
     </div>
-    <div class="panel span2"><h3>Business actions · live mock backend</h3>
+    <div class="panel span2" data-phase="live"><h3>Business actions · live mock backend</h3>
       <div class="muted">The agent's real tools, this business's set — call one against the stateful backend (book a slot and watch availability drop, sell it out, deplete stock). The live phone agent shares this exact store.</div>
       <div class="pbtns" id="abtns"><div class="muted">the agent's tools appear here after build</div></div>
       <div id="astatus" class="muted" style="margin-top:8px;font-family:var(--mono)"></div>
       <div id="oalerts" class="muted" style="margin-top:6px;font-family:var(--mono);color:var(--maroon)"></div>
     </div>
-    <div class="panel span2"><h3>Live call console</h3><div id="live"><div class="muted">call the number once it's live</div></div></div>
+    <div class="panel span2" data-phase="live" id="livepanel"><h3>Live call — real-time transcription + detection<span class="livedot" id="livedot"></span></h3>
+      <div class="muted">Watch a call <b>as it happens</b>: the transcript streams word-by-word (verbatim — we keep the <i>uhhs</i> and <i>ehms</i> a normal transcriber scrubs) and the failure engine fires <b>the instant</b> it catches an error — an accent it can't parse, a shouting caller, a booking it faked. No phone needed to see it.</div>
+      <div class="simrow"><span class="muted">▶ simulate a live call:</span><span class="pbtns" id="simbtns"></span></div>
+      <div id="livekv" class="muted" style="font:500 12px var(--mono);margin-top:4px"></div>
+      <div id="livestage">
+        <div id="livetranscript" class="transcript"><div class="muted">call the live number, or hit “simulate” above</div></div>
+        <div id="livedetect" class="detectcol"><div class="muted">detections fire here, live</div></div>
+      </div>
+    </div>
+    <div class="panel span2" data-phase="live"><h3>Call history<span class="roundtag" id="callcount"></span></h3>
+      <div id="callsfeed"><div class="muted">every finished call lands here — live or simulated — with its red→green heal</div></div>
+    </div>
   </div>
 
   <div class="banner" id="approve-banner">
@@ -279,6 +403,7 @@ const cards={}, prevPass={}, shown={}, lineage={}, lineageOrder=[];
 }catch{$("#health").textContent="orchestrator offline (:8000)";}})();
 
 $("#go").onclick=()=>run({url:$("#url").value.trim()});
+$("#deploy").onclick=deploy;
 const DEMO_URLS={piccino:"https://www.piccino.com/",contractor:"https://example-bayviewbuilders.com/",clinic:"https://example-dogpatchhealth.com/",salon:"https://example-missionbloom.com/",law:"https://example-bayviewlaw.com/",ocean_vet:"https://oceanavevethosp.com/",soma_restaurant:"https://somarestaurantandbar.com/menu/"};
 document.querySelectorAll(".chip").forEach(c=>{c.setAttribute("role","button");c.setAttribute("tabindex","0");c.onclick=()=>{
   const cached=c.dataset.cached;
@@ -338,7 +463,8 @@ async function run(body){
   es=new EventSource(ORCH+"/api/events/"+sessionId);
   es.onmessage=e=>handle(JSON.parse(e.data));
   // never leave the CTA stuck "Building…": a dropped/blipped stream re-enables it.
-  es.onerror=()=>{ if($("#go").disabled && !$("#banner").classList.contains("on")) goReady(); };
+  es.onerror=()=>{ if($("#go").disabled && curPhase==="landing") goReady(); };
+  setPhase("parse"); parseStart(($("#url").value||"").trim());
 }
 function reset(){
   if(es)es.close();
@@ -348,14 +474,101 @@ function reset(){
   firstRate=null; firstM=null;
   $("#facts").innerHTML=""; $("#arena").innerHTML=""; $("#failmap").innerHTML='<div class="muted">no failures yet</div>';
   $("#diffs").innerHTML='<div class="muted">policies the healer rewrote appear here</div>';
-  $("#agent").innerHTML=""; $("#live").innerHTML='<div class="muted">call the number once it\'s live</div>';
+  $("#agent").innerHTML="";
+  $("#livetranscript").innerHTML='<div class="muted">call the live number, or hit “simulate” above</div>';
+  $("#livedetect").innerHTML='<div class="muted">detections fire here, live</div>'; $("#livekv").textContent=""; $("#livedot").classList.remove("on");
+  $("#callsfeed").innerHTML='<div class="muted">every finished call lands here — live or simulated — with its red→green heal</div>'; $("#callcount").textContent=""; _curLine=null; _curWho=null;
   $("#abtns").innerHTML='<div class="muted">the agent\'s tools appear here after build</div>'; $("#astatus").textContent=""; $("#oalerts").textContent="";
   $("#tracebtns").innerHTML=""; $("#fdims").innerHTML=""; $("#failstatus").innerHTML=""; $("#failreport").innerHTML='<div class="muted">replay a live call above to classify it across the failure taxonomy</div>';
   $("#banner").classList.remove("on"); $("#approve-banner").classList.remove("on"); $("#prod").classList.remove("on"); $("#pstatus").textContent=""; $("#vbadge").classList.remove("on");
   ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>{const el=$("#"+id);el.textContent="—";delete el.dataset.v;});  // clear count-up baselines so a re-run doesn't animate down from the prior number
   ["m-pass-from","m-unsafe-from","m-book-from","m-esc-from"].forEach(id=>{const el=$("#"+id);if(el)el.textContent="";});
-  document.querySelectorAll(".step").forEach(s=>s.className="step");
+  $("#agentcard").innerHTML='<div class="muted">building the agent card…</div>';
+  const dp=$("#deploy"); dp.disabled=false; dp.textContent="🚀 Deploy this agent — put the line live";
+  setPhase("landing");
 }
+
+// ── phase machine: one full-screen phase at a time, smooth replace ──────────
+const PHASE_ORDER=["parse","swarm","review","live"];
+let curPhase="landing", lastSpec=null;
+function setPhase(name){
+  if(name===curPhase) return;
+  curPhase=name;
+  $("#main").className="ph-"+name;
+  window.scrollTo({top:0,behavior:"smooth"});
+  const idx=PHASE_ORDER.indexOf(name);
+  document.querySelectorAll("#pstep .pchip").forEach(c=>{
+    const i=PHASE_ORDER.indexOf(c.dataset.ph);
+    c.classList.toggle("active", c.dataset.ph===name);
+    c.classList.toggle("done", idx>=0 && i>=0 && i<idx);
+  });
+}
+async function deploy(){
+  if(!sessionId) return;
+  const dp=$("#deploy"); dp.disabled=true; dp.textContent="Deploying…";
+  try{ await fetch(ORCH+"/api/activate/"+sessionId,{method:"POST"}); }
+  catch{ dp.disabled=false; dp.textContent="🚀 Deploy this agent — put the line live"; }
+}
+function renderAgentCard(spec, passRate, number){
+  const can=[], cant=[];
+  (spec.tools||[]).forEach(t=>can.push(t.description||t.name));
+  (spec.policies||[]).forEach(p=>{
+    const txt=(p.rule||p.trigger||"").trim(); if(!txt) return;
+    (p.category==="safety" ? cant : can).push(txt);
+  });
+  (spec.escalation_rules||[]).forEach(e=>cant.push(`Escalates to a human: ${e.condition}`));
+  (spec.safety_rules||[]).forEach(s=>cant.push(s));
+  const row=(t,cls)=>`<div class="acitem"><span class="mk">${cls==="can"?"✓":"✕"}</span><span>${esc(t)}</span></div>`;
+  const cap=(can.length?can:["answers calls and takes messages"]).slice(0,7).map(t=>row(t,"can")).join("");
+  const guard=(cant.length?cant:["escalates anything it's unsure of to staff"]).slice(0,7).map(t=>row(t,"cant")).join("");
+  $("#agentcard").innerHTML=`
+    <div class="achead"><div class="acname">${esc(spec.business.name)}</div>
+      <div class="actype">${esc(spec.business.type)}${spec.business.location?" · "+esc(spec.business.location):""}</div>
+      <div class="acnum">${esc(number||"")}</div></div>
+    <div class="acgreet">“${esc(spec.voice&&spec.voice.greeting||"")}”</div>
+    <div class="accols">
+      <div class="accol can"><h4>What it can do</h4>${cap}</div>
+      <div class="accol cant"><h4>Won't do · safety guardrails</h4>${guard}</div>
+    </div>
+    <div class="muted" style="margin-top:14px;font-family:var(--mono);font-size:12px">cleared the pre-production swarm at <b>${Math.round((passRate||0)*100)}%</b> · spec v${spec.meta.version}</div>`;
+}
+// ── god-tier parse visualization, driven by the real extract + spec events ──
+let parseStartedAt=0, _pages=0;
+function pstep(k,state){const r=document.querySelector(`#psteps .prow[data-k="${k}"]`);if(r)r.className="prow "+(state||"");}
+function parseStart(url){
+  parseStartedAt=Date.now(); _pages=0;
+  $("#scan-url").textContent=url||"the website"; $("#scanner").classList.add("on");
+  $("#scan-pages").innerHTML=""; $("#scan-count").textContent="scanning…";
+  $("#psig").innerHTML=""; $("#synth-tools").innerHTML='<span class="muted">synthesizing…</span>'; $("#synth-guards").innerHTML='<span class="muted">forming…</span>';
+  document.querySelectorAll("#psteps .prow").forEach(r=>r.className="prow"); pstep("crawl","active");
+}
+function parseFact(ev){
+  if(curPhase!=="parse") return;
+  if(ev.topic==="crawl"){
+    _pages++; const pg=document.createElement("div");pg.className="pg";$("#scan-pages").appendChild(pg);
+    setTimeout(()=>pg.classList.add("read"),100); $("#scan-count").textContent=`${_pages} page${_pages>1?"s":""} read`;
+  } else if(ev.topic && ev.topic!=="error" && ev.topic!=="swarm"){
+    pstep("crawl","done"); pstep("signals","active");
+    const c=document.createElement("div");c.className="sigchip";
+    c.innerHTML=`<b>${esc(ev.topic)}</b>${esc(String(ev.content||"").slice(0,46))}`; $("#psig").appendChild(c);
+  }
+}
+function parseSpec(spec){
+  if(curPhase!=="parse") return;
+  pstep("crawl","done"); pstep("signals","done");
+  if(!_pages) $("#scan-count").textContent="parsed";
+  setTimeout(()=>{ pstep("tools","active");
+    $("#synth-tools").innerHTML=(spec.tools||[]).map(t=>`<span class="toolchip">${esc(t.name)}</span>`).join("")||'<span class="muted">message-taking only</span>'; },250);
+  setTimeout(()=>{ pstep("tools","done"); pstep("script","active"); },1000);
+  setTimeout(()=>{ pstep("script","done"); pstep("guards","active");
+    const safety=(spec.policies||[]).filter(p=>p.category==="safety");
+    $("#synth-guards").innerHTML = safety.map(p=>`<div class="acitem"><span class="mk" style="color:var(--maroon)">🛡</span><span>${esc(p.rule||p.trigger)}</span></div>`).join("")
+      || (spec.safety_rules||[]).map(s=>`<div class="acitem"><span class="mk" style="color:var(--maroon)">🛡</span><span>${esc(s)}</span></div>`).join("")
+      || '<span class="muted">escalates anything unsafe to staff</span>'; },1600);
+  setTimeout(()=>{ pstep("guards","done"); $("#scanner").classList.remove("on"); },2300);
+}
+// hold the parse view long enough to be seen, then reveal the swarm
+function goSwarm(){ setTimeout(()=>setPhase("swarm"), Math.max(0, parseStartedAt+2600-Date.now())); }
 function step(name,status){const el=document.querySelector(`.step[data-s="${name}"]`);if(!el)return;
   if(status==="start")el.classList.add("active");
   if(status==="done"){el.classList.remove("active");el.classList.add("done");}}
@@ -364,13 +577,15 @@ function handle(ev){
   switch(ev.type){
     case "stage":
       step(ev.stage,ev.status);
+      if(ev.stage==="extract"||ev.stage==="build")setPhase("parse");
+      else if(ev.stage==="swarm"||ev.stage==="rerun"||ev.stage==="heal")goSwarm();
       if(ev.stage==="observe")$("#pstatus").textContent=`▸ ${ev.detail||ev.status}`;
       if(ev.stage==="activate"&&ev.status==="done"){$("#go").disabled=false;$("#go").textContent="Build it";}
       break;
     case "fact":
       if(ev.topic==="swarm"){vertical=(ev.content||"").split(" ")[0];$("#vbadge").textContent=ev.content;$("#vbadge").classList.add("on");renderProdButtons();renderTraceButtons();}
-      addFact(ev); break;
-    case "spec": renderAgent(ev.spec); renderActionButtons(ev.spec); break;
+      parseFact(ev); addFact(ev); break;
+    case "spec": lastSpec=ev.spec; parseSpec(ev.spec); renderAgent(ev.spec); renderActionButtons(ev.spec); renderSimButtons(); break;
     case "call": renderCall(ev.result); break;
     case "swarm_report":
       $("#roundtag").textContent=`round ${ev.report.round} · v${ev.report.spec_version} · ${ev.report.passed}/${ev.report.total}`;
@@ -382,19 +597,88 @@ function handle(ev){
     case "failure_report": renderFailureReport(ev); break;
     case "regression_check": renderRegression(ev); break;
     case "discovery": renderDiscovery(ev); break;
-    case "awaiting_approval":
-      // pipeline cleared the gate and is now waiting on the OWNER — re-enable the CTA and hand off
-      // to the owner review page (the human gate before the line goes live).
+    case "awaiting_deploy":  // cleared the gate — show the agent card + Deploy button, owner decides
       goReady();
-      $("#approve-sub").textContent=`passed ${Math.round((ev.pass_rate||0)*100)}% — your agent is ready for your review`;
-      if(sessionId)$("#review-link").href="/review/?session="+sessionId;
-      $("#approve-banner").classList.add("on"); break;
-    case "activated": $("#approve-banner").classList.remove("on");
-      $("#banner").classList.add("on");$("#banner-num").textContent=ev.phone_number;
+      renderAgentCard(lastSpec||{business:{},voice:{},meta:{}}, ev.pass_rate, ev.phone_number);
+      setPhase("review"); break;
+    case "activated": setPhase("live");
+      $("#live-sub").innerHTML=`Call <b>${esc(ev.phone_number)}</b> and talk — words stream in real time, detection fires live, then it heals. (Or hit “simulate” below.)`;
       if(sessionId)$("#report-link").href="/report/?s="+sessionId;
-      $("#prod").classList.add("on"); break;
+      break;
     case "live_call": liveKV(ev.field,ev.value); break;
+    case "live_start": liveReset(ev.scenario); break;
+    case "live_partial": handleLivePartial(ev); break;
+    case "live_event": handleLiveEvent(ev); break;
+    case "live_detect": handleLiveDetect(ev); break;
+    case "live_end": $("#livedot").classList.remove("on"); break;
+    case "call_recorded": handleCallRecorded(ev); break;
   }
+}
+
+// ── live call view ─────────────────────────────────────────────────────────
+const SIM=[["accent_struggle","🎙 thick accent (uhh/ehm)"],["screaming_caller","🎙 shouting caller"],["noisy_line","🎙 noisy line"],["perceived_lag","🎙 felt slow"],["spanish_switch","🎙 Spanish caller"],["talked_over","🎙 talked over"],["booked_soldout","⚠ faked a sold-out booking"]];
+const FILLERS=/\b(uh+|um+|er+|err+|erm+|ehm+|eh+|hmm+|mm+|like|you know)\b|—|\.\.\./gi;
+function markDisf(t){return (t||"").replace(/</g,"&lt;").replace(FILLERS,m=>`<span class="disf">${m}</span>`);}
+let _curLine=null,_curWho=null;
+function liveReset(scenario){
+  $("#livetranscript").innerHTML=""; $("#livedetect").innerHTML='<div class="muted">detections fire here, live</div>';
+  _curLine=null;_curWho=null; $("#livedot").classList.add("on");
+  $("#livekv").textContent=scenario?("▸ "+scenario):"";
+}
+function _newLine(who){const el=document.createElement("div");el.className="tline "+who;
+  el.innerHTML=`<span class="who">${who==="caller"?"caller":who==="agent"?"agent":"·"}</span><span class="txt"></span>`;
+  $("#livetranscript").appendChild(el);$("#livetranscript").scrollTop=1e9;return el;}
+function handleLivePartial(ev){
+  const who=ev.who;
+  if(_curWho!==who){ if(_curLine)_curLine.classList.remove("partial"); _curLine=_newLine(who); _curWho=who; }
+  _curLine.classList.add("partial");
+  const low=ev.asr_conf!=null&&ev.asr_conf<0.6; _curLine.classList.toggle("lowconf",!!low);
+  _curLine.querySelector(".txt").innerHTML=markDisf(ev.text)+' <span class="cursor">▌</span>'+(low?`<span class="conf">asr ${ev.asr_conf.toFixed(2)}</span>`:"");
+  $("#livetranscript").scrollTop=1e9;
+}
+function handleLiveEvent(ev){
+  if($("#livetranscript").querySelector(".muted"))$("#livetranscript").innerHTML="";
+  const e=ev.event;
+  if(e.kind==="hear"||e.kind==="say"){
+    const who=e.kind==="hear"?"caller":"agent";
+    if(_curLine&&_curWho===who){_curLine.classList.remove("partial");}else{_curLine=_newLine(who);}
+    const low=e.kind==="hear"&&e.asr_conf!=null&&e.asr_conf<0.6;
+    _curLine.className="tline "+who+(low?" lowconf":"");
+    _curLine.querySelector(".txt").innerHTML=markDisf(e.text)+(low?`<span class="conf">asr ${e.asr_conf.toFixed(2)}</span>`:"");
+    _curLine=null;_curWho=null;
+  }else if(e.kind==="tool_call"){
+    const el=_newLine("tool");el.querySelector(".txt").innerHTML=`↳ calls ${e.name}(${Object.entries(e.args||{}).map(([k,v])=>k+"="+v).join(", ")})`;
+  }else if(e.kind==="tool_result"){
+    const el=_newLine("tool");el.querySelector(".txt").innerHTML=`↳ ${e.name} → ${e.ok?"ok":"FAIL"} ${JSON.stringify(e.result)} · ${e.latency_ms}ms`;
+  }
+  $("#livetranscript").scrollTop=1e9;
+}
+function handleLiveDetect(ev){
+  if($("#livedetect").querySelector(".muted"))$("#livedetect").innerHTML="";
+  const f=ev.failure,el=document.createElement("div");
+  el.className="dcard "+(ev.gating?"gating":"monitor");
+  el.innerHTML=`<div class="dh">⚡ caught live — ${f.title}</div><div class="dtag">${f.dimension} · ${f.severity}${ev.gating?"":" · monitoring"}</div><div class="dm">${f.reason}</div>`;
+  $("#livedetect").appendChild(el);
+}
+function handleCallRecorded(ev){
+  const c=ev.call;$("#callcount").textContent=`${ev.total_calls} call${ev.total_calls>1?"s":""}`;
+  if($("#callsfeed").querySelector(".muted"))$("#callsfeed").innerHTML="";
+  const el=document.createElement("div");el.className="callrow";
+  el.innerHTML=`<span class="pill ${c.failed?"fail":"pass"}" style="position:static">${c.failed?"CAUGHT":"CLEAN"}</span>
+    <span>${c.scenario||c.call_id||"live call"}</span>
+    ${(c.failures&&c.failures.length)?`<span class="muted">${c.failures.join(", ")}</span>`:""}
+    ${c.pre_pass!=null?`<span style="margin-left:auto">${Math.round((c.pre_pass||0)*100)}% → ${Math.round((c.post_pass||0)*100)}%${c.spec_version?` · v${c.spec_version}`:""}</span>`:""}`;
+  $("#callsfeed").prepend(el);
+}
+function renderSimButtons(){
+  $("#simbtns").innerHTML=SIM.map(([id,l])=>`<div class="pbtn" role="button" tabindex="0" data-sim="${id}">${l}</div>`).join("");
+  document.querySelectorAll("#simbtns .pbtn").forEach(b=>b.onclick=()=>simulateLive(b.dataset.sim));
+}
+async function simulateLive(traceId){
+  if(!sessionId){$("#livekv").textContent="build a business first";return;}
+  liveReset(); $("#livekv").textContent="▸ streaming…";
+  try{ await fetch(ORCH+"/api/simulate-live/"+sessionId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({trace_id:traceId,wps:7})}); }
+  catch{ $("#livekv").textContent="couldn't reach orchestrator"; }
 }
 function addFact(ev){if($("#facts").querySelector(".muted"))$("#facts").innerHTML="";
   const d=document.createElement("div");d.innerHTML=`<b>${ev.topic}</b> · ${ev.content}`;$("#facts").appendChild(d);$("#facts").scrollTop=1e9;}
@@ -442,8 +726,7 @@ function renderAgent(spec){
   ${kn?`<div class="khdr">Knows from the site <span class="muted">— answered instantly, no lookup</span></div><ul class="kbits">${kn}</ul>`:""}
   ${tl?`<div class="khdr">Can do <span class="muted">— live lookups + actions, as a middleman</span></div><ul class="kbits tl">${tl}</ul>`:""}
   ${spec.policies.length?`<div class="khdr">Policies</div><ul>${spec.policies.map(p=>`<li><b>[${esc(p.category)}]</b> ${esc(p.rule)}</li>`).join("")}</ul>`:""}`;}
-function liveKV(k,v){if($("#live").querySelector(".muted"))$("#live").innerHTML="";
-  const r=document.createElement("div");r.className="kv";r.innerHTML=`<div class="k">${k}</div><div>${v}</div>`;$("#live").appendChild(r);}
+function liveKV(k,v){const el=$("#livekv");if(el)el.textContent=`▸ ${k}: ${v}`;}
 function renderProdButtons(){
   const hs=HEROES[vertical]||HEROES.generic; const e=EDGE[vertical]||EDGE.generic;
   let html=hs.map(([id,lab])=>`<div class="pbtn" role="button" tabindex="0" data-p="${id}">↻ ${lab}</div>`).join("");
