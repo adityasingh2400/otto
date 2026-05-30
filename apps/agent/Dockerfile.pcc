@@ -14,12 +14,13 @@ FROM dailyco/pipecat-base:latest
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
-# Path dependency: otto-spec resolves to ../../packages/spec relative to the agent project.
-# With WORKDIR /app below, "../../packages/spec" => /packages/spec, so place it there.
-COPY packages/spec /packages/spec
-
 WORKDIR /app
+# Vendor the spec package INSIDE /app and repoint the path dep to it. uv rejects
+# "../../packages/spec" here because ../../ escapes the project root in PCC's flat /app layout,
+# so we rewrite it to a path under /app before resolving.
+COPY packages/spec /app/vendor/otto-spec
 COPY apps/agent/pyproject.toml apps/agent/uv.lock ./
+RUN sed -i 's#\.\./\.\./packages/spec#vendor/otto-spec#' pyproject.toml
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-install-project --no-dev
 
