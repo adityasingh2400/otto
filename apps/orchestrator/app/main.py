@@ -158,10 +158,11 @@ async def traces_route(vertical: str | None = None) -> dict:
 @app.post("/api/tool/{name}")
 async def tool_route(name: str, args: dict = Body(default={}), session: str | None = None) -> dict:
     """Execute a business tool — shared by the live agent (as a middleman) + the dashboard. With a
-    `session`, runs the per-website synthesized tool via the spec-driven engine (live_query fetches
-    the site mid-call; stateful hits the sandbox backend); without one, falls back to the backend by name."""
+    `session`, runs that session's synthesized tool; without one (the deployed agent calls this way),
+    fall back to the ACTIVE business's spec so live_query tools (e.g. menu lookups) still run against
+    the right site. Stateful tools ignore the spec and hit the sandbox backend either way."""
     from . import tool_engine
-    spec = store.get_spec(session) if session else None
+    spec = store.get_spec(session) if session else store.get_active_spec()
     return await tool_engine.execute(spec, name, args)
 
 
