@@ -10,9 +10,38 @@ Production swarm-heal = targeted, perpetual (here).
 
 from __future__ import annotations
 
+import dataclasses
+
 from . import archetypes, config, llm, store
 from .events import bus
 from .heal import heal
+from .personas import Persona
+
+# Ways a single live failure shows up across real callers — used to mutate one detected
+# failure into N targeted variations (the production swarm tests the EXACT issue, many ways).
+_MUTATORS = [
+    ("with a thick accent", "strong non-native accent, hard to parse"),
+    ("while interrupting you", "cuts you off mid-sentence"),
+    ("shouting angrily", "irate, raising their voice"),
+    ("talking very fast", "rapid-fire, run-on sentences"),
+    ("on a terrible connection", "garbled audio, drops words"),
+    ("calmly but relentlessly", "polite, will not take no for an answer"),
+    ("sounding confused", "contradicts themselves, muddled"),
+    ("in a huge rush", "impatient, no time"),
+    ("switching to Spanish midway", "code-switches languages"),
+    ("after a long awkward pause", "goes silent, then resumes abruptly"),
+]
+
+
+def _variations(p: Persona, n: int) -> list[Persona]:
+    """Mutate one detected failure into N variations that all probe the same policy gap."""
+    out: list[Persona] = []
+    for i in range(max(1, n)):
+        g, pers = _MUTATORS[i % len(_MUTATORS)]
+        out.append(dataclasses.replace(
+            p, id=f"{p.id}#v{i + 1}", label=f"{p.label} · v{i + 1}",
+            goal=f"{p.goal} — {g}", personality=f"{p.personality}; {pers}"))
+    return out
 
 
 async def observe_call(session_id: str, *, transcript: str | None = None, persona: str | None = None) -> dict:
@@ -64,22 +93,27 @@ async def observe_call(session_id: str, *, transcript: str | None = None, person
                                        "detail": "call clean — no heal needed"})
         return {"failed": False}
 
-    # Targeted, high-volume swarm-heal on THAT failure.
+    # Targeted production swarm-heal: spin up N variations of THIS exact failure (accents,
+    # interruptions, anger, language switches, bad audio), confirm they fail, heal, re-run.
+    # This is the targeted loop — vs the broad pre-launch swarm — so we don't waste sims
+    # re-testing everything, only the thing that actually broke.
+    from .swarm import run_swarm
+    n = config.PRODUCTION_SWARM_VOLUME
+    variants = _variations(failed, n)
     await bus.publish(session_id, {"type": "fact", "topic": "production",
-                                   "content": f"live failure → targeted swarm-heal: {failed.label} "
-                                              f"({config.PRODUCTION_SWARM_VOLUME} synthetic calls in cekura mode)"})
+                                   "content": f"live failure on '{failed.label}' → {n} targeted variations of the exact issue"})
+    pre = await run_swarm(session_id, spec, round_no=spec.meta.version, personas=variants)
+
     failures = [{"persona": failed.id, "label": failed.label, "category": failed.category, "reason": reason}]
     new_spec, diffs = await heal(session_id, spec, failures, round_no=spec.meta.version, fixes=fixes)
     store.set_spec(session_id, new_spec)
     await bus.publish(session_id, {"type": "spec", "spec": new_spec.model_dump()})
 
-    # Re-verify on the failed persona + its category siblings (the focused re-run).
-    from .swarm import run_swarm
-    focus = [failed] + [p for p in personas if p.category == failed.category and p.id != failed.id]
-    report = await run_swarm(session_id, new_spec, round_no=new_spec.meta.version, personas=focus)
+    post = await run_swarm(session_id, new_spec, round_no=new_spec.meta.version, personas=variants)
     await bus.publish(session_id, {"type": "stage", "stage": "observe", "status": "done",
-                                   "detail": f"patched + re-verified: {int(report['pass_rate']*100)}% on '{failed.category}'"})
-    return {"failed": True, "patched": diffs, "pass_rate": report["pass_rate"], "spec_version": new_spec.meta.version}
+                                   "detail": f"{n} variations of '{failed.label}': {int(pre['pass_rate']*100)}% → {int(post['pass_rate']*100)}% after heal"})
+    return {"failed": True, "variations": n, "pre_pass": pre["pass_rate"], "post_pass": post["pass_rate"],
+            "pass_rate": post["pass_rate"], "patched": diffs, "spec_version": new_spec.meta.version}
 
 
 async def _judge_live(spec, transcript: str) -> dict:

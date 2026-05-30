@@ -105,6 +105,9 @@ def test_observe_edge_case_triggers_real_heal():
     res = _run(observe_call("t-edge", persona="gift_card_balance"))
     assert res["failed"] is True
     assert store.get_spec("t-edge").get_policy("gift-card-balance") is not None
+    # targeted production swarm: N variations of the exact issue, failing → passing after heal
+    assert res["variations"] == config.PRODUCTION_SWARM_VOLUME
+    assert res["pre_pass"] < res["post_pass"]
 
 
 def test_salon_pipeline_heals_and_routes():

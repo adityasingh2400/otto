@@ -342,11 +342,11 @@ function renderProdButtons(){
 }
 async function observe(persona){
   if(!sessionId)return;
-  $("#pstatus").textContent=`▸ auditing live call: ${persona}…`;
+  $("#pstatus").textContent=`▸ auditing live call: ${persona}… spinning up targeted variations`;
   const r=await fetch(ORCH+"/api/observe/"+sessionId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({persona})});
   const res=await r.json();
   $("#pstatus").textContent=res.failed
-    ?`▸ failure caught on '${persona}' → patched → re-verified ${Math.round((res.pass_rate||0)*100)}% (spec v${res.spec_version})`
+    ?`▸ caught '${persona}' → ${res.variations} targeted variations of the exact issue: ${Math.round((res.pre_pass||0)*100)}% → healed → ${Math.round((res.post_pass||0)*100)}% (spec v${res.spec_version})`
     :`▸ live call '${persona}' clean — already hardened by the pre-launch swarm`;
 }
 </script>
