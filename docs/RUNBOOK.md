@@ -44,6 +44,9 @@ sims. Everything else lights up the live phone path + sponsor tracks.
 
 Realistic total: **$0** without the Twilio upgrade, **~$20** for a frictionless live call.
 
+The live phone agent runs on the **same Gemini key** (a fast Flash model via `AGENT_LLM_MODEL`),
+so `LLM_PROVIDER=gemini` covers extraction, self-heal, AND the live call — the whole thing is $0.
+
 Traps: (1) don't run a 1000-variation production heal on a paid LLM — each variation is one
 call; keep `PRODUCTION_SWARM_VOLUME` ~30 or push volume through Cekura's credits. (2) Gemini
 free tier is ~10-15 req/min — keep `SWARM_MODE=static` and use the key only for extraction/heal.

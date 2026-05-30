@@ -80,6 +80,12 @@ def _llm():
         return AWSBedrockLLMService(model=os.getenv("BEDROCK_MODEL_ID", "us.amazon.nova-pro-v1:0"))
         # Lowest-latency alternative: AWSNovaSonicLLMService (pipecat.services.aws.nova_sonic)
         # is speech-to-speech — it REPLACES stt+tts, so use a different pipeline if you pick it.
+    if os.getenv("LLM_PROVIDER") == "gemini":  # free Gemini/Gemma via the OpenAI-compatible endpoint
+        from pipecat.services.openai.llm import OpenAILLMService
+        # Use a fast Flash model for the live call (Gemma 31B is too slow for low-latency voice).
+        return OpenAILLMService(api_key=os.getenv("GEMINI_API_KEY"),
+                                base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                                model=os.getenv("AGENT_LLM_MODEL", "gemini-2.5-flash-lite"))
     from pipecat.services.openai.llm import OpenAILLMService
     return OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model=os.getenv("LLM_MODEL", "gpt-4o"))
 
