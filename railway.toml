@@ -1,0 +1,23 @@
+# Railway deploy — Otto orchestrator + UI (FastAPI; serves the landing, dashboard, API, tool engine).
+# Build context is the repo root (the Dockerfile COPYs packages/spec + apps/web + apps/orchestrator).
+#
+# One-time setup in the Railway dashboard (or CLI):
+#   1. New Project → Deploy from GitHub repo → adityasingh2400/otto
+#   2. Add a Volume mounted at /data  (so onboarded businesses survive restarts)
+#   3. Variables → set OTTO_DATA_DIR=/data plus the secrets (NVIDIA/Deepgram/Cartesia/Twilio/Cekura,
+#      OWNER_PHONE, DEMO_RESERVER_PHONE) — copy from .env.
+#   4. After first deploy, set PUBLIC_BASE_URL to the public Railway URL and set the agent's
+#      ORCH_BASE_URL (on Pipecat Cloud) to the same URL.
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "apps/orchestrator/Dockerfile"
+
+[deploy]
+# Railway injects $PORT; wrap in sh -c so it EXPANDS at runtime (Railway doesn't shell-expand
+# the start command itself). Falls back to 8000 if PORT is unset.
+startCommand = "sh -c 'uv run --python 3.12 uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
