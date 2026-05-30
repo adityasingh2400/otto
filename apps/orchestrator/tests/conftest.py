@@ -12,5 +12,9 @@ import os
 os.environ["SWARM_MODE"] = "static"      # deterministic policy-coverage checks, no LLM sims
 os.environ["LLM_PROVIDER"] = "none"       # llm_available() -> False
 os.environ["HEAL_USE_LLM"] = "0"          # canonical fixes, no LLM heal calls
-for _k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "NVIDIA_API_KEY", "AWS_ACCESS_KEY_ID"):
+# Strip every credential a real `.env` might carry, so tests never hit the network — and, crucially,
+# never fire a REAL Twilio SMS to OWNER_PHONE/DEMO_RESERVER_PHONE when mock_services books a slot.
+for _k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "NVIDIA_API_KEY", "AWS_ACCESS_KEY_ID",
+           "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER", "OWNER_PHONE",
+           "DEMO_RESERVER_PHONE", "CEKURA_API_KEY"):
     os.environ[_k] = ""

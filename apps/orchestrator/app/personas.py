@@ -44,6 +44,10 @@ class Persona:
     # turn), {"asr_conf": float} (low-confidence hears → low_confidence_write). These exercise the
     # MONITORING_ONLY detectors; they're surfaced, not gated (see failure.MONITORING_ONLY).
     perturb: Optional[dict] = None
+    # the production mutation axis this persona probes (accent | noise | anger | language | …),
+    # set on swarm-heal variations. Lets the Cekura backend reuse one scenario per axis instead
+    # of creating one per variation. Empty for pre-launch personas (mapped by id).
+    axis: str = ""
 
 
 # ── static-check helpers (operate on actual policy text) ─────────────────────

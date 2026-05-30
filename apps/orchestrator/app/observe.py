@@ -19,30 +19,33 @@ from .events import bus
 from .heal import heal
 from .personas import Persona
 
-# Ways a single live failure shows up across real callers — used to mutate one detected
-# failure into N targeted variations (the production swarm tests the EXACT issue, many ways).
+# Ways a single live failure shows up across real callers — used to mutate one detected failure
+# into N targeted variations (the production swarm tests the EXACT issue, many ways). Each carries
+# an `axis` so the Cekura backend can reuse one reusable voice scenario per axis (accent, noise,
+# anger, …) instead of creating a fresh scenario for every variation.
 _MUTATORS = [
-    ("with a thick accent", "strong non-native accent, hard to parse"),
-    ("while interrupting you", "cuts you off mid-sentence"),
-    ("shouting angrily", "irate, raising their voice"),
-    ("talking very fast", "rapid-fire, run-on sentences"),
-    ("on a terrible connection", "garbled audio, drops words"),
-    ("calmly but relentlessly", "polite, will not take no for an answer"),
-    ("sounding confused", "contradicts themselves, muddled"),
-    ("in a huge rush", "impatient, no time"),
-    ("switching to Spanish midway", "code-switches languages"),
-    ("after a long awkward pause", "goes silent, then resumes abruptly"),
+    ("with a thick accent", "strong non-native accent, hard to parse", "accent"),
+    ("while interrupting you", "cuts you off mid-sentence", "interruption"),
+    ("shouting angrily", "irate, raising their voice", "anger"),
+    ("talking very fast", "rapid-fire, run-on sentences", "speech_rate"),
+    ("on a terrible connection", "garbled audio, drops words", "noise"),
+    ("calmly but relentlessly", "polite, will not take no for an answer", "persistence"),
+    ("sounding confused", "contradicts themselves, muddled", "confusion"),
+    ("in a huge rush", "impatient, no time", "impatience"),
+    ("switching to Spanish midway", "code-switches languages", "language"),
+    ("after a long awkward pause", "goes silent, then resumes abruptly", "latency"),
 ]
 
 
 def _variations(p: Persona, n: int) -> list[Persona]:
-    """Mutate one detected failure into N variations that all probe the same policy gap."""
+    """Mutate one detected failure into N variations that all probe the same policy gap, each along
+    a distinct caller-behavior axis (so the Cekura backend can collapse them to one call per axis)."""
     out: list[Persona] = []
     for i in range(max(1, n)):
-        g, pers = _MUTATORS[i % len(_MUTATORS)]
+        g, pers, axis = _MUTATORS[i % len(_MUTATORS)]
         out.append(dataclasses.replace(
             p, id=f"{p.id}#v{i + 1}", label=f"{p.label} · v{i + 1}",
-            goal=f"{p.goal} — {g}", personality=f"{p.personality}; {pers}"))
+            goal=f"{p.goal} — {g}", personality=f"{p.personality}; {pers}", axis=axis))
     return out
 
 
@@ -172,7 +175,17 @@ async def observe_trace(session_id: str, trace: CallTrace) -> dict:
     await bus.publish(session_id, {"type": "stage", "stage": "observe", "status": "start",
                                    "detail": f"classifying live call {trace.call_id} across the failure taxonomy"})
     failures = failure.evaluate(spec, trace)
+    # Dynamic discovery: let an LLM name novel modes the deterministic detectors missed (off unless
+    # ANOMALY_LLM=1). Defensively wrapped — discovery can never break the core loop.
+    try:
+        extra = await failure.classify_dynamic(spec, trace, {f.id for f in failures})
+        if extra:
+            _rank = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+            failures = sorted(failures + extra, key=lambda f: -_rank.get(f.severity, 2))
+    except Exception:
+        pass
     summary = failure.summarize(failures)
+    summary["perceived_latency_ms"] = trace.perceived_latency_ms()  # the 'felt slow' experience metric
     clusters = failure.cluster(failures)            # many symptoms → few root causes
     summary["root_causes"] = len(clusters)
     summary["discovered"] = sum(1 for f in failures if f.discovered)

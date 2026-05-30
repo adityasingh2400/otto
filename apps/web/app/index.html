@@ -235,6 +235,12 @@
     <div class="panel span2"><h3>Live call console</h3><div id="live"><div class="muted">call the number once it's live</div></div></div>
   </div>
 
+  <div class="banner" id="approve-banner">
+    <div class="dot" style="background:var(--gold)"></div>
+    <div><div class="bt">Passed the safety gate — ready for your review</div><div class="bs" id="approve-sub">your agent cleared the bar; you decide when it goes live</div></div>
+    <a class="report-link" id="review-link" href="#" style="color:#fff;background:var(--maroon);border-color:var(--maroon-d)">Review &amp; approve →</a>
+  </div>
+
   <div class="banner" id="banner">
     <div class="dot"></div>
     <div><div class="bt">Inbound line live</div><div class="bs">cleared the swarm safety gate</div></div>
@@ -345,7 +351,7 @@ function reset(){
   $("#agent").innerHTML=""; $("#live").innerHTML='<div class="muted">call the number once it\'s live</div>';
   $("#abtns").innerHTML='<div class="muted">the agent\'s tools appear here after build</div>'; $("#astatus").textContent=""; $("#oalerts").textContent="";
   $("#tracebtns").innerHTML=""; $("#fdims").innerHTML=""; $("#failstatus").innerHTML=""; $("#failreport").innerHTML='<div class="muted">replay a live call above to classify it across the failure taxonomy</div>';
-  $("#banner").classList.remove("on"); $("#prod").classList.remove("on"); $("#pstatus").textContent=""; $("#vbadge").classList.remove("on");
+  $("#banner").classList.remove("on"); $("#approve-banner").classList.remove("on"); $("#prod").classList.remove("on"); $("#pstatus").textContent=""; $("#vbadge").classList.remove("on");
   ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>{const el=$("#"+id);el.textContent="—";delete el.dataset.v;});  // clear count-up baselines so a re-run doesn't animate down from the prior number
   ["m-pass-from","m-unsafe-from","m-book-from","m-esc-from"].forEach(id=>{const el=$("#"+id);if(el)el.textContent="";});
   document.querySelectorAll(".step").forEach(s=>s.className="step");
@@ -376,7 +382,15 @@ function handle(ev){
     case "failure_report": renderFailureReport(ev); break;
     case "regression_check": renderRegression(ev); break;
     case "discovery": renderDiscovery(ev); break;
-    case "activated": $("#banner").classList.add("on");$("#banner-num").textContent=ev.phone_number;
+    case "awaiting_approval":
+      // pipeline cleared the gate and is now waiting on the OWNER — re-enable the CTA and hand off
+      // to the owner review page (the human gate before the line goes live).
+      goReady();
+      $("#approve-sub").textContent=`passed ${Math.round((ev.pass_rate||0)*100)}% — your agent is ready for your review`;
+      if(sessionId)$("#review-link").href="/review/?session="+sessionId;
+      $("#approve-banner").classList.add("on"); break;
+    case "activated": $("#approve-banner").classList.remove("on");
+      $("#banner").classList.add("on");$("#banner-num").textContent=ev.phone_number;
       if(sessionId)$("#report-link").href="/report/?s="+sessionId;
       $("#prod").classList.add("on"); break;
     case "live_call": liveKV(ev.field,ev.value); break;
@@ -473,6 +487,8 @@ function renderFailureReport(ev){
   $("#fdims").innerHTML=["conversation","action","outcome","experience"].map(d=>{
     const n=(s.by_dimension||{})[d]||0;
     return `<div class="fdim ${n>0?"hit":""}">${DIM_LABEL[d]}<b>${n}</b></div>`;}).join("");
+  const pl=s.perceived_latency_ms||0;  // the "felt slow" experience metric — total caller wait
+  if(pl) $("#fdims").innerHTML+=`<div class="fdim ${pl>5000?"hit":""}" title="cumulative time the caller spent waiting on the agent">felt latency<b>${(pl/1000).toFixed(1)}s</b></div>`;
   if(!fs.length){$("#failreport").innerHTML=`<div class="muted">call <b>${ev.call_id||""}</b>: clean — voice and every action checked out ✓</div>`;return;}
   if(clusters.length && fs.length>clusters.length){  // root-cause clustering: many symptoms → few causes
     $("#failstatus").innerHTML=`<div class="fbadge roots">🎯 root-cause analysis: <b>${fs.length}</b> symptoms → <b>${clusters.length}</b> underlying cause${clusters.length>1?"s":""} → ${clusters.length} targeted fix${clusters.length>1?"es":""}</div>`;

@@ -91,6 +91,22 @@ DEAD_AIR_MS = _i("DEAD_AIR_MS", 4000)            # silent gap (no say/tool) long
 LARGE_PARTY_MIN = _i("LARGE_PARTY_MIN", 6)       # party_size >= this must not go through the normal booking tool
 REDUNDANT_CALL_MAX = _i("REDUNDANT_CALL_MAX", 2) # same tool called more than this = a loop
 
+# paralinguistic / voice-anomaly thresholds (the signal-driven detectors plain observability misses).
+# All operate on CallEvent.audio (AudioFeatures) + asr_conf — absent → the detector no-ops.
+ACCENT_ASR_CONF = _f("ACCENT_ASR_CONF", 0.6)        # a hear below this = low intelligibility (accent/mumble/non-native)
+ACCENT_MIN_LOW = _i("ACCENT_MIN_LOW", 2)            # this many low-confidence hears = a sustained intelligibility gap
+DISTRESS_AROUSAL = _f("DISTRESS_AROUSAL", 0.7)      # arousal >= this = agitated / shouting
+DISTRESS_VOLUME_DBFS = _f("DISTRESS_VOLUME_DBFS", -6.0)  # louder than this (closer to 0) = shouting
+DISTRESS_SENTIMENT = _f("DISTRESS_SENTIMENT", -0.4) # sentiment <= this = upset
+NOISE_SNR_DB = _f("NOISE_SNR_DB", 12.0)             # SNR at/below this = a noisy line
+NOISE_MIN_TURNS = _i("NOISE_MIN_TURNS", 2)          # this many noisy/low-SNR turns = a sustained noise problem
+PERCEIVED_LATENCY_MS = _i("PERCEIVED_LATENCY_MS", 5000)  # cumulative caller wait that *feels* slow across the call
+BARGE_IN_LONG_SAY = _i("BARGE_IN_LONG_SAY", 140)    # agent say longer than this (chars) right before a barge-in = rambling
+# ANOMALY_LLM=1 adds an LLM pass that classifies novel failure modes the named detectors miss
+# (truly dynamic discovery). Default off so the deterministic engine stays snappy + key-free; the
+# proposed fix still goes through the governance oracle + regression guard, so it can't ship unsafe.
+ANOMALY_LLM = os.getenv("ANOMALY_LLM", "0").lower() in ("1", "true", "yes")
+
 # Cekura
 CEKURA_API_KEY = os.getenv("CEKURA_API_KEY", "")
 CEKURA_BASE_URL = os.getenv("CEKURA_BASE_URL", "https://api.cekura.ai")
@@ -102,6 +118,13 @@ try:
     CEKURA_SCENARIO_MAP = json.loads(os.getenv("CEKURA_SCENARIO_MAP", "") or "{}")
 except json.JSONDecodeError:
     CEKURA_SCENARIO_MAP = {}
+try:
+    # {"accent": 40, "noise": 41, "anger": 42, ...} — mutation AXIS -> a reusable Cekura scenario.
+    # The production swarm-heal mutates one failure into many variations along these axes; mapping
+    # by axis lets the Cekura path reuse a handful of scenarios instead of creating one per variation.
+    CEKURA_AXIS_SCENARIO_MAP = json.loads(os.getenv("CEKURA_AXIS_SCENARIO_MAP", "") or "{}")
+except json.JSONDecodeError:
+    CEKURA_AXIS_SCENARIO_MAP = {}
 
 # Telephony
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")

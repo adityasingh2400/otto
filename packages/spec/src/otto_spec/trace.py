@@ -19,12 +19,31 @@ from pydantic import BaseModel, Field
 EventKind = Literal["hear", "say", "tool_call", "tool_result"]
 
 
+class AudioFeatures(BaseModel):
+    """Paralinguistic signal for a caller turn — the layer plain transcripts/observability are
+    blind to. The agent's STT + VAD pipeline (apps/agent/bot.py) populates whatever it can per
+    `hear`; it's absent (None) on text-only or replayed traces, so detectors must treat every
+    field as optional. This is what lets Otto classify *how* a call sounded — a thick accent, a
+    shouting caller, a noisy line, a barge-in — not just what words were exchanged."""
+    snr_db: Optional[float] = None        # signal-to-noise ratio; low = noisy line / background
+    noise: str = ""                        # "" | quiet | street | cafe | wind | music | crosstalk
+    volume_dbfs: Optional[float] = None    # loudness in dBFS (closer to 0 = louder; shouting ≳ -6)
+    speech_rate_wpm: Optional[float] = None  # words/minute (very high = rushed, very low = halting)
+    lang: str = ""                         # detected language of the turn (e.g. "en", "es")
+    lang_switch: bool = False              # caller switched language vs the prior turn
+    sentiment: Optional[float] = None      # -1..1 (negative = upset)
+    arousal: Optional[float] = None        # 0..1 emotional intensity (shouting/panic = high)
+    barge_in: bool = False                 # caller spoke over the agent (talk-over / interruption)
+    repeat_request: bool = False           # caller asked the agent to repeat ("what?", "say again")
+
+
 class CallEvent(BaseModel):
     kind: EventKind
     t_ms: int = 0  # ms offset from the start of the call (for latency / dead-air math)
     # hear | say
     text: str = ""
     asr_conf: float = 1.0  # hear only: ASR confidence 0..1 (a low-confidence write is a failure)
+    audio: Optional[AudioFeatures] = None  # hear only: paralinguistic signal (accent/noise/emotion/…)
     # tool_call | tool_result
     name: str = ""
     args: dict[str, Any] = Field(default_factory=dict)
@@ -57,6 +76,26 @@ class CallTrace(BaseModel):
 
     def called(self, name: str) -> bool:
         return any(e.name == name for e in self.tool_calls())
+
+    def audio_hears(self) -> list[CallEvent]:
+        """Caller turns that carry paralinguistic signal (the voice-anomaly detectors' input)."""
+        return [e for e in self.hears() if e.audio is not None]
+
+    def perceived_latency_ms(self) -> int:
+        """Total time the CALLER spent waiting on the agent across the call — the *felt* latency.
+
+        For each caller turn, the gap until the agent's next audible turn (`say`). A slow tool
+        with no 'one moment' bridge inflates that gap; a quick acknowledgement shrinks it. This
+        is the experience metric that 'feels slow' even when every individual step is within SLA —
+        exactly what a per-event latency check misses."""
+        total = 0
+        for i, ev in enumerate(self.events):
+            if ev.kind != "hear" or not ev.t_ms:
+                continue
+            nxt = next((e for e in self.events[i + 1:] if e.kind == "say" and e.t_ms), None)
+            if nxt:
+                total += max(0, nxt.t_ms - ev.t_ms)
+        return total
 
     @property
     def transcript(self) -> str:

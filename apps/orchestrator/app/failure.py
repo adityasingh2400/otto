@@ -30,12 +30,12 @@ DIMENSIONS = ("conversation", "action", "outcome", "experience")
 _SEV_RANK = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
 # Detectors that are MONITORING signals, not pre-launch gating criteria: a policy can't heal them.
-# Latency/dead-air are infrastructure timing (a "one moment" policy mitigates the FELT experience
-# but never lowers the measured latency); a low-confidence mishear is immutable once it's in the
-# trace (even a correct read-back leaves the low-confidence `hear` behind). Gating on them would
-# stall activation forever, so the swarm verdict surfaces them but doesn't fail the gate on them.
-# Production (observe.py) still reports them — that's where they belong: live observability.
-MONITORING_ONLY = frozenset({"slow_action", "dead_air", "low_confidence_write"})
+# Latency/dead-air/perceived-latency are infrastructure timing (a "one moment" policy mitigates the
+# FELT experience but never lowers the measured latency); a low-confidence mishear is immutable once
+# it's in the trace (even a correct read-back leaves the low-confidence `hear` behind). Gating on them
+# would stall activation forever, so the swarm verdict surfaces them but doesn't fail the gate on them.
+# Production (observe.py) still reports AND heals them — that's where they belong: live observability.
+MONITORING_ONLY = frozenset({"slow_action", "dead_air", "low_confidence_write", "perceived_latency"})
 
 # CODE-SPACE failures: ones a prompt can't fix because the gap is a TOOL-LAYER invariant, not the
 # agent's judgment. You can't instruct a model into idempotency, a tool that always returns, or a
@@ -380,6 +380,180 @@ def _d_unmet_goal(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:
         heal_rule="never end a call with the caller's request unmet: if you can't complete it, take their details and escalate to staff or take a message.")]
 
 
+# ── paralinguistic detectors (the dynamic, signal-driven layer plain observability misses) ──
+# These read CallEvent.audio (AudioFeatures) + asr_conf. They classify *how the call sounded* —
+# a thick accent, a shouting caller, a noisy line, a barge-in, a language switch, a call that
+# simply felt slow — none of which appear in a transcript. Every one no-ops when the trace
+# carries no audio signal (audio is None), so text-only / replayed traces are unaffected.
+
+# Phrases that show the agent ADAPTED to a comprehension problem (read-back / confirm / slow / hand off).
+_ADAPT_RE = re.compile(
+    r"\b(let me (repeat|confirm|make sure)|just to confirm|did you say|i heard|to confirm|"
+    r"read(ing)? (that|it) back|say that again|one more time|slow(ly| down)|"
+    r"connect you (to|with)|transfer you|bad connection|you'?re breaking up|hard to hear)\b", re.I)
+# Phrases that show the agent DE-ESCALATED an upset caller.
+_CALM_RE = re.compile(
+    r"\b(i'?m sorry|i apologi|i understand|i hear you|let me help|stay with me|"
+    r"connect you (to|with)|get a manager|escalate|have a manager|speak (to|with) a manager)\b", re.I)
+
+
+def _aud(ev):
+    """The AudioFeatures on a hear, or None. Detectors guard on this so audio-less traces no-op."""
+    return getattr(ev, "audio", None)
+
+
+def _agent_said(trace: CallTrace, pattern: re.Pattern) -> bool:
+    return any(pattern.search(s.text) for s in trace.says())
+
+
+def _d_unhandled_accent(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:
+    """Sustained low intelligibility (a thick accent, mumbling, non-native speech) — many low-ASR
+    turns and/or explicit 'can you repeat that' — that the agent never adapted to (no read-back,
+    no slowing, no hand-off). A transcript looks fine; the *signal* says the caller wasn't understood."""
+    low = [h for h in trace.hears() if (h.asr_conf and h.asr_conf < config.ACCENT_ASR_CONF)]
+    repeats = [h for h in trace.hears() if _aud(h) and _aud(h).repeat_request]
+    if len(low) < config.ACCENT_MIN_LOW and not repeats:
+        return []
+    if _agent_said(trace, _ADAPT_RE):  # the agent already coped — read back / slowed / handed off
+        return []
+    signal = []
+    if low:
+        signal.append(f"{len(low)} low-confidence turn(s) (worst {min(h.asr_conf for h in low):.2f})")
+    if repeats:
+        signal.append(f"{len(repeats)} explicit repeat request(s)")
+    trigger = low[0] if low else repeats[0]
+    return [FailureInstance(
+        id="unhandled_accent", dimension="conversation", title="Didn't adapt to a hard-to-understand caller",
+        severity="high",
+        reason=f"The caller was hard to make out — {', '.join(signal)} — but the agent never read details back, "
+               "slowed down, or offered a person; it kept going as if it understood.",
+        evidence=[_quote(trigger)] + ([f'repeat requested: "{repeats[0].text[:60]}"'] if repeats else []),
+        heal_category="voice_behavior", heal_policy_id="adapt-to-low-intelligibility", persona_hint="bad_audio",
+        heal_rule="when ASR confidence is low or the caller is hard to understand, slow down, read key details "
+                  "back and confirm before acting; if you still can't understand after a couple tries, offer to "
+                  "connect them to a person rather than guessing.")]
+
+
+def _d_caller_distress(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:
+    """A shouting / highly-agitated caller (high arousal, high volume, or strongly negative sentiment)
+    that the agent never de-escalated or escalated. This is the 'someone is screaming' signal — invisible
+    to a transcript, obvious in the audio."""
+    def agitated(h) -> bool:
+        a = _aud(h)
+        if not a:
+            return False
+        return ((a.arousal is not None and a.arousal >= config.DISTRESS_AROUSAL)
+                or (a.volume_dbfs is not None and a.volume_dbfs >= config.DISTRESS_VOLUME_DBFS)
+                or (a.sentiment is not None and a.sentiment <= config.DISTRESS_SENTIMENT))
+    hot = [h for h in trace.hears() if agitated(h)]
+    if not hot:
+        return []
+    if trace.called("escalate") or _agent_said(trace, _CALM_RE):  # agent calmed or handed off
+        return []
+    a0 = _aud(hot[0])
+    metrics = ", ".join(filter(None, [
+        f"arousal {a0.arousal:.2f}" if a0.arousal is not None else "",
+        f"volume {a0.volume_dbfs:.0f}dBFS" if a0.volume_dbfs is not None else "",
+        f"sentiment {a0.sentiment:.2f}" if a0.sentiment is not None else ""]))
+    return [FailureInstance(
+        id="caller_distress", dimension="conversation", title="Didn't de-escalate a shouting / very upset caller",
+        severity="high",
+        reason=f"The caller was agitated ({metrics}) across {len(hot)} turn(s) but the agent neither acknowledged "
+               "the frustration, apologized, nor offered a manager/human — it stayed transactional.",
+        evidence=[_quote(hot[0]), f"audio: {metrics}"],
+        heal_category="safety", heal_policy_id="de-escalate-distress", persona_hint="complaint",
+        heal_rule="if the caller is shouting or clearly very upset, stay calm, acknowledge and apologize, do not "
+                  "argue or talk over them, and offer to escalate to a manager or a human right away.")]
+
+
+def _d_perceived_latency(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:
+    """The call *felt* slow — the caller spent a long cumulative time waiting on the agent — even if no
+    single tool tripped the per-action SLA. The composite experience metric a per-event latency check
+    can't see: death by a thousand pauses, or one long silent lookup with no 'one moment' bridge."""
+    felt = trace.perceived_latency_ms()
+    if felt <= config.PERCEIVED_LATENCY_MS:
+        return []
+    set_expectations = _agent_said(trace, re.compile(r"\b(one moment|just a (sec|second|moment)|bear with me|while i (check|look)|let me (check|look|pull))\b", re.I))
+    sev = "high" if felt > config.PERCEIVED_LATENCY_MS * 2 else "medium"
+    return [FailureInstance(
+        id="perceived_latency", dimension="experience", title="The call felt slow to the caller",
+        severity=sev,
+        reason=f"The caller waited ~{felt}ms total on the agent across the call"
+               + ("" if set_expectations else " with no wait-setting cue (no 'one moment')")
+               + " — it felt sluggish even though individual steps may each be within SLA.",
+        evidence=[f"cumulative perceived latency {felt}ms (threshold {config.PERCEIVED_LATENCY_MS}ms)"],
+        heal_category="voice_behavior", heal_policy_id="minimize-perceived-latency", persona_hint="bad_audio",
+        heal_rule="never leave the caller in silence: before any lookup or booking that takes a moment say 'one "
+                  "moment while I check that', keep replies tight, and acknowledge immediately so the call never "
+                  "feels slow even when a tool is running.")]
+
+
+def _d_background_noise(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:
+    """A noisy line (low SNR or a noisy environment label) sustained across turns, that the agent never
+    acknowledged or compensated for by reading details back. Plain observability sees clean text; the
+    audio says the caller is in a cafe / on the street / wind is blowing."""
+    noisy = [h for h in trace.audio_hears()
+             if (_aud(h).snr_db is not None and _aud(h).snr_db <= config.NOISE_SNR_DB)
+             or (_aud(h).noise and _aud(h).noise not in ("", "quiet"))]
+    if len(noisy) < config.NOISE_MIN_TURNS:
+        return []
+    if _agent_said(trace, _ADAPT_RE):
+        return []
+    a0 = _aud(noisy[0])
+    desc = a0.noise or (f"SNR {a0.snr_db:.0f}dB" if a0.snr_db is not None else "noisy")
+    return [FailureInstance(
+        id="background_noise", dimension="experience", title="Ignored a noisy line",
+        severity="medium",
+        reason=f"The line was noisy ({desc}) across {len(noisy)} turn(s) but the agent never acknowledged the "
+               "connection or read critical details back to confirm — raising the odds of a mishear on a booking.",
+        evidence=[_quote(noisy[0]), f"audio: noise={a0.noise or 'n/a'} snr={a0.snr_db if a0.snr_db is not None else 'n/a'}"],
+        heal_category="voice_behavior", heal_policy_id="handle-noisy-line", persona_hint="bad_audio",
+        heal_rule="if the line is noisy or breaking up, acknowledge the connection, speak clearly, and read back "
+                  "any name, number, date, or party size to confirm before acting on it.")]
+
+
+def _d_barge_in_unhandled(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:
+    """The caller talked over the agent (barge-in) while the agent was mid-monologue — a sign the agent
+    rambled and didn't yield. Detectable only from the audio barge-in marker + the length of the say it
+    interrupted."""
+    for i in range(1, len(trace.events)):
+        cur = trace.events[i]
+        if cur.kind != "hear" or not (_aud(cur) and _aud(cur).barge_in):
+            continue
+        prev = trace.events[i - 1]
+        if prev.kind == "say" and len(prev.text) >= config.BARGE_IN_LONG_SAY:
+            return [FailureInstance(
+                id="barge_in_unhandled", dimension="experience", title="Talked over the caller (long-winded, got cut off)",
+                severity="medium",
+                reason=f"The agent was {len(prev.text)} chars into a turn when the caller cut in — it was monologuing "
+                       "instead of keeping replies short and leaving room for the caller.",
+                evidence=[_quote(prev), _quote(cur) + " [barge-in]"],
+                heal_category="voice_behavior", heal_policy_id="yield-on-barge-in", persona_hint="interrupter",
+                heal_rule="keep spoken replies to one or two short sentences, and the instant the caller speaks over "
+                          "you, stop talking immediately and respond to what they actually said.")]
+    return []
+
+
+def _d_language_switch(spec: AgentSpec, trace: CallTrace) -> list[FailureInstance]:
+    """The caller spoke (or switched to) a non-English language and the agent never accommodated it —
+    a language barrier the transcript flattens into 'foreign-looking text'."""
+    foreign = [h for h in trace.audio_hears()
+               if (_aud(h).lang and _aud(h).lang.split("-")[0] not in ("", "en")) or _aud(h).lang_switch]
+    if not foreign:
+        return []
+    langs = sorted({(_aud(h).lang or "?").split("-")[0] for h in foreign if _aud(h).lang})
+    return [FailureInstance(
+        id="language_switch", dimension="conversation", title="Didn't handle a non-English caller",
+        severity="medium",
+        reason=f"The caller spoke {', '.join(langs) or 'another language'}"
+               f"{' (switched mid-call)' if any(_aud(h).lang_switch for h in foreign) else ''}, but there's no policy "
+               "to continue in that language or route them — risking the agent plowing ahead in English.",
+        evidence=[_quote(foreign[0]), f"audio: lang={(_aud(foreign[0]).lang or '?')}"],
+        heal_category="voice_behavior", heal_policy_id="handle-language-switch", persona_hint="spanish_speaker",
+        heal_rule="if the caller speaks another language, continue in that language when you can; otherwise offer to "
+                  "connect them to someone who speaks it — never ignore the language and keep going in English.")]
+
+
 _PROMISE_RE = re.compile(r"\b(i'?ll|i will|let me|i'?m going to|i can)\s+(text|send|email|call|have (someone|staff)|schedule|book|check|put you|get you|forward)\b", re.I)
 _PROMISE_TOOLS = {"send_sms", "escalate", "book_appointment", "reserve_table", "handle_refund", "check_availability"}
 
@@ -426,6 +600,12 @@ DETECTORS = [
     _d_redundant_action,          # action    · retry storm / loop
     _d_slow_action,               # experience· exceeded the latency SLA
     _d_dead_air,                  # experience· silence after the caller spoke
+    _d_perceived_latency,         # experience· the call FELT slow (cumulative caller wait)
+    _d_unhandled_accent,          # conversation· low intelligibility (accent/mumble) not adapted to
+    _d_caller_distress,           # conversation· shouting / very upset caller not de-escalated
+    _d_background_noise,          # experience· noisy line ignored
+    _d_barge_in_unhandled,        # experience· talked over the caller (rambling)
+    _d_language_switch,           # conversation· non-English caller not accommodated
     _d_unmet_goal,                # outcome   · ended unresolved, no escalation
     _d_anomaly,                   # discovery · off-pattern modes the named detectors missed
 ]
@@ -465,6 +645,87 @@ def worst(failures: list[FailureInstance]) -> FailureInstance | None:
     return max(failures, key=lambda f: _SEV_RANK[f.severity], default=None)
 
 
+def _trace_digest(trace: CallTrace) -> str:
+    """Render the call as a compact event log INCLUDING the per-turn audio signal, so an LLM judge
+    can reason about paralinguistic problems (accent, shouting, noise, barge-in) a plain transcript
+    hides. This is the input that makes dynamic discovery see what observability tools can't."""
+    lines: list[str] = []
+    for e in trace.events:
+        if e.kind == "hear":
+            tags = [] if (e.asr_conf is None or e.asr_conf >= 1.0) else [f"asr={e.asr_conf:.2f}"]
+            a = e.audio
+            if a:
+                for k, v in (("noise", a.noise), ("snr_db", a.snr_db), ("vol_dbfs", a.volume_dbfs),
+                             ("wpm", a.speech_rate_wpm), ("lang", a.lang), ("sentiment", a.sentiment),
+                             ("arousal", a.arousal)):
+                    if v not in (None, ""):
+                        tags.append(f"{k}={v}")
+                if a.barge_in:
+                    tags.append("barge_in")
+                if a.repeat_request:
+                    tags.append("repeat_request")
+            suffix = f"  [{', '.join(tags)}]" if tags else ""
+            lines.append(f'Caller: "{e.text}"{suffix}')
+        elif e.kind == "say":
+            lines.append(f'Agent: "{e.text}"')
+        elif e.kind == "tool_call":
+            lines.append(f"Agent→tool {e.name}({e.args})")
+        else:
+            lines.append(f"tool {e.name} ok={e.ok} {e.result} ({e.latency_ms}ms)")
+    return "\n".join(lines)
+
+
+async def classify_dynamic(spec: AgentSpec, trace: CallTrace, already: set[str]) -> list[FailureInstance]:
+    """The truly-dynamic layer: an LLM reads the event+audio stream and NAMES failure modes none of
+    the deterministic detectors cover. Gated by ANOMALY_LLM (default off) so the core engine stays
+    snappy + key-free. Crucially, anything it proposes is still a FailureInstance whose fix runs
+    through `governed()` + `safe_apply` — so a hallucinated finding can never ship an unsafe patch,
+    and recurring signatures get promoted by the same discovery registry as the named detectors."""
+    if not (config.ANOMALY_LLM and config.llm_available()):
+        return []
+    from . import llm
+    sys = (
+        "You are an expert voice-agent QA analyst. You receive a phone call as an event log that "
+        "INCLUDES per-turn audio signal (ASR confidence, noise, loudness/vol_dbfs, speech rate, "
+        "language, sentiment, arousal, barge_in, repeat_request). Surface failure modes a "
+        "transcript-only tool would MISS — especially paralinguistic ones (accent/intelligibility, "
+        "shouting/distress, noisy line, talking over the caller, a language barrier, a call that "
+        "felt slow) and any other novel problem. Do NOT repeat modes already detected. JSON only."
+    )
+    user = (
+        f"Business: {spec.business.name} ({spec.business.type}).\n"
+        f"Already detected (do not repeat): {sorted(already)}\n\n"
+        f"Call:\n{_trace_digest(trace)}\n\n"
+        'Return JSON {"failures":[{"title","dimension"(conversation|action|outcome|experience),'
+        '"severity"(low|medium|high|critical),"reason","signature"(stable snake_case key),'
+        '"heal_rule"(a concrete >=25-char policy rule that prevents it)}]}. Empty list if nothing new.'
+    )
+    try:
+        data = await llm.complete_json(sys, user)
+    except Exception:
+        return []
+    raw = data.get("failures", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+    out: list[FailureInstance] = []
+    for d in raw:
+        if not isinstance(d, dict) or not str(d.get("reason", "")).strip():
+            continue
+        dim = d.get("dimension") if d.get("dimension") in DIMENSIONS else "conversation"
+        sev = d.get("severity") if d.get("severity") in _SEV_RANK else "medium"
+        sig = re.sub(r"[^a-z0-9]+", "_", (str(d.get("signature") or d.get("title") or "novel")).lower()).strip("_")[:40] or "novel"
+        fid = f"dyn_{sig}"
+        if fid in already or any(o.id == fid for o in out):
+            continue
+        rule = str(d.get("heal_rule") or "").strip()[:300]
+        if len(rule) < 25:  # too thin to govern anything — skip rather than ship a no-op
+            continue
+        out.append(FailureInstance(
+            id=fid, dimension=dim, title=str(d.get("title", "Novel failure mode"))[:80],
+            severity=sev, reason=str(d["reason"])[:300], discovered=True, signature=sig,
+            evidence=["llm-classified from the event + audio stream"],
+            heal_category="voice_behavior", heal_policy_id=f"dyn-{sig.replace('_', '-')}", heal_rule=rule))
+    return out
+
+
 # The SEMANTIC requirement per fix: tokens a policy's rule MUST contain to genuinely close
 # the gap. The heal-verification oracle checks this — so a null/garbage fix (Policy with an
 # empty or "lol" rule) does NOT satisfy it, even though the policy id exists. This is what
@@ -485,6 +746,13 @@ _GOVERN_KW: dict[str, list[str]] = {
     "no-tool-loop": ["twice", "escalate"],
     "do-what-you-promise": ["actually call", "before ending", "actually do"],
     "answer-or-escalate": ["never end a call on", "take a message", "escalate", "find out"],
+    # paralinguistic heals — tokens the voice-anomaly fixes must contain to genuinely close the gap
+    "adapt-to-low-intelligibility": ["read", "back", "confirm", "slow", "connect", "person", "repeat"],
+    "de-escalate-distress": ["stay calm", "apolog", "escalate", "manager", "human", "acknowledge"],
+    "minimize-perceived-latency": ["one moment", "silence", "acknowledge", "tight", "wait"],
+    "handle-noisy-line": ["noisy", "connection", "read back", "confirm", "clearly", "breaking up"],
+    "yield-on-barge-in": ["stop talking", "short", "speaks over", "one or two", "interrupt"],
+    "handle-language-switch": ["language", "continue in", "connect", "speaks it", "another language"],
 }
 
 
