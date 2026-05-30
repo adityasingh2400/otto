@@ -13,11 +13,12 @@
   body{font-family:var(--sans);background:var(--bg);color:var(--ink);min-height:100vh;display:grid;place-items:center;-webkit-font-smoothing:antialiased;position:relative}
   body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
     background-image:radial-gradient(circle at 1px 1px,rgba(122,27,45,.045) 1px,transparent 1.4px);background-size:7px 7px}
-  main{text-align:center;padding:24px;width:100%;max-width:960px;animation:in .8s cubic-bezier(.2,.7,.2,1) both}
+  main{text-align:center;padding:24px;width:100%;max-width:1200px;animation:in .8s cubic-bezier(.2,.7,.2,1) both}
   @keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-  .logo{font:600 29px var(--disp);letter-spacing:-.01em;color:var(--ink);margin-bottom:30px}.logo b{color:var(--maroon)}
-  h1{font:600 clamp(46px,7.4vw,84px)/1.06 var(--disp);letter-spacing:-.022em;text-wrap:balance}
-  h1 em{font-style:italic;color:var(--maroon)}
+  .logo{font:600 30px var(--disp);letter-spacing:-.01em;color:var(--ink);margin-bottom:32px}.logo b{color:var(--maroon)}
+  h1{font-family:var(--disp);font-weight:600;letter-spacing:-.02em;line-height:1.12}
+  h1 span{display:block;white-space:nowrap;font-size:clamp(27px,4.6vw,56px)}
+  h1 .k{font-style:italic;color:var(--maroon);margin-top:.04em}
   form{display:flex;align-items:center;gap:8px;margin:40px auto 0;max-width:440px;background:#fff;border:1px solid var(--line);
     border-radius:16px;padding:8px 8px 8px 18px;box-shadow:0 18px 44px -28px rgba(42,10,16,.45);transition:.2s}
   form:focus-within{border-color:var(--maroon);box-shadow:0 22px 50px -26px rgba(122,27,45,.5)}
@@ -26,13 +27,13 @@
   button{flex:none;width:46px;height:46px;border:0;border-radius:11px;background:var(--maroon);color:#fff;font-size:20px;cursor:pointer;transition:.18s;display:grid;place-items:center}
   button:hover{background:var(--maroon-l);transform:translateY(-1px)}button:active{transform:none}
   .hint{margin-top:18px;font:400 13px var(--mono);color:var(--dim)}
-  @media(max-width:560px){.logo{margin-bottom:24px}}
+  @media(max-width:600px){.logo{margin-bottom:24px}h1 span{white-space:normal;font-size:clamp(30px,8.5vw,42px)}}
 </style>
 </head>
 <body>
 <main>
   <div class="logo">Line<b>Forge</b></div>
-  <h1>Never let your business miss a call. <em>Or say the wrong thing.</em></h1>
+  <h1><span>Never let your business miss a call.</span><span class="k">Or say the wrong thing.</span></h1>
   <form id="f">
     <input id="u" value="https://www.piccino.com/" spellcheck="false" autocomplete="off" aria-label="Your business website" />
     <button aria-label="Build the line">→</button>
