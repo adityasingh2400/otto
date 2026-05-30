@@ -83,6 +83,16 @@ async def get_spec(session_id: str) -> dict:
     return spec.model_dump()
 
 
+@app.get("/api/active-spec")
+async def active_spec() -> dict:
+    """The most-recently-activated business's spec — the deployed voice agent fetches this so
+    an inbound call is answered as whatever was last onboarded + activated through the UI."""
+    spec = store.get_active_spec()
+    if not spec:
+        raise HTTPException(status_code=404, detail="no active business yet")
+    return spec.model_dump()
+
+
 @app.get("/api/report/{session_id}")
 async def report_route(session_id: str) -> dict:
     """Evaluation report for a session — every number read back from the real run history."""

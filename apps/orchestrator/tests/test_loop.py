@@ -251,6 +251,106 @@ def test_every_persona_is_healable_from_a_fresh_extraction():
         assert not stuck, f"{vtype}: personas with no working heal fix would stall a real extraction: {stuck}"
 
 
+def test_trace_backend_isolation_and_seeding():
+    """The trace sim runs concurrent calls against private backends. isolated_state must seed a
+    precondition (sold-out slot) AND leave the global backend untouched after the block."""
+    from app import mock_services, tool_engine
+    spec = _spec("piccino")
+    mock_services.reset()
+    seed = mock_services.fill_reservation_slot("tonight", "8:00 PM")
+    with mock_services.isolated_state(seed):
+        r = _run(tool_engine.execute(spec, "reserve_table",
+                                     {"name": "Sam", "date": "tonight", "time": "8:00 PM", "party_size": 2}))
+        assert r["status"] == "unavailable"          # the seed made the slot full
+    # isolation: the global backend never saw the seed
+    assert mock_services.check_availability(date="tonight", time="8:00 PM")["available"] is True
+
+
+def test_oversold_persona_seeds_a_maskable_failure():
+    """The new action persona seeds a sold-out slot; a masking agent (claims success after the
+    booking failed) must trip failed_action_masked, and its authored fix is confirm-before-claiming."""
+    from otto_spec import CallEvent, CallTrace
+    from app import failure
+    spec = _spec("piccino")
+    p = next(x for x in archetypes.select_for("restaurant", 12) if x.id == "oversold_table")
+    assert p.setup is not None and p.fix.id == "confirm-before-claiming"
+    # the event stream a masking agent would produce against the seeded (sold-out) backend
+    trace = CallTrace(call_id="sim-oversold", persona="oversold_table", events=[
+        CallEvent(kind="say", t_ms=0, text="Thanks for calling Piccino, how can I help?"),
+        CallEvent(kind="hear", t_ms=1500, text="Table for two at 8 tonight."),
+        CallEvent(kind="tool_call", t_ms=1600, name="reserve_table",
+                  args={"name": "Sam", "date": "tonight", "time": "8:00 PM", "party_size": 2}),
+        CallEvent(kind="tool_result", t_ms=1900, name="reserve_table", ok=False, latency_ms=300,
+                  result={"status": "unavailable", "reason": "that slot is fully booked"}),
+        CallEvent(kind="say", t_ms=3400, text="Perfect, you're all set for two at eight!"),
+    ])
+    ids = {f.id for f in failure.evaluate(spec, trace)}
+    assert "failed_action_masked" in ids
+
+
+def test_trace_failures_drive_the_prelaunch_heal():
+    """Stage 2: a report carrying trace-detected failures must yield probes whose authored fixes,
+    when fed to heal as extra_patches, land in the spec (regression-guarded) and bump the version."""
+    from app.pipeline import _trace_probes
+    spec = _spec("piccino")
+    # strip any pre-existing confirm policy so the heal has real work to do
+    spec.policies = [p for p in spec.policies if p.id != "confirm-before-claiming"]
+    v0 = spec.meta.version
+    fake_report = {"results": [{
+        "persona": "oversold_table", "passed": False, "failures": [{
+            "id": "failed_action_masked", "dimension": "outcome",
+            "title": "Claimed success after the action failed", "severity": "critical",
+            "reason": "reserve_table returned unavailable but the agent said it succeeded.",
+            "evidence": [], "heal_category": "knowledge", "heal_policy_id": "confirm-before-claiming",
+            "heal_rule": ("never tell a caller a booking succeeded unless the tool returned a confirmation "
+                          "id or success status; if it failed, say so and offer an alternative or escalate."),
+            "persona_hint": "", "discovered": False, "signature": "",
+        }],
+    }]}
+    probes = _trace_probes(fake_report)
+    assert probes and probes[0].fix.id == "confirm-before-claiming"
+    personas = archetypes.select_for("restaurant", 12)
+    extra = [pr.fix for pr in probes if pr.fix]
+    new_spec, diffs = _run(heal("t-trace-heal", spec, fake_report["results"], 1,
+                                {p.id: p.fix for p in personas if p.fix},
+                                scenarios=personas + probes, extra_patches=extra))
+    assert new_spec.get_policy("confirm-before-claiming") is not None  # the fix shipped
+    assert new_spec.meta.version > v0                                   # version bumped (real change)
+    assert all(pr.static_check(new_spec)[0] for pr in probes)           # the probe is now governed (green)
+
+
+def test_stage3_injected_signals_fire_but_dont_gate():
+    """Stage 3: synthetic latency / dead-air / low-confidence injection lights up the experience +
+    ASR detectors — but those are MONITORING_ONLY, so failure.gating() excludes them (gating on
+    un-healable signals would stall activation forever)."""
+    from otto_spec import CallEvent, CallTrace
+    from app import failure, config
+    spec = _spec("piccino")
+
+    slow = CallTrace(call_id="slow", events=[
+        CallEvent(kind="hear", t_ms=1500, text="is 8 open?"),
+        CallEvent(kind="tool_call", t_ms=1600, name="check_availability", args={"time": "8 PM"}),
+        CallEvent(kind="tool_result", t_ms=6000, name="check_availability", ok=True,
+                  latency_ms=config.ACTION_SLA_HIGH_MS + 500, result={"available": True}),
+    ])
+    dead = CallTrace(call_id="dead", events=[
+        CallEvent(kind="hear", t_ms=1500, text="hello? you there?"),
+        CallEvent(kind="say", t_ms=1500 + config.DEAD_AIR_MS + 1000, text="sorry, yes!"),
+    ])
+    lowconf = CallTrace(call_id="lowconf", events=[
+        CallEvent(kind="hear", t_ms=1500, text="book it for [garbled]", asr_conf=0.3),
+        CallEvent(kind="tool_call", t_ms=1700, name="reserve_table", args={"name": "?", "party_size": 2}),
+        CallEvent(kind="tool_result", t_ms=2000, name="reserve_table", ok=True, latency_ms=200,
+                  result={"status": "confirmed", "reservation_id": "RSV-9"}),
+    ])
+    for tr, fid in [(slow, "slow_action"), (dead, "dead_air"), (lowconf, "low_confidence_write")]:
+        found = failure.evaluate(spec, tr)
+        ids = {f.id for f in found}
+        assert fid in ids, f"{tr.call_id}: expected {fid}, got {ids}"
+        assert fid in failure.MONITORING_ONLY
+        assert fid not in {f.id for f in failure.gating(found)}, f"{fid} must NOT gate"
+
+
 def test_law_pipeline_heals_and_routes():
     _run(run_pipeline("t-law", None, False, "law"))
     reports = [e["report"] for e in bus.history("t-law") if e.get("type") == "swarm_report"]

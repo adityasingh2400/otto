@@ -2,7 +2,7 @@
   "business": {
     "name": "Piccino",
     "type": "restaurant",
-    "location": "Dogpatch, San Francisco",
+    "location": "1001 Minnesota St, San Francisco, CA 94107, USA",
     "timezone": "America/Los_Angeles",
     "public_url": "https://www.piccino.com/",
     "disclaimer": "This is a sandbox AI assistant built from public website information for a demo. It is not Piccino's official phone line; reservations and orders are mocked."
@@ -13,67 +13,245 @@
     "tts_voice": ""
   },
   "knowledge": [
-    { "topic": "cuisine", "content": "Italian-inspired California cooking: wood-fired pizza, house pasta, seasonal entrees, and cocktails.", "source_url": "https://www.piccino.com/", "confidence": 0.85 },
-    { "topic": "sourcing", "content": "Emphasis on local and sustainable ingredients; menu changes seasonally.", "source_url": "https://www.piccino.com/", "confidence": 0.8 },
-    { "topic": "services", "content": "Offers dine-in reservations, online ordering for pickup, and gift cards.", "source_url": "https://www.piccino.com/", "confidence": 0.85 },
-    { "topic": "neighborhood", "content": "Located in the Dogpatch neighborhood of San Francisco.", "source_url": "https://www.piccino.com/", "confidence": 0.9 },
-    { "topic": "hours", "content": "Open for lunch and dinner; exact hours vary by day.", "source_url": "https://www.piccino.com/", "confidence": 0.35 }
+    {
+      "topic": "description",
+      "content": "Italian-inspired California cuisine featuring a seasonally driven menu with bright & fresh antipasti, hand-tossed pizza, homemade pasta, mouth-watering entrees, a curated wine selection, and craft cocktails.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "address",
+      "content": "1001 Minnesota St, San Francisco, CA 94107",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "phone",
+      "content": "(415) 824-4224",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "hours",
+      "content": "Dinner: Wednesday \u2014 Sunday 5:00pm \u2014 9:00pm; Lunch: Wednesday \u2014 Friday 11:00am \u2014 2:00pm; Brunch: Saturday \u2014 Sunday 11:00am \u2014 2:00pm; Closed: Mondays & Tuesdays.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "surcharge",
+      "content": "A 6% surcharge is added to all checks to help fund employee benefits; gratuity is optional and shared amongst hourly staff.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "private_events",
+      "content": "Piccino offers private event spaces including the Main Dining Room, Guest House (rooftop patio), Bar Piccino, Bill\u2019s Gym lounge, and private dining rooms The Violetta and The Nora. For inquiries, email events@piccino.com or use the form on the Private Events page.",
+      "source_url": "https://www.piccino.com/privateevents",
+      "confidence": 0.95
+    },
+    {
+      "topic": "bar_catering",
+      "content": "Piccino Bar Catering is a premium bartending and beverage service for private gatherings and events (coming soon).",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "coffee_bar",
+      "content": "Piccino Coffee Bar offers coffee from Bassline Coffee, house-made baked goods, and grab\u2011and\u2011go items from a take\u2011away fridge.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    },
+    {
+      "topic": "farm",
+      "content": "Piccino grows most of its own produce at the Piccino farm in Healdsburg, CA and sources the rest from local farmers and producers.",
+      "source_url": "https://www.piccino.com/about",
+      "confidence": 0.95
+    },
+    {
+      "topic": "mission",
+      "content": "Mission: to serve the best ingredients in a warm and friendly environment that caters to all.",
+      "source_url": "https://www.piccino.com/about",
+      "confidence": 0.95
+    },
+    {
+      "topic": "online_ordering",
+      "content": "Customers can place orders online for takeout or delivery via the 'Order Online' link.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.9
+    },
+    {
+      "topic": "reservations",
+      "content": "Reservations can be made online or by phone; the restaurant accepts reservations for dinner, lunch, and brunch during operating hours.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.9
+    },
+    {
+      "topic": "gift_cards",
+      "content": "Gift cards are available for purchase.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.9
+    },
+    {
+      "topic": "menu_nature",
+      "content": "The menu changes frequently with the season; dishes are made in-house using peak\u2011season produce and sustainably raised meat, poultry, and fish.",
+      "source_url": "https://www.piccino.com/menu",
+      "confidence": 0.95
+    },
+    {
+      "topic": "wine_and_cocktails",
+      "content": "A curated wine list focuses on small producers; craft cocktails are offered from the bar.",
+      "source_url": "https://www.piccino.com/",
+      "confidence": 0.95
+    }
   ],
-  "capabilities": ["reservations", "order_pickup", "gift_cards", "menu_questions", "faq"],
+  "capabilities": [
+    "reservations",
+    "order_pickup",
+    "gift_cards",
+    "menu_questions",
+    "faq"
+  ],
   "tools": [
     {
       "name": "check_menu_item",
       "description": "Check, LIVE from Piccino's website, whether a dish is on the current menu / answer a menu question.",
       "params": [
-        { "name": "item", "type": "string", "description": "the dish or menu question", "required": true }
+        {
+          "name": "item",
+          "type": "string",
+          "description": "the dish or menu question",
+          "required": true
+        }
       ],
       "mock_behavior": {},
-      "execution": { "kind": "live_query", "source_url": "https://www.piccino.com/" }
+      "execution": {
+        "kind": "live_query",
+        "source_url": "https://www.piccino.com/"
+      }
     },
     {
       "name": "check_availability",
       "description": "Check open reservation slots for a date, time, and party size.",
       "params": [
-        { "name": "date", "type": "string", "description": "ISO date", "required": true },
-        { "name": "time", "type": "string", "description": "requested time", "required": true },
-        { "name": "party_size", "type": "integer", "description": "number of guests", "required": true }
+        {
+          "name": "date",
+          "type": "string",
+          "description": "ISO date",
+          "required": true
+        },
+        {
+          "name": "time",
+          "type": "string",
+          "description": "requested time",
+          "required": true
+        },
+        {
+          "name": "party_size",
+          "type": "integer",
+          "description": "number of guests",
+          "required": true
+        }
       ],
-      "mock_behavior": { "available": true, "alternatives": ["7:00 PM", "8:15 PM"] },
-      "execution": { "kind": "stateful", "action": "check_availability" }
+      "mock_behavior": {
+        "available": true,
+        "alternatives": [
+          "7:00 PM",
+          "8:15 PM"
+        ]
+      },
+      "execution": {
+        "kind": "stateful",
+        "action": "check_availability"
+      }
     },
     {
       "name": "reserve_table",
       "description": "Book a table once a slot is confirmed.",
       "params": [
-        { "name": "name", "type": "string", "required": true },
-        { "name": "phone", "type": "string", "required": true },
-        { "name": "date", "type": "string", "required": true },
-        { "name": "time", "type": "string", "required": true },
-        { "name": "party_size", "type": "integer", "required": true },
-        { "name": "notes", "type": "string", "required": false }
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "date",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "time",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "party_size",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "name": "notes",
+          "type": "string",
+          "required": false
+        }
       ],
-      "mock_behavior": { "reservation_id": "RSV-MOCK-1842", "status": "confirmed" },
-      "execution": { "kind": "stateful", "action": "reserve_table" }
+      "mock_behavior": {
+        "reservation_id": "RSV-MOCK-1842",
+        "status": "confirmed"
+      },
+      "execution": {
+        "kind": "stateful",
+        "action": "reserve_table"
+      }
     },
     {
       "name": "send_sms",
       "description": "Send an SMS confirmation to the caller.",
       "params": [
-        { "name": "phone", "type": "string", "required": true },
-        { "name": "body", "type": "string", "required": true }
+        {
+          "name": "phone",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "required": true
+        }
       ],
-      "mock_behavior": { "status": "sent" },
-      "execution": { "kind": "stateful", "action": "send_sms" }
+      "mock_behavior": {
+        "status": "sent"
+      },
+      "execution": {
+        "kind": "stateful",
+        "action": "send_sms"
+      }
     },
     {
       "name": "escalate",
       "description": "Hand off to restaurant staff or take a message.",
       "params": [
-        { "name": "reason", "type": "string", "required": true },
-        { "name": "summary", "type": "string", "required": true }
+        {
+          "name": "reason",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "summary",
+          "type": "string",
+          "required": true
+        }
       ],
-      "mock_behavior": { "status": "queued_for_staff" },
-      "execution": { "kind": "escalate" }
+      "mock_behavior": {
+        "status": "queued_for_staff"
+      },
+      "execution": {
+        "kind": "escalate"
+      }
     }
   ],
   "policies": [
@@ -119,9 +297,21 @@
     }
   ],
   "escalation_rules": [
-    { "id": "esc-complaint", "condition": "the caller has a complaint or is upset", "action": "apologize, take details, and offer to have a manager follow up" },
-    { "id": "esc-refund", "condition": "the caller asks for a refund or to dispute a charge", "action": "take details and escalate to staff; do not promise a refund" },
-    { "id": "esc-press", "condition": "the caller is press or media", "action": "take a message and escalate to management" }
+    {
+      "id": "esc-complaint",
+      "condition": "the caller has a complaint or is upset",
+      "action": "apologize, take details, and offer to have a manager follow up"
+    },
+    {
+      "id": "esc-refund",
+      "condition": "the caller asks for a refund or to dispute a charge",
+      "action": "take details and escalate to staff; do not promise a refund"
+    },
+    {
+      "id": "esc-press",
+      "condition": "the caller is press or media",
+      "action": "take a message and escalate to management"
+    }
   ],
   "safety_rules": [
     "Never provide medical, legal, or dietary-medical advice.",
@@ -132,5 +322,9 @@
     "Employment and hiring questions",
     "Anything unrelated to the restaurant"
   ],
-  "meta": { "version": 1, "parent_version": null, "notes": "Naive v1 extraction. Intentionally weak on allergy guarantee, large-party routing, and availability-guessing — the swarm catches these and the healer patches them." }
+  "meta": {
+    "version": 1,
+    "parent_version": null,
+    "notes": "Naive v1 extraction. Intentionally weak on allergy guarantee, large-party routing, and availability-guessing \u2014 the swarm catches these and the healer patches them."
+  }
 }

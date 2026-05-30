@@ -1,6 +1,6 @@
 """Provider-agnostic LLM wrapper for server-side reasoning (extraction, healing,
-caller simulation, judging). Defaults to OpenAI; Anthropic supported. Bedrock/Gemini
-are marked TODO(team) — flip them on for the AWS track. Imports are lazy + guarded so
+caller simulation, judging). Defaults to NVIDIA Nemotron via NIM (OpenAI-compatible);
+OpenAI/Anthropic/Gemini also supported, Bedrock runs agent-side. Imports are lazy + guarded so
 a missing SDK or key never crashes the orchestrator; callers fall back to static mode.
 """
 
@@ -79,6 +79,147 @@ async def complete_json(system: str, user: str, *, temperature: float = 0.3) -> 
     async def once() -> Any:
         raw = await complete(system, user, json_mode=True, temperature=temperature)
         return _loads_lenient(raw)
+    return await _retry(once)
+
+
+# ── native tool-calling (the trace simulator uses the SAME mechanism the live agent does) ──
+def _oai_client_model() -> tuple[Any, str, str]:
+    """Return (AsyncOpenAI client, model, system_prefix) for the active OpenAI-compatible provider.
+    Tool-calling is only wired for the OpenAI-shaped providers (openai/gemini/nvidia) — the live
+    voice agent calls tools through this exact API (Pipecat's OpenAILLMService on NIM), so the sim
+    matches production. Anthropic/Bedrock have no tool path here → LLMUnavailable (caller falls back)."""
+    provider = config.LLM_PROVIDER
+    try:
+        from openai import AsyncOpenAI
+    except ImportError as e:  # pragma: no cover
+        raise LLMUnavailable("openai SDK not installed") from e
+    if provider == "nvidia":
+        if not config.NVIDIA_API_KEY:
+            raise LLMUnavailable("NVIDIA_API_KEY not set")
+        import os
+        # Prefer the agent's tool-capable Nemotron so the sim's tool-calling fidelity matches the live line.
+        model = os.getenv("AGENT_NVIDIA_MODEL") or config.NVIDIA_MODEL
+        return AsyncOpenAI(api_key=config.NVIDIA_API_KEY, base_url=config.NVIDIA_BASE_URL), model, "detailed thinking off\n\n"
+    if provider == "gemini":
+        if not config.GEMINI_API_KEY:
+            raise LLMUnavailable("GEMINI_API_KEY not set")
+        return (AsyncOpenAI(api_key=config.GEMINI_API_KEY,
+                            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"),
+                config.GEMINI_MODEL, "")
+    if provider == "openai" or config.OPENAI_API_KEY:
+        if not config.OPENAI_API_KEY:
+            raise LLMUnavailable("OPENAI_API_KEY not set")
+        return AsyncOpenAI(api_key=config.OPENAI_API_KEY), config.LLM_MODEL, ""
+    raise LLMUnavailable(f"tool-calling not supported for provider={provider}")
+
+
+def tool_calling_available() -> bool:
+    """True when the active provider has a wired tool-calling path (so the trace sim can run)."""
+    if config.LLM_PROVIDER == "anthropic":
+        return bool(config.ANTHROPIC_API_KEY)
+    try:
+        _oai_client_model()
+        return True
+    except LLMUnavailable:
+        return False
+
+
+# ── Anthropic tool-use: same caller contract, different wire format ──────────────────────────
+def _to_anthropic_tools(tools: list[dict]) -> list[dict]:
+    out = []
+    for t in tools:
+        fn = t.get("function", t)
+        out.append({"name": fn["name"], "description": fn.get("description", ""),
+                    "input_schema": fn.get("parameters") or {"type": "object", "properties": {}}})
+    return out
+
+
+def _to_anthropic_messages(messages: list[dict]) -> list[dict]:
+    """Translate the OpenAI-format running history the sim builds into Anthropic blocks: an
+    assistant `tool_calls` message becomes tool_use blocks; consecutive `tool` messages coalesce
+    into one user message of tool_result blocks. A leading assistant turn (the greeting) is dropped
+    because Anthropic requires the conversation to open on the user role."""
+    out: list[dict] = []
+    for m in messages:
+        role = m.get("role")
+        if role == "tool":
+            block = {"type": "tool_result", "tool_use_id": m.get("tool_call_id", "") or "tool",
+                     "content": m.get("content", "") or ""}
+            if out and out[-1]["role"] == "user" and isinstance(out[-1]["content"], list):
+                out[-1]["content"].append(block)
+            else:
+                out.append({"role": "user", "content": [block]})
+        elif role == "assistant" and m.get("tool_calls"):
+            content: list[dict] = []
+            if m.get("content"):
+                content.append({"type": "text", "text": m["content"]})
+            for tc in m["tool_calls"]:
+                fn = tc["function"]
+                raw = fn.get("arguments", "{}")
+                try:
+                    inp = _loads_lenient(raw) if isinstance(raw, str) else (raw or {})
+                except Exception:
+                    inp = {}
+                content.append({"type": "tool_use", "id": tc.get("id", "") or "tool",
+                                "name": fn["name"], "input": inp if isinstance(inp, dict) else {}})
+            out.append({"role": "assistant", "content": content})
+        else:
+            out.append({"role": role, "content": m.get("content") or ""})
+    while out and out[0]["role"] != "user":  # Anthropic must open on a user turn
+        out.pop(0)
+    return out
+
+
+async def _anthropic_tools(system: str, messages: list[dict], tools: list[dict], temperature: float) -> dict:
+    if not config.ANTHROPIC_API_KEY:
+        raise LLMUnavailable("ANTHROPIC_API_KEY not set")
+    try:
+        from anthropic import AsyncAnthropic
+    except ImportError as e:  # pragma: no cover
+        raise LLMUnavailable("anthropic SDK not installed") from e
+    client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
+    model = config.LLM_MODEL if config.LLM_PROVIDER == "anthropic" else "claude-haiku-4-5"
+    async with _gate():
+        resp = await client.messages.create(
+            model=model, max_tokens=1024, temperature=temperature, system=system,
+            messages=_to_anthropic_messages(messages), tools=_to_anthropic_tools(tools))
+    text = "".join(getattr(b, "text", "") for b in resp.content if getattr(b, "type", "") == "text")
+    calls = [{"id": getattr(b, "id", "") or "", "name": b.name,
+              "args": b.input if isinstance(b.input, dict) else {}}
+             for b in resp.content if getattr(b, "type", "") == "tool_use"]
+    return {"content": text, "tool_calls": calls}
+
+
+async def complete_tools(system: str, messages: list[dict], tools: list[dict],
+                         *, temperature: float = 0.3) -> dict:
+    """One tool-calling turn. `messages` is an OpenAI-format running history (user/assistant/tool);
+    returns the assistant message as {"content": str, "tool_calls": [{"id","name","args"}]}. Raises
+    LLMUnavailable if the provider has no tool path. Retries transient API errors with backoff."""
+    if config.LLM_PROVIDER == "anthropic":
+        return await _retry(lambda: _anthropic_tools(system, messages, tools, temperature))
+
+    client, model, sys_prefix = _oai_client_model()
+    sys_msg = {"role": "system", "content": sys_prefix + system}
+
+    async def once() -> dict:
+        async with _gate():
+            resp = await client.chat.completions.create(
+                model=model, temperature=temperature,
+                messages=[sys_msg, *messages], tools=tools, tool_choice="auto")
+        msg = resp.choices[0].message
+        calls = []
+        for tc in (getattr(msg, "tool_calls", None) or []):
+            fn = getattr(tc, "function", None)
+            if not fn:
+                continue
+            try:
+                args = _loads_lenient(fn.arguments) if isinstance(fn.arguments, str) else (fn.arguments or {})
+            except Exception:
+                args = {}
+            calls.append({"id": getattr(tc, "id", "") or "", "name": fn.name,
+                          "args": args if isinstance(args, dict) else {}})
+        return {"content": msg.content or "", "tool_calls": calls}
+
     return await _retry(once)
 
 

@@ -78,7 +78,8 @@ def safe_apply(spec: AgentSpec, patches: list[Policy], scenarios: list) -> tuple
 
 
 async def heal(session_id: str, spec: AgentSpec, failures: list[dict], round_no: int,
-               fixes: dict[str, Policy] | None = None, scenarios: list | None = None
+               fixes: dict[str, Policy] | None = None, scenarios: list | None = None,
+               extra_patches: list[Policy] | None = None
                ) -> tuple[AgentSpec, list[dict]]:
     await bus.publish(session_id, {"type": "stage", "stage": "heal", "status": "start",
                                    "detail": f"{len(failures)} failures"})
@@ -89,8 +90,10 @@ async def heal(session_id: str, spec: AgentSpec, failures: list[dict], round_no:
     # and an LLM patch wins whenever it actually closes the gap. Without the backstop, a
     # semantically-right LLM patch that misses the keyword the static check greps for would be
     # rejected as ineffective and the loop would stall.
+    # extra_patches are author-by-the-failure fixes the TRACE detectors emitted (the action/outcome
+    # layer) — every one is still regression-guarded by safe_apply below, same as the rest.
     llm_patches = await _llm_patches(spec, failures) if (config.llm_available() and config.HEAL_USE_LLM) else []
-    patches: list[Policy] = llm_patches + _canonical_patches(failures, fixes)
+    patches: list[Policy] = llm_patches + _canonical_patches(failures, fixes) + list(extra_patches or [])
 
     if scenarios:  # regression-guarded path (the real flows always pass a suite)
         new, report = safe_apply(spec, patches, scenarios)

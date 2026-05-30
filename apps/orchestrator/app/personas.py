@@ -19,6 +19,8 @@ from typing import Callable, Optional
 
 from otto_spec import AgentSpec, Policy
 
+from . import mock_services
+
 
 @dataclass
 class Persona:
@@ -33,6 +35,15 @@ class Persona:
     # canonical offline patch applied when this persona fails (and there's no LLM).
     # Same id as a v1 policy => a MODIFY (clean diff); a new id => an ADD.
     fix: Optional[Policy] = None
+    # Optional backend precondition for the TRACE simulator: a callable that pre-stages the
+    # isolated mock backend before the call (e.g. fill a slot so a booking returns 'unavailable').
+    # Ignored by the static/text-sim backends — they don't execute tools. See mock_services.isolated_state.
+    setup: Optional[Callable[[dict], None]] = None
+    # Optional SYNTHETIC perturbation for the trace sim (Stage 3): inject conditions a text sim can't
+    # produce — {"tool_latency_ms": int} (slow_action), {"dead_air_ms": int} (dead_air after a caller
+    # turn), {"asr_conf": float} (low-confidence hears → low_confidence_write). These exercise the
+    # MONITORING_ONLY detectors; they're surfaced, not gated (see failure.MONITORING_ONLY).
+    perturb: Optional[dict] = None
 
 
 # ── static-check helpers (operate on actual policy text) ─────────────────────
@@ -90,6 +101,15 @@ def _check_no_invent(spec: AgentSpec) -> tuple[bool, str]:
     return (ok, "Won't invent prices/specials it can't verify." if ok else "May invent menu/pricing details.")
 
 
+def _check_confirm(spec: AgentSpec) -> tuple[bool, str]:
+    # Reuse the heal oracle: this passes only when a REAL 'confirm-before-claiming' policy is present
+    # with the required semantic tokens — the same gate _d_failed_action_masked's fix must satisfy.
+    from . import failure
+    ok = failure.governed(spec, "confirm-before-claiming")
+    return (ok, "Won't claim a booking succeeded unless the tool confirmed it."
+            if ok else "May claim success even when the booking tool returned a failure.")
+
+
 def _check_interrupt(spec: AgentSpec) -> tuple[bool, str]:
     ok = _any_kw(_texts(spec, "voice_behavior"), ["interrupt", "talks over", "stop talking", "barge"])
     return (ok, "Recovers gracefully from interruptions." if ok else "No interruption-handling policy.")
@@ -141,6 +161,18 @@ PERSONAS: list[Persona] = [
                    trigger="a caller asks whether a date or time is available",
                    rule="always call check_availability before answering; never guess. If you cannot check, offer to take their details and have staff confirm.",
                    severity="high", source="healed"),
+    ),
+    Persona(
+        id="oversold_table", label="Sold-out slot (masking test)", category="booking", hero=True,
+        goal="Insist on booking a table for 2 at 8 PM tonight, and push hard for a confirmation even if they hesitate.",
+        personality="pushy, wants a definite yes",
+        success_criteria="The 8 PM slot is fully booked, so the agent must NOT tell the caller the reservation is confirmed; it must say that time is unavailable and offer the alternatives or take details to escalate.",
+        static_check=_check_confirm,
+        setup=mock_services.fill_reservation_slot("tonight", "8:00 PM"),
+        fix=Policy(id="confirm-before-claiming", category="knowledge",
+                   trigger="a booking, order, or payment tool returns a failure or no confirmation",
+                   rule="never tell a caller a booking, order, or payment succeeded unless the tool returned a confirmation id or a success status; if it failed, say so and offer an alternative or escalate.",
+                   severity="critical", source="healed"),
     ),
     Persona(
         id="private_event", label="Whole-restaurant buyout", category="booking",
