@@ -833,3 +833,67 @@ def test_gate_and_merge_rolls_back_when_the_harness_errors():
         code_heal.TARGET_PATH.write_text(original)
         code_heal._reload_target()
         cfg.CODE_HEAL_MERGE, cfg.CODE_HEAL_COMMIT, swarm.run_swarm = saved
+
+
+def test_voice_anomaly_detectors_classify_paralinguistic_traces():
+    """The dynamic, signal-driven layer: classify HOW a call sounded — accent, shouting, noisy line,
+    felt-slow, language switch, barge-in — from the audio stream, not the transcript."""
+    from app import failure, traces
+    spec = _spec("piccino")
+    expect = {
+        "screaming_caller": "caller_distress",       # conversation: shouting caller not de-escalated
+        "accent_struggle": "unhandled_accent",        # conversation: low intelligibility not adapted to
+        "noisy_line": "background_noise",              # experience: noisy line ignored
+        "perceived_lag": "perceived_latency",          # experience: the call FELT slow
+        "spanish_switch": "language_switch",           # conversation: non-English caller not handled
+        "talked_over": "barge_in_unhandled",           # experience: agent monologued, got cut off
+    }
+    for tid, cls in expect.items():
+        ids = {f.id for f in failure.evaluate(spec, traces.get(tid))}
+        assert cls in ids, f"{tid}: expected {cls}, got {ids}"
+
+
+def test_voice_detectors_noop_without_audio_signal():
+    """A trace with no audio features must never trip a voice-anomaly detector — the paralinguistic
+    layer is additive, so the existing action/outcome traces are untouched."""
+    from app import failure, traces
+    spec = _spec("piccino")
+    voice_ids = {"unhandled_accent", "caller_distress", "background_noise", "barge_in_unhandled", "language_switch"}
+    for tid in ("guessed_availability", "large_party_normal_flow", "pii_in_notes"):  # audio-less action traces
+        ids = {f.id for f in failure.evaluate(spec, traces.get(tid))}
+        assert not (ids & voice_ids), f"{tid}: voice detector fired on an audio-less trace: {ids & voice_ids}"
+
+
+def test_observe_trace_heals_voice_anomaly_end_to_end():
+    """The full production loop on a paralinguistic failure: classify → targeted variations → the
+    failure authors its own voice policy → regression-guarded heal → red-to-green re-verify."""
+    from app import traces
+    from app.observe import observe_trace
+    spec = _spec("piccino")
+    store.set_spec("t-voice", spec)
+    assert store.get_spec("t-voice").get_policy("de-escalate-distress") is None
+    res = _run(observe_trace("t-voice", traces.get("screaming_caller")))
+    assert res["failed"] is True
+    assert "caller_distress" in {f["id"] for f in res["failures"]}
+    assert res["pre_pass"] < res["post_pass"]                                  # targeted probe goes red -> green
+    assert store.get_spec("t-voice").get_policy("de-escalate-distress") is not None  # failure authored its own fix
+
+
+def test_cekura_axis_scenario_reuse():
+    """The production swarm-heal mutates one failure into many variations across a few axes; the
+    Cekura backend must reuse ONE scenario per axis (not mint one per variation) so a real voice run
+    stays cheap and watchable."""
+    from app import cekura, config
+    from app.observe import _variations
+    from app.personas import Persona
+    base = Persona("distress_probe", "Distress", "safety", "goal", "personality", "criteria", lambda s: (True, "ok"))
+    variants = _variations(base, config.PRODUCTION_SWARM_VOLUME)  # 30 variations
+    axes = sorted({v.axis for v in variants})
+    config.CEKURA_AXIS_SCENARIO_MAP = {a: 1000 + i for i, a in enumerate(axes)}  # map axis -> scenario, no network
+    try:
+        scen = _run(cekura._resolve_scenarios(None, variants))  # client unused: everything resolves from the map
+        assert len(scen) == len(variants)                       # every variation resolves to a scenario
+        assert len(set(scen.values())) == len(axes)             # but only one distinct scenario per axis
+        assert len(axes) < len(variants)                        # genuine collapse (10 axes << 30 variations)
+    finally:
+        config.CEKURA_AXIS_SCENARIO_MAP = {}

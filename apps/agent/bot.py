@@ -21,6 +21,15 @@ import time
 import httpx
 from otto_spec import AgentSpec, CallEvent, CallTrace
 
+# Load the repo-root .env so the live agent picks up its provider keys + model ids the same way the
+# orchestrator does — `uv run bot.py` / daily_runner then "just works" without exporting env first.
+# (Guarded: if python-dotenv or the file is absent, the process env still wins.)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(pathlib.Path(__file__).resolve().parents[2] / ".env")
+except Exception:
+    pass
+
 _FAIL_STATUS = {"unavailable", "out_of_stock", "sold_out", "error", "failed", "declined"}
 
 

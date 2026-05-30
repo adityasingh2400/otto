@@ -19,7 +19,7 @@ from .models import (
     diff_specs,
     PolicyDiff,
 )
-from .trace import CallEvent, CallTrace
+from .trace import AudioFeatures, CallEvent, CallTrace
 
 __all__ = [
     "AgentSpec",
@@ -33,6 +33,7 @@ __all__ = [
     "Meta",
     "diff_specs",
     "PolicyDiff",
+    "AudioFeatures",
     "CallEvent",
     "CallTrace",
 ]
