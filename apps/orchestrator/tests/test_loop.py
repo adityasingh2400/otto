@@ -4,6 +4,7 @@ Run:  cd apps/orchestrator && uv run --python 3.12 --with pytest python -m pytes
 """
 
 import asyncio
+import contextlib
 
 from otto_spec import AgentSpec, Business, Meta, Voice
 
@@ -592,3 +593,243 @@ def test_replay_seeding_makes_a_state_dependent_failure_reproduce():
     assert "failed_action_masked" not in {f.id for f in ctrl}, "control should NOT reproduce"
     treat = _run(code_heal.replay(spec, td, None, mock_services))
     assert "failed_action_masked" in {f.id for f in treat}, "seeded replay must reproduce the failure"
+
+
+# ── code-heal: heavy STUBBED coverage of the live agent path (no real LLM calls) ─────────────
+# A scripted edit_file tool-call; [] = the model emitted no tool call.
+def _edit(old, new):
+    return [{"id": "t", "name": "edit_file", "args": {"old_string": old, "new_string": new}}]
+
+
+@contextlib.contextmanager
+def _stub_agent(scripts):
+    """Replace llm.complete_tools with a fake that pops scripted tool_calls and records each model
+    used, and force can_author True — so the whole live orchestration (hops, escalation, retries,
+    verification) runs WITHOUT a single real API call."""
+    from app import llm, config as cfg
+    rec = {"models": [], "calls": 0}
+    queue = list(scripts)
+
+    async def fake(system, messages, tools, *, temperature=0.0, model=None, max_tokens=1024, force_tool=False):
+        rec["models"].append(model)
+        rec["calls"] += 1
+        return {"content": "", "tool_calls": queue.pop(0) if queue else []}
+
+    saved = (llm.complete_tools, llm.tool_calling_available, cfg.llm_available)
+    llm.complete_tools = fake
+    llm.tool_calling_available = lambda: True
+    cfg.llm_available = lambda: True
+    try:
+        yield rec
+    finally:
+        llm.complete_tools, llm.tool_calling_available, cfg.llm_available = saved
+
+
+_IDEM_NEW = _IDEMPOTENT_BLOCK + _RID_ANCHOR          # the new_string a correct fix edit supplies
+_GETINV_LINE = 'def get_inventory(item: str = "", **_) -> dict:'  # a benign unique line for cosmetic edits
+
+
+def _src():
+    from app import code_heal
+    return code_heal.TARGET_PATH.read_text()
+
+
+# --- _run_agent: the edit_file application contract ---
+def test_run_agent_applies_a_valid_unique_edit():
+    from app import code_heal
+    with _stub_agent([_edit(_RID_ANCHOR, _IDEM_NEW)]):
+        new_src, note = _run(code_heal._run_agent([{"role": "user", "content": "x"}], _src(), "m"))
+    assert note == "ok" and new_src is not None and "existing" in new_src
+
+
+def test_run_agent_rejects_unfindable_ambiguous_and_missing():
+    from app import code_heal
+    src = _src()
+    with _stub_agent([_edit("NOT_IN_THE_FILE_AT_ALL", "x")]):
+        ns, note = _run(code_heal._run_agent([{"role": "user", "content": "x"}], src, "m"))
+        assert ns is None and "not found" in note
+    with _stub_agent([_edit("_state()", "x")]):   # appears many times → ambiguous
+        ns, note = _run(code_heal._run_agent([{"role": "user", "content": "x"}], src, "m"))
+        assert ns is None and "multiple" in note
+    with _stub_agent([[{"id": "t", "name": "edit_file", "args": {"new_string": "x"}}]]):  # no old_string
+        ns, note = _run(code_heal._run_agent([{"role": "user", "content": "x"}], src, "m"))
+        assert ns is None and "missing" in note
+    with _stub_agent([[]]):  # model replied with no tool call at all
+        ns, note = _run(code_heal._run_agent([{"role": "user", "content": "x"}], src, "m"))
+        assert ns is None and "no edit_file" in note
+
+
+# --- the hop loop + model escalation (stubbed agent) ---
+def test_live_agent_fixes_on_first_hop():
+    from app import code_heal
+    spec = _spec("piccino")
+    trace, found, _ = _dup_booking_report(spec)
+    with _stub_agent([_edit(_RID_ANCHOR, _IDEM_NEW)]) as rec:
+        out = _run(code_heal.heal_code_for_trace("t-h1", spec, trace, found))
+    assert out["applied"] == ["duplicate_side_effect"]
+    assert rec["calls"] == 1 and rec["models"][0] == config.CODE_HEAL_MODEL
+
+
+def test_live_agent_escalates_to_the_stronger_model_only_after_cheap_hops_fail():
+    from app import code_heal, config as cfg
+    spec = _spec("piccino")
+    trace, found, _ = _dup_booking_report(spec)
+    saved = (cfg.CODE_HEAL_MAX_HOPS, cfg.CODE_HEAL_MODEL, cfg.CODE_HEAL_ESCALATE_MODEL)
+    cfg.CODE_HEAL_MAX_HOPS, cfg.CODE_HEAL_MODEL, cfg.CODE_HEAL_ESCALATE_MODEL = 2, "haiku-x", "sonnet-x"
+    script = [
+        _edit("NOT_IN_FILE", "x"),                              # hop0 (haiku): unapplicable
+        _edit(_GETINV_LINE, _GETINV_LINE + "  # noop"),         # hop1 (haiku): applies but doesn't fix
+        _edit(_RID_ANCHOR, _IDEM_NEW),                          # hop2 (sonnet): the real fix
+    ]
+    try:
+        with _stub_agent(script) as rec:
+            out = _run(code_heal.heal_code_for_trace("t-esc", spec, trace, found))
+        assert out["applied"] == ["duplicate_side_effect"], out
+        assert rec["models"] == ["haiku-x", "haiku-x", "sonnet-x"], rec["models"]
+    finally:
+        cfg.CODE_HEAL_MAX_HOPS, cfg.CODE_HEAL_MODEL, cfg.CODE_HEAL_ESCALATE_MODEL = saved
+
+
+def test_live_agent_gives_up_after_the_ladder_is_exhausted():
+    from app import code_heal, config as cfg
+    spec = _spec("piccino")
+    trace, found, _ = _dup_booking_report(spec)
+    saved = (cfg.CODE_HEAL_MAX_HOPS, cfg.CODE_HEAL_MODEL, cfg.CODE_HEAL_ESCALATE_MODEL)
+    cfg.CODE_HEAL_MAX_HOPS, cfg.CODE_HEAL_MODEL, cfg.CODE_HEAL_ESCALATE_MODEL = 2, "haiku-x", "sonnet-x"
+    cos = _edit(_GETINV_LINE, _GETINV_LINE + "  # noop")
+    try:
+        with _stub_agent([cos, cos, cos]) as rec:   # never fixes it
+            out = _run(code_heal.heal_code_for_trace("t-giveup", spec, trace, found))
+        assert out["applied"] == []
+        assert len(rec["models"]) == 3                # cheap, cheap, escalated — then stop
+        assert "still present" in out["fixes"][0]["reason"]
+    finally:
+        cfg.CODE_HEAL_MAX_HOPS, cfg.CODE_HEAL_MODEL, cfg.CODE_HEAL_ESCALATE_MODEL = saved
+
+
+def test_live_agent_retries_after_an_unapplicable_edit_then_succeeds():
+    from app import code_heal, config as cfg
+    spec = _spec("piccino")
+    trace, found, _ = _dup_booking_report(spec)
+    saved = cfg.CODE_HEAL_ESCALATE_MODEL
+    cfg.CODE_HEAL_ESCALATE_MODEL = ""   # no escalation: prove it recovers within the cheap hops
+    try:
+        with _stub_agent([_edit("NOT_IN_FILE", "x"), _edit(_RID_ANCHOR, _IDEM_NEW)]) as rec:
+            out = _run(code_heal.heal_code_for_trace("t-retry", spec, trace, found))
+        assert out["applied"] == ["duplicate_side_effect"]
+        assert rec["calls"] == 2
+    finally:
+        cfg.CODE_HEAL_ESCALATE_MODEL = saved
+
+
+# --- _verify edge cases (pure replay oracle, no LLM) ---
+def test_verify_rejects_a_syntax_error_patch():
+    from app import code_heal
+    spec = _spec("piccino")
+    trace, _f, _ = _dup_booking_report(spec)
+    v = _run(code_heal._verify(spec, trace.model_dump(), None, "duplicate_side_effect",
+                               _src(), _src() + "\ndef oops(:\n  pass\n", "ut_syn"))
+    assert v["accepted"] is False and "syntax" in v["reason"]
+
+
+def test_verify_rejects_a_patch_that_breaks_the_public_interface():
+    from app import code_heal
+    spec = _spec("piccino")
+    trace, _f, _ = _dup_booking_report(spec)
+    broken = _src().replace("def call(name: str, args: dict) -> dict:",
+                            "def call_RENAMED(name: str, args: dict) -> dict:", 1)
+    v = _run(code_heal._verify(spec, trace.model_dump(), None, "duplicate_side_effect",
+                               _src(), broken, "ut_iface"))
+    assert v["accepted"] is False and "interface" in v["reason"]
+
+
+def test_verify_rejects_a_patch_that_regresses_another_dimension():
+    """Clears duplicate_side_effect but, by making reserve_table always 'unavailable', creates a NEW
+    masking failure (the trace still claims success) → monotonic guard rejects it."""
+    from app import code_heal
+    spec = _spec("piccino")
+    trace, _f, _ = _dup_booking_report(spec)
+    regress = _src().replace(_RID_ANCHOR, '    return {"status": "unavailable", "reason": "x"}\n' + _RID_ANCHOR, 1)
+    v = _run(code_heal._verify(spec, trace.model_dump(), None, "duplicate_side_effect",
+                               _src(), regress, "ut_regress"))
+    assert v["accepted"] is False and "regress" in v["reason"]
+    assert "failed_action_masked" in v["after"]
+
+
+def test_verify_is_inconclusive_when_the_repro_does_not_reproduce():
+    from app import code_heal
+    spec = _spec("piccino")
+    trace, _f, _ = _dup_booking_report(spec)
+    fixed = _idempotent_patch({}, _src())
+    v = _run(code_heal._verify(spec, trace.model_dump(), None, "orphaned_action",
+                               _src(), fixed, "ut_inconc"))
+    assert v["accepted"] is False and "inconclusive" in v["reason"]
+
+
+# --- routing / target selection / no-op behavior ---
+def test_targets_dedup_and_ignore_policy_and_traceless_results():
+    from app import code_heal
+    code_fail = {"id": "duplicate_side_effect", "fix_space": "code"}
+    policy_fail = {"id": "unconfirmed_success", "fix_space": "policy"}
+    report = {"results": [
+        {"persona": "p1", "trace": {"events": []}, "failures": [code_fail]},
+        {"persona": "p1", "trace": {"events": []}, "failures": [code_fail]},   # same (id,persona) → dedup
+        {"persona": "p2", "trace": {"events": []}, "failures": [policy_fail]},  # policy → ignored
+        {"persona": "p3", "failures": [code_fail]},                            # no trace → skipped
+    ]}
+    targets = code_heal._targets_from_report(report, [])
+    assert len(targets) == 1 and targets[0][0]["id"] == "duplicate_side_effect"
+
+
+def test_heal_code_is_a_noop_without_code_space_failures():
+    from app import code_heal
+    spec = _spec("piccino")
+    report = {"results": [{"persona": "p", "trace": {"events": []},
+                           "failures": [{"id": "unconfirmed_success", "fix_space": "policy"}]}]}
+    out = _run(code_heal.heal_code("t-noop2", spec, report, [], 1))
+    assert out["checked"] == 0 and out["applied"] == []
+
+
+def test_heal_code_reports_cleanly_when_no_agent_backend_is_available():
+    from app import code_heal, llm, config as cfg
+    spec = _spec("piccino")
+    trace, found, _ = _dup_booking_report(spec)
+    saved = (llm.tool_calling_available, cfg.llm_available)
+    llm.tool_calling_available = lambda: False
+    cfg.llm_available = lambda: False
+    try:
+        out = _run(code_heal.heal_code_for_trace("t-noback", spec, trace, found))  # no patch_fn, no stub
+        assert out["applied"] == []
+        assert "no coding-agent backend" in out["fixes"][0]["reason"]
+    finally:
+        llm.tool_calling_available, cfg.llm_available = saved
+
+
+def test_accepted_fix_emits_a_code_patch_event():
+    from app import code_heal
+    spec = _spec("piccino")
+    trace, found, _ = _dup_booking_report(spec)
+    _run(code_heal.heal_code_for_trace("t-evt", spec, trace, found, patch_fn=_idempotent_patch))
+    evs = [e for e in bus.history("t-evt") if e.get("type") == "code_patch"]
+    assert evs and evs[0]["fix"]["failure_id"] == "duplicate_side_effect"
+    assert evs[0]["fix"]["accepted"] is True
+
+
+def test_gate_and_merge_rolls_back_when_the_harness_errors():
+    from app import code_heal, swarm, config as cfg
+    spec = _spec("piccino")
+    trace, found, _ = _dup_booking_report(spec)
+    original = code_heal.TARGET_PATH.read_text()
+    saved = (cfg.CODE_HEAL_MERGE, cfg.CODE_HEAL_COMMIT, swarm.run_swarm)
+
+    async def boom(*a, **k):
+        raise RuntimeError("harness down")
+    cfg.CODE_HEAL_MERGE, cfg.CODE_HEAL_COMMIT, swarm.run_swarm = True, False, boom
+    try:
+        out = _run(code_heal.heal_code_for_trace("t-gateerr", spec, trace, found, patch_fn=_idempotent_patch))
+        assert out["merged"] is False
+        assert code_heal.TARGET_PATH.read_text() == original, "a harness error must roll the file back"
+    finally:
+        code_heal.TARGET_PATH.write_text(original)
+        code_heal._reload_target()
+        cfg.CODE_HEAL_MERGE, cfg.CODE_HEAL_COMMIT, swarm.run_swarm = saved
