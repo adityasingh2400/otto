@@ -135,6 +135,17 @@ just words**: whether the agent called the right tools and whether the booking a
 whether the transcript sounded nice. That's how the system catches the call that sounds perfect and
 never booked the table.
 
+**The deepest Cekura feature we leaned on is its Pipecat run path** (`run_scenarios_pipecat`):
+Cekura's simulated voice callers dial straight into the same Daily room our live agent answers on,
+so every test is a real WebRTC voice call against the real pipeline, not a text mock of it. That
+single capability is what lets our "test it and ship the same thing" promise hold up on real audio.
+We pair it with **Cekura's per scenario metrics**: each run reports the **expected outcome** it
+checked and the exact reason it passed or failed, which is the action level signal we care about,
+like whether the right tool got called and whether the booking actually landed. And because Cekura
+can spin up **real world smart scenarios** for a business on demand, both swarms draw from one
+scenario engine, so a fix proven in one is proven in the other. Those three pieces together are
+what turn "the agent feels safe" into "the agent passed a named, repeatable voice test."
+
 ```mermaid
 flowchart TB
   subgraph GEN["① GENERALIZED SWARM · before any real customer"]
