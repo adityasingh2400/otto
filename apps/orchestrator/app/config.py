@@ -30,7 +30,7 @@ SPEC_DIR = _ROOT / "packages" / "spec"
 
 # LLM (server-side reasoning)
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "nvidia")  # default: NVIDIA Nemotron via NIM (theme #1, open-weights)
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
+LLM_MODEL = os.getenv("LLM_MODEL", "")  # default resolved per-provider below (after the model ids are set)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
@@ -40,17 +40,29 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemma-3-27b-it")  # open-weights Gemma
 NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY", "")
 NVIDIA_BASE_URL = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NVIDIA_MODEL = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-3-nano-30b-a3b")  # fast MoE; verified live on build.nvidia.com
+
+# Per-provider default models, so switching LLM_PROVIDER is a ONE-LINER (no need to also re-pin every
+# model var). The swarm fires MANY calls → a FAST model; extraction is one big call → a RICHER one.
+# An explicit LLM_MODEL / SWARM_SIM_MODEL / EXTRACT_MODEL in the env always wins. The footgun this
+# removes: a model id must match its provider — e.g. an "nvidia/…" id or "gpt-4o" sent to the Anthropic
+# client errors — so before, flipping only LLM_PROVIDER=anthropic left these pointing at NVIDIA ids.
+_FAST_DEFAULT = {"anthropic": "claude-haiku-4-5", "openai": "gpt-4o-mini",
+                 "gemini": GEMINI_MODEL, "nvidia": NVIDIA_MODEL}.get(LLM_PROVIDER, NVIDIA_MODEL)
+_RICH_DEFAULT = {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o",
+                 "gemini": GEMINI_MODEL, "nvidia": "nvidia/nemotron-3-super"}.get(LLM_PROVIDER, _FAST_DEFAULT)
+LLM_MODEL = LLM_MODEL or _FAST_DEFAULT  # OpenAI/Anthropic plain default + the trace-sim tool-calling model
+
 # Extraction reads the WHOLE site (≈16k chars) into one structured spec, so it runs on a RICHER
-# reasoning model (Nemotron Super 49B) than the swarm: deeper menus/policies/edge-cases, fewer misses.
-# It's a single call that takes tens of seconds — the dashboard advertises the time and fills the wait.
-EXTRACT_MODEL = os.getenv("EXTRACT_MODEL", "") or ("nvidia/nemotron-3-super" if LLM_PROVIDER == "nvidia" else NVIDIA_MODEL)
+# reasoning model than the swarm: deeper menus/policies/edge-cases, fewer misses. One call, tens of
+# seconds — the dashboard advertises the time and fills the wait.
+EXTRACT_MODEL = os.getenv("EXTRACT_MODEL", "") or _RICH_DEFAULT
 EXTRACT_EXPECTED_S = _i("EXTRACT_EXPECTED_S", 50)  # advertised deep-parse time → drives the live ETA/progress
 # The swarm fires MANY calls (callers + judge, every persona, every heal round); keep those on the
-# configured fast model (NVIDIA_MODEL) so the arena stays live even when EXTRACT_MODEL is a heavier
-# reasoner — set SWARM_SIM_MODEL explicitly to pin a different one. The agent-under-test still answers
-# on AGENT_NVIDIA_MODEL, and the gating verdict is the DETERMINISTIC failure taxonomy
-# (model-independent) — the judge model only adds a conversational second opinion.
-SWARM_SIM_MODEL = os.getenv("SWARM_SIM_MODEL", "") or NVIDIA_MODEL
+# FAST model so the arena stays live even when EXTRACT_MODEL is a heavier reasoner — set SWARM_SIM_MODEL
+# explicitly to pin a different one. The agent-under-test answers on AGENT_NVIDIA_MODEL (nvidia) or
+# LLM_MODEL (others), and the gating verdict is the DETERMINISTIC failure taxonomy (model-independent) —
+# the judge model only adds a conversational second opinion.
+SWARM_SIM_MODEL = os.getenv("SWARM_SIM_MODEL", "") or _FAST_DEFAULT
 CRAWL_MAX_PAGES = _i("CRAWL_MAX_PAGES", 6)  # pages to crawl when extracting from a website
 # LLM resilience — server-side reasoning is latency-tolerant, so retry transient API errors (429/
 # timeout/5xx) AND unparseable output with backoff, and cap outbound concurrency so a burst (many

@@ -37,6 +37,17 @@ _SEV_RANK = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 # Production (observe.py) still reports AND heals them — that's where they belong: live observability.
 MONITORING_ONLY = frozenset({"slow_action", "dead_air", "low_confidence_write", "perceived_latency"})
 
+# TERMINAL/completeness failures: ones that reason about the END of a call — a follow-through that
+# never came, an unanswered final question, an ending left unresolved. They're correct on a COMPLETE
+# trace but produce false positives on an IN-FLIGHT partial, where the "missing" event is simply
+# coming next ("let me check…" before the tool call; a tool_call before its result). The live
+# channel skips these while a call is in progress and evaluates them once at hang-up, where they're
+# authoritative — so the real-time detection never flags something the agent is about to do.
+TERMINAL_ONLY = frozenset({
+    "orphaned_action", "promised_action_not_taken",
+    "ended_on_unanswered_question", "unmet_goal_no_escalation",
+})
+
 # CODE-SPACE failures: ones a prompt can't fix because the gap is a TOOL-LAYER invariant, not the
 # agent's judgment. You can't instruct a model into idempotency, a tool that always returns, or a
 # secure boundary — those are guarantees code makes, not rules a prompt follows. These route to the

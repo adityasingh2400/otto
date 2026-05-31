@@ -25,6 +25,30 @@ def _af(**kw) -> AudioFeatures:
 
 # id -> {label (button text), vertical, trace}
 TRACES: dict[str, dict] = {
+    # The happy path (NOT a failure) — the reference for the tool-calling thought process: the agent
+    # narrates before it looks anything up ("let me check…"), the lookup + booking show as resolving
+    # thinking blocks, and it comes back with the answer in plain words. Replays clean (no heal).
+    "happy_availability": {
+        "label": "✅ live call: asks availability → checks → books",
+        "vertical": "restaurant",
+        "trace": CallTrace(call_id="live-happy-availability", events=_t(
+            {"kind": "say", "t_ms": 0, "text": "Thanks for calling Piccino, how can I help?"},
+            {"kind": "hear", "t_ms": 1600, "text": "Hi! Is there a table for four at 8 tonight?"},
+            {"kind": "say", "t_ms": 2200, "text": "Sure — let me check that for you, one sec."},
+            {"kind": "tool_call", "t_ms": 2500, "name": "check_availability",
+             "args": {"date": "tonight", "time": "8:00 PM", "party_size": 4}},
+            {"kind": "tool_result", "t_ms": 2920, "name": "check_availability", "ok": True, "latency_ms": 420,
+             "result": {"available": True, "tables_left": 3}},
+            {"kind": "say", "t_ms": 3200, "text": "Yes, 8 o'clock works for four — want me to book it?"},
+            {"kind": "hear", "t_ms": 4600, "text": "Yes please, under Sam."},
+            {"kind": "say", "t_ms": 5100, "text": "Got it — booking that now."},
+            {"kind": "tool_call", "t_ms": 5300, "name": "reserve_table",
+             "args": {"name": "Sam", "date": "tonight", "time": "8:00 PM", "party_size": 4}},
+            {"kind": "tool_result", "t_ms": 5680, "name": "reserve_table", "ok": True, "latency_ms": 380,
+             "result": {"status": "confirmed", "reservation_id": "RSV-2048"}},
+            {"kind": "say", "t_ms": 6000, "text": "You're all set, Sam — table for four at 8 tonight. See you then!"},
+        )),
+    },
     "booked_soldout": {
         "label": "⚠ live call: confirmed a sold-out table",
         "vertical": "restaurant",

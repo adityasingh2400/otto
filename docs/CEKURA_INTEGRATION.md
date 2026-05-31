@@ -120,16 +120,20 @@ Two valid bridge strategies for B2:
 
 ---
 
-## Known bug to fix on the live path (independent of Cekura, but blocks honest voice metrics)
+## Live-path trace grounding — DONE (2026-05-30, ROADMAP #3)
 
-`bot.py:_report_to_orchestrator` reconstructs the trace with **fabricated timestamps**
-(`t_ms = i*1500`). So on the real-agent path the experience detectors (`_d_dead_air`,
-`_d_slow_action`, `perceived_latency`) and any latency claim run on made-up timing. Ground
-`CallTrace` in Pipecat's `BaseObserver`/turn+latency observers (metrics already half-on via
-`enable_metrics=True`). Fixture traces (`traces.py`) carry real `t_ms`, so demo replays are fine —
-this only hardens the live path. (ROADMAP #3.)
+`bot.py` used to reconstruct the trace with fabricated `t_ms = i*1500`, so on the real-agent path the
+experience detectors (`dead_air`, `slow_action`, `perceived_latency`) ran on made-up timing. Now the
+live taps (`_LiveTap`/`_AgentTap`) + tool handler record each finalized hear/say/tool into `rec` with
+its **real monotonic `t_ms`** (sourced from the Pipecat frame stream — the agent turn stamped at
+`LLMFullResponseStartFrame`, i.e. when the caller stops waiting), and `_report_to_orchestrator` builds
+the trace from that real event log — falling back to the `i*1500` reconstruction ONLY if taps captured
+nothing (e.g. the s2s pipeline, which has no taps). Verified: a 6.2s silence the old path was blind to
+now fires `dead_air` + `perceived_latency`; taps confirmed against pipecat 1.3.0 via `run_test`;
+orchestrator suite green (50). Fixture traces (`traces.py`) already carried real `t_ms`, so demo
+replays were always fine — this hardens the LIVE path that feeds the production heal loop.
 
-## Files when wiring
+## Files when wiring (Cekura)
 `main.py` (+`POST /cekura/webhook`) · `cekura.py` (`observe()` agent_id/recording; surface scores in
-`run_suite`) · `observe.py` (B1 call site) · `bot.py` (observer-sourced trace) · `daily_runner.py`
-(confirm Daily params) · `tests/test_loop.py` (API-path + webhook tests) · `.env(.example)` (creds/maps).
+`run_suite`) · `observe.py` (B1 call site) · `daily_runner.py` (friend owns — confirm Daily params) ·
+`tests/test_loop.py` (API-path + webhook tests) · `.env(.example)` (friend owns Cekura/Daily creds).

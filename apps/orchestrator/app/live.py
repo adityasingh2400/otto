@@ -93,7 +93,9 @@ async def ingest(session_id: str, ev: dict) -> dict:
         except Exception:
             found = []
         for f in found:
-            if f.id in st["seen"]:
+            # terminal/completeness failures are still being "decided" mid-call — the follow-through
+            # may be the very next event. Skip them now; _finalize re-checks them at hang-up.
+            if f.id in st["seen"] or f.id in failure.TERMINAL_ONLY:
                 continue
             st["seen"].add(f.id)
             await bus.publish(session_id, {"type": "live_detect", "failure": f.to_dict(),
@@ -108,9 +110,25 @@ async def _finalize(session_id: str, scenario: str) -> dict:
     """Call ended: assemble the trace, run the existing heal loop, record it in the feed."""
     st = _state(session_id)
     events = list(st.get("events", []))
+    seen = set(st.get("seen", set()))
     _LIVE.pop(session_id, None)
     n = len(_CALLS.get(session_id, ())) + 1
     trace = CallTrace(call_id=f"live-{n}", events=events)
+
+    # Now the call has ended, the terminal/completeness detectors are authoritative — announce any
+    # GENUINE ones live (they were suppressed mid-call so we never flagged a follow-through the agent
+    # was about to make). On a clean call this finds nothing, so the happy path stays card-free.
+    spec = store.get_spec(session_id)
+    if spec is not None:
+        try:
+            final = failure.evaluate(spec, trace)
+        except Exception:
+            final = []
+        for f in final:
+            if f.id in failure.TERMINAL_ONLY and f.id not in seen:
+                await bus.publish(session_id, {"type": "live_detect", "failure": f.to_dict(),
+                                               "gating": f.id not in failure.MONITORING_ONLY})
+
     await bus.publish(session_id, {"type": "live_end", "call_id": trace.call_id})
 
     from .observe import observe_trace

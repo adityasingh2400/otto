@@ -140,7 +140,23 @@ class AgentSpec(BaseModel):
         lines.append("# Manner")
         lines.append(
             f"{self.voice.persona}. This is a phone call: keep replies short and "
-            "natural, ask one question at a time, and confirm details back."
+            "natural, ask one question at a time, and confirm details back. Don't talk "
+            "over the caller — if they cut in, stop and listen. Sprinkle brief "
+            "acknowledgements ('sure', 'got it', 'mm-hm') so the line never feels dead. "
+            "Stay low-key and even — a real neighborhood host, not a hype machine; skip the "
+            "'Perfect!', 'Amazing!', 'Great news!' energy and let good news land casually."
+        )
+
+        lines.append("\n# Language — speak the caller's language")
+        lines.append(
+            "Open in English, but the MOMENT the caller speaks another language, switch and reply "
+            "ENTIRELY in that language, and stay in it for the rest of the call. Mandarin → reply in "
+            "Mandarin, Hindi → Hindi, German → German, Spanish → Spanish, and so on — mirror whatever "
+            "they use, every turn, including tool narration and confirmations. If the caller signals "
+            "they don't speak English or asks for another language but you can't tell which, ask which "
+            "they'd prefer (\"Sure — what language would you like? Spanish, Mandarin, Hindi…?\") and "
+            "then continue in their choice. Keep names, dates, times, numbers, and any IDs accurate "
+            "when you switch."
         )
 
         if self.capabilities:
@@ -157,6 +173,20 @@ class AgentSpec(BaseModel):
                 kind = (t.execution or {}).get("kind")
                 tag = " [live lookup]" if kind == "live_query" else (" [action]" if kind == "stateful" else "")
                 lines.append(f"- {t.name}({ps}): {t.description}{tag}")
+            lines.append(
+                "\n## Using a tool on the call — narrate it, don't go silent\n"
+                "A lookup takes a moment, and dead air on a phone call feels broken. So when you "
+                "need a tool:\n"
+                "1. FIRST say a short, natural line that you're on it — e.g. \"Sure, let me check "
+                "that for you, one sec\" or \"Let me pull that up\". Then call the tool.\n"
+                "2. When the result comes back, tell the caller the ANSWER in plain words — never "
+                "read raw fields, ids, or JSON aloud. Keep it CASUAL and matter-of-fact, the way a "
+                "busy host would — don't celebrate or over-sell it. \"Yep, 8 o'clock works — want me "
+                "to grab it?\" — NOT \"Fantastic news! You're in luck!\". No exclamation-mark energy.\n"
+                "3. If the tool fails, times out, or comes back empty, say so honestly and offer an "
+                "alternative or to connect them. Never claim an action worked when the result "
+                "didn't confirm it."
+            )
 
         if self.knowledge:
             lines.append("\n# Knowledge — answer these directly from memory; do NOT call a tool for them")
@@ -175,6 +205,13 @@ class AgentSpec(BaseModel):
                 group = [p for p in self.policies if p.category == cat]
                 if not group:
                     continue
+                # the Greeting section owns the opener now — drop any call-start/greeting policy so it
+                # can't re-introduce the capability rundown or demo disclaimer we deliberately cut.
+                group = [p for p in group if not (cat == "voice_behavior" and any(
+                    w in p.trigger.lower() for w in ("call start", "call begins", "greet",
+                                                     "starts the call", "begins the call", "start of the call")))]
+                if not group:
+                    continue
                 lines.append(f"## {cat.replace('_', ' ').title()}")
                 for p in group:
                     lines.append(f"- When {p.trigger}: {p.rule}")
@@ -191,7 +228,17 @@ class AgentSpec(BaseModel):
             lines.append("\n# Out of scope — politely decline")
             lines += [f"- {o}" for o in self.out_of_scope]
 
-        lines.append(f'\n# Greeting (say this first)\n"{self.voice.greeting}"')
+        # Greeting: ONE short, casual welcome — no capability rundown, no disclaimer up front. A
+        # warm "hey, welcome to X, how can I help?" is the whole opener; it sets the tone and hands
+        # the floor straight back to the caller. (The demo/AI disclosure is only offered if asked.)
+        greet = f"Hey, thanks for calling {self.business.name} — how can I help you today?"
+        lines.append(
+            "\n# Greeting (say this FIRST, then stop and let the caller talk)\n"
+            f'Open with ONE short, warm line and nothing more: "{greet}"\n'
+            "Do NOT list what you can do, run through your capabilities, or give any disclaimer in "
+            "the opener — just welcome them and ask how you can help. (Only if a caller directly "
+            "asks whether you're a real person or the official line, tell them you're an AI assistant.)"
+        )
         return "\n".join(lines)
 
 

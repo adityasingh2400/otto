@@ -141,6 +141,25 @@
   .tline .conf{margin-left:auto;font-size:10.5px;color:var(--danger);white-space:nowrap;font-weight:700}
   .disf{color:var(--danger);font-weight:700;background:var(--gold-light);border-radius:3px;padding:0 2px}
   .cursor{animation:blink 1s steps(1) infinite;color:var(--maroon)}@keyframes blink{50%{opacity:0}}
+  /* the agent's visible "thought process": a tool call appears as a thinking block the instant it
+     fires, then resolves in place when the result lands. */
+  .think{margin:6px 0 6px 60px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:9px;padding:7px 11px;box-shadow:var(--sh-sm);animation:pop .3s ease both;font:500 12.5px var(--mono)}
+  .think.pending{border-left-style:dashed}
+  .think.ok{border-left-color:var(--pass-d)} .think.fail{border-left-color:var(--danger);background:var(--danger-bg)}
+  .think .th{display:flex;gap:7px;align-items:baseline;color:var(--ink);font-weight:700}
+  .think .lat{margin-left:auto;color:var(--ink-fade);font-weight:500;white-space:nowrap}
+  .think .targs{color:var(--ink-fade);font-weight:500;margin-top:2px}
+  .think .tres{margin-top:3px;color:var(--ink-soft)}
+  .think.fail .tres{color:var(--danger);font-weight:700}
+  .spin{display:inline-block;animation:spin 1.1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+  /* deployed line — the callable number, front and centre */
+  .livenum{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--pass-bg);border:1px solid var(--pass);border-radius:14px;padding:14px 18px;margin:0 0 16px;box-shadow:var(--sh-sm);animation:pop .35s ease both}
+  .livenum .ln-dot{width:11px;height:11px;border-radius:50%;background:var(--pass-d);box-shadow:0 0 0 0 rgba(46,160,67,.55);animation:lnpulse 1.6s infinite}
+  @keyframes lnpulse{0%{box-shadow:0 0 0 0 rgba(46,160,67,.5)}70%{box-shadow:0 0 0 11px rgba(46,160,67,0)}100%{box-shadow:0 0 0 0 rgba(46,160,67,0)}}
+  .livenum .ln-label{font:700 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--pass-d)}
+  .livenum .ln-num{font:700 26px var(--display,var(--sans));color:var(--ink);text-decoration:none;letter-spacing:.5px}
+  .livenum .ln-num:hover{color:var(--maroon)}
+  .livenum .ln-hint{margin-left:auto;font:500 12px var(--sans);color:var(--ink-soft);max-width:300px;text-align:right}
   .detectcol{display:flex;flex-direction:column;gap:9px}
   .dcard{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--danger);border-radius:9px;padding:9px 11px;box-shadow:var(--sh-sm);animation:pop .35s ease both}
   .dcard.monitor{border-left-color:var(--gold)}
@@ -149,6 +168,69 @@
   @keyframes pop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
   .callrow{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);font:500 13px var(--mono)}
   .callrow:last-child{border-bottom:0}
+  /* ── new live phase ── */
+  .live-wrap{display:flex;flex-direction:column;gap:28px;padding-top:4px}
+  .live-hero{text-align:center;padding:52px 20px 36px;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .live-hero .lh-label{font:600 13px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-fade)}
+  .live-hero .lh-num{font:700 52px var(--display);color:var(--ink);text-decoration:none;letter-spacing:.5px;line-height:1;transition:color .18s}
+  .live-hero .lh-num:hover{color:var(--maroon)}
+  .live-hero .lh-hint{font:400 14px var(--serif);font-style:italic;color:var(--ink-fade);margin-top:2px}
+  .live-analytics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  @media(max-width:760px){.live-analytics{grid-template-columns:repeat(2,1fr)}}
+  .la-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--sh-md)}
+  .la-card .la-v{font:700 32px var(--display);color:var(--ink);line-height:1}
+  .la-card .la-v.live-accent{color:var(--maroon)}
+  .la-card .la-v.pass-accent{color:var(--pass-d)}
+  .la-card .la-l{font:600 11px var(--sans);color:var(--ink-soft);margin-top:7px;text-transform:uppercase;letter-spacing:.04em}
+  .la-card .la-sub{font:500 11px var(--mono);color:var(--ink-fade);margin-top:3px;min-height:14px}
+  .la-sparkline{display:flex;align-items:flex-end;gap:3px;height:36px;margin-top:10px}
+  .la-sparkline .spbar{flex:1;background:var(--maroon);border-radius:3px 3px 0 0;min-height:3px;transition:height .35s,opacity .35s;opacity:.7}
+  .la-sparkline .spbar.empty{background:var(--line2);opacity:.5}
+  #livecalls-section{display:flex;flex-direction:column;gap:10px}
+  #livecalls-section .lcs-head{display:flex;align-items:center;gap:10px}
+  #livecalls-section .lcs-title{font:700 13px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--ink-fade)}
+  #livecalls{display:flex;flex-direction:column;gap:10px}
+  .call-node{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 20px;cursor:pointer;box-shadow:var(--sh-md);animation:rise .35s both;transition:border-color .25s,box-shadow .25s;display:flex;align-items:center;gap:14px;outline:none}
+  .call-node:hover{border-color:var(--maroon-l);box-shadow:var(--sh-lg)}
+  .call-node:focus{border-color:var(--maroon);box-shadow:0 0 0 3px rgba(122,27,45,.12)}
+  .call-node .cn-status{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .cn-live-dot{width:12px;height:12px;border-radius:50%;background:#e0303a;animation:lpulse 1.2s infinite}
+  .cn-done-dot{width:12px;height:12px;border-radius:50%;background:var(--pass-d)}
+  .cn-done-dot.fail{background:var(--danger)}
+  .call-node .cn-info{flex:1;min-width:0}
+  .cn-scenario{font:600 14px var(--sans);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cn-meta{font:500 11px var(--mono);color:var(--ink-fade);margin-top:3px}
+  .cn-outcome{margin-left:auto;flex:0 0 auto;font:600 11px var(--mono);padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .cn-outcome.clean{background:var(--pass-bg);color:var(--pass-d)}
+  .cn-outcome.caught{background:var(--gold-light);color:var(--gold)}
+  .cn-outcome.live-badge{background:var(--danger);color:#fff;animation:lpulse-bg 1.3s infinite}
+  @keyframes lpulse-bg{0%,100%{opacity:1}50%{opacity:.7}}
+  .cn-arrow{flex:0 0 auto;color:var(--ink-fade);font-size:12px}
+  /* modal */
+  #call-modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+  #call-modal.open{display:flex;animation:fadein .2s both}
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+  .modal-backdrop{position:absolute;inset:0;background:rgba(42,10,16,.45);backdrop-filter:blur(4px)}
+  .modal-card{position:relative;z-index:1;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh-lg);width:100%;max-width:760px;max-height:90vh;display:flex;flex-direction:column;animation:pop .25s ease both}
+  .modal-header{display:flex;align-items:center;gap:12px;padding:18px 22px 14px;border-bottom:1px solid var(--line)}
+  .modal-header .mh-title{font:600 16px var(--display);color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .modal-header .mh-status{font:600 11px var(--mono);padding:4px 10px;border-radius:999px}
+  .mh-status.live-badge{background:var(--danger);color:#fff}
+  .mh-status.clean{background:var(--pass-bg);color:var(--pass-d)}
+  .mh-status.caught{background:var(--gold-light);color:var(--gold)}
+  .modal-header .mh-timer{font:600 13px var(--mono);color:var(--ink-fade)}
+  .modal-close{background:none;border:0;cursor:pointer;color:var(--ink-fade);font-size:20px;line-height:1;padding:4px 8px;border-radius:8px;transition:color .15s,background .15s}
+  .modal-close:hover{color:var(--ink);background:var(--line)}
+  .modal-body{flex:1;overflow-y:auto;padding:16px 22px 20px;display:grid;grid-template-columns:1.6fr 1fr;gap:14px}
+  @media(max-width:580px){.modal-body{grid-template-columns:1fr}}
+  .modal-transcript{font:500 13px var(--mono);display:flex;flex-direction:column;gap:0}
+  .modal-detections{display:flex;flex-direction:column;gap:8px}
+  .modal-section-label{font:700 10px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--ink-fade);margin-bottom:8px}
+  /* sim row on live page */
+  .live-sim-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .live-sim-row .ls-label{font:500 12px var(--serif);font-style:italic;color:var(--ink-fade)}
+  .live-sim-row .sbtn{font:600 11px var(--sans);color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:6px 11px;cursor:pointer;box-shadow:var(--sh-sm);transition:border-color .15s,color .15s}
+  .live-sim-row .sbtn:hover{border-color:var(--maroon-l);color:var(--maroon)}
   /* ── phase machine: one phase full-screen at a time, smooth replace ── */
   .pstep{display:flex;gap:7px;align-items:center;margin-left:24px}
   .pstep .pchip{font:600 11px var(--mono);letter-spacing:.04em;color:var(--ink-fade);padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);transition:.3s;cursor:default}
@@ -171,8 +253,8 @@
   main.ph-parse .parse-hero{display:grid}
   main.ph-swarm .metrics{display:grid}
   main.ph-swarm .lineage{display:flex}
-  .improve{margin-top:14px;font:500 13px var(--sans);color:var(--ink-soft);background:linear-gradient(180deg,#fff,var(--pass-bg));border:1px solid var(--line);border-radius:13px;padding:14px 18px;box-shadow:var(--sh-sm);animation:rise .4s both}
-  main.ph-swarm .improve:empty{display:none}
+  main.ph-live .live-wrap{display:flex}
+  .improve{margin-top:14px;font:500 13px var(--sans);color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-left:4px solid var(--pass);border-radius:13px;padding:13px 16px;box-shadow:var(--sh-sm);animation:rise .4s both}
   .improve b{font:600 17px var(--display);color:var(--ink)}
   .improve .ip{font:700 13px var(--mono);color:var(--pass-d);background:var(--pass-bg);border-radius:8px;padding:3px 9px;margin-left:7px}
   .improve .im{color:var(--ink-fade);font-size:12px;display:block;margin-top:5px}
@@ -330,7 +412,8 @@
     .runbar{flex-wrap:wrap;gap:10px}.runbar .rb-right{margin-left:0;width:100%}
     .banner{flex-wrap:wrap}.banner .report-link{margin-left:0}.banner .num{margin-left:auto}
   }
-  @media(max-width:440px){.metrics{grid-template-columns:1fr}}
+  @media(max-width:440px){#arena{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}}
+  #health,#vbadge{display:none!important}  /* status + archetype pills hidden per request */
 </style>
 </head>
 <body>
@@ -387,7 +470,56 @@
   <div class="profile" id="profile" data-phase="parse"><div class="muted">the business profile fills in as Otto reads the site…</div></div>
   <div class="phase-head" data-phase="swarm"><h2>Pre-production swarm test</h2><p>Synthetic callers — archetyped to this business — attack the agent before it ever takes a real call. Every failure is patched and the swarm re-run, until it clears the safety gate.</p></div>
   <div class="phase-head" data-phase="review"><h2>Your agent is ready</h2><p>It cleared the safety gate. Review what it can and can't do, then put it live — you decide when the line goes on.</p></div>
-  <div class="phase-head" data-phase="live"><h2>Live · call the number</h2><p id="live-sub">As you talk, the transcript streams word-by-word and the failure engine fires the instant it catches something — then heals.</p></div>
+  <div data-phase="live" class="live-wrap" id="live-wrap">
+    <!-- hero: phone number centered -->
+    <div class="live-hero" id="live-hero">
+      <div class="lh-label">Your line is live — callers reach the agent at</div>
+      <a class="lh-num" id="livenum-a" href="#">—</a>
+      <div class="lh-hint">calls appear here the moment they come in</div>
+    </div>
+
+    <!-- analytics row -->
+    <div class="live-analytics" id="live-analytics">
+      <div class="la-card">
+        <div class="la-v" id="la-total">—</div>
+        <div class="la-l">Total calls</div>
+        <div class="la-sub" id="la-total-sub">no calls yet</div>
+      </div>
+      <div class="la-card">
+        <div class="la-v live-accent" id="la-live">0</div>
+        <div class="la-l">Live now</div>
+        <div class="la-sub" id="la-live-sub">—</div>
+      </div>
+      <div class="la-card">
+        <div class="la-v" id="la-avg">—</div>
+        <div class="la-l">Avg turns / call</div>
+        <div class="la-sub" id="la-avg-sub">—</div>
+      </div>
+      <div class="la-card">
+        <div class="la-v pass-accent" id="la-healed">—</div>
+        <div class="la-l">Caught &amp; healed</div>
+        <div class="la-sub" id="la-healed-sub">—</div>
+      </div>
+      <div class="la-card" style="grid-column:span 1">
+        <div class="la-l" style="margin-bottom:6px">Call volume</div>
+        <div class="la-sparkline" id="la-spark"></div>
+        <div class="la-sub" id="la-spark-sub">last 12 calls</div>
+      </div>
+    </div>
+
+    <!-- live + recent calls -->
+    <div id="livecalls-section">
+      <div class="lcs-head">
+        <div class="lcs-title">Active &amp; recent calls</div>
+      </div>
+      <div id="livecalls"><div class="muted" style="font-family:var(--serif);font-style:italic">calls appear here the moment they come in</div></div>
+    </div>
+
+    <!-- unobtrusive simulate row -->
+    <div class="live-sim-row" id="live-simrow">
+      <span class="ls-label">▶ simulate an incoming call:</span>
+    </div>
+  </div>
 
   <div class="agentcard" data-phase="review" id="agentcard"><div class="muted">building the agent card…</div></div>
   <button class="btn deploy" data-phase="review" id="deploy">🚀 Deploy this agent — put the line live</button>
@@ -405,42 +537,32 @@
   <div class="grid">
     <div class="panel" data-phase="parse"><h3>Extraction</h3><div id="facts"><div class="muted">waiting…</div></div></div>
     <div class="panel" data-phase="parse"><h3>Agent taking shape</h3><div id="agent"><div class="muted">greeting + policies appear after build</div></div></div>
-    <div class="panel span2 arena-panel" data-phase="swarm"><h3>Swarm arena <span class="roundtag" id="roundtag"></span></h3>
-      <div class="runbar" id="runbar"><span class="rb-round" id="rb-round">running the swarm…</span><span class="rb-counts" id="rb-counts"></span><span class="rb-right"><span class="rb-pct" id="rb-pct"></span><span class="rb-track" id="rb-track"></span></span></div>
-      <div id="arena"><div class="muted">synthetic callers appear here, archetyped to the business</div></div></div>
-    <div class="panel compact-panel fail-panel" data-phase="swarm"><h3>Failure map</h3><div id="failmap"><div class="muted">no failures yet</div></div></div>
-    <div class="panel compact-panel diff-panel" data-phase="swarm"><h3>Auto-patch diff</h3><div id="diffs"><div class="muted">policies the healer rewrote appear here</div></div></div>
-    <div class="panel span2" data-phase="live" id="prod">
-      <h3>Production loop — every live call is evaluated</h3>
-      <div class="muted">A failure on a real call triggers a targeted, high-volume swarm-heal on that one thing. Replay a live call — a tricky <b>voice</b> moment:</div>
-      <div class="pbtns" id="pbtns"></div>
-      <div class="muted" style="margin-top:12px">…or a call where the voice was fine but the <b>action</b> went wrong (the event stream tells the truth):</div>
-      <div class="pbtns" id="tracebtns"></div>
-      <div id="pstatus"></div>
-    </div>
-    <div class="panel span2" data-phase="live"><h3>Failure taxonomy · live-call analysis</h3>
-      <div class="muted">Every call is classified across four dimensions — what it <b>said</b>, what it <b>did</b>, the <b>outcome</b>, and the <b>experience</b>. A perfect-sounding call still fails if the action was wrong, slow, unauthorized, or never happened.</div>
-      <div class="fdims" id="fdims"></div>
-      <div id="failstatus"></div>
-      <div id="failreport"><div class="muted">replay a live call above to classify it across the failure taxonomy</div></div>
-    </div>
-    <div class="panel span2" data-phase="live"><h3>Business actions · live mock backend</h3>
-      <div class="muted">The agent's real tools, this business's set — call one against the stateful backend (book a slot and watch availability drop, sell it out, deplete stock). The live phone agent shares this exact store.</div>
-      <div class="pbtns" id="abtns"><div class="muted">the agent's tools appear here after build</div></div>
-      <div id="astatus" class="muted" style="margin-top:8px;font-family:var(--mono)"></div>
-      <div id="oalerts" class="muted" style="margin-top:6px;font-family:var(--mono);color:var(--maroon)"></div>
-    </div>
-    <div class="panel span2" data-phase="live" id="livepanel"><h3>Live call — real-time transcription + detection<span class="livedot" id="livedot"></span></h3>
-      <div class="muted">Watch a call <b>as it happens</b>: the transcript streams word-by-word (verbatim — we keep the <i>uhhs</i> and <i>ehms</i> a normal transcriber scrubs) and the failure engine fires <b>the instant</b> it catches an error — an accent it can't parse, a shouting caller, a booking it faked. No phone needed to see it.</div>
-      <div class="simrow"><span class="muted">▶ simulate a live call:</span><span class="pbtns" id="simbtns"></span></div>
-      <div id="livekv" class="muted" style="font:500 12px var(--mono);margin-top:4px"></div>
-      <div id="livestage">
-        <div id="livetranscript" class="transcript"><div class="muted">call the live number, or hit “simulate” above</div></div>
-        <div id="livedetect" class="detectcol"><div class="muted">detections fire here, live</div></div>
+    <div class="panel span2" data-phase="swarm"><h3>Swarm arena <span class="roundtag" id="roundtag"></span></h3><div id="arena"><div class="muted">synthetic callers appear here, archetyped to the business</div></div></div>
+    <div class="panel" data-phase="swarm"><h3>Failure map</h3><div id="failmap"><div class="muted">no failures yet</div></div></div>
+    <div class="panel" data-phase="swarm"><h3>Auto-patch diff</h3><div id="diffs"><div class="muted">policies the healer rewrote appear here</div></div></div>
+    <!-- live panels removed; replaced by live-wrap above -->
+  </div>
+
+  <!-- transcript modal (outside phase machine, always in DOM) -->
+  <div id="call-modal" role="dialog" aria-modal="true" aria-label="Call transcript">
+    <div class="modal-backdrop" id="modal-backdrop"></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="mh-title" id="modal-title">Call</div>
+        <div class="mh-status" id="modal-status"></div>
+        <div class="mh-timer" id="modal-timer"></div>
+        <button class="modal-close" id="modal-close" aria-label="Close">×</button>
       </div>
-    </div>
-    <div class="panel span2" data-phase="live"><h3>Call history<span class="roundtag" id="callcount"></span></h3>
-      <div id="callsfeed"><div class="muted">every finished call lands here — live or simulated — with its red→green heal</div></div>
+      <div class="modal-body">
+        <div>
+          <div class="modal-section-label">Transcript</div>
+          <div class="modal-transcript transcript" id="modal-transcript"></div>
+        </div>
+        <div>
+          <div class="modal-section-label">Detections</div>
+          <div class="modal-detections detectcol" id="modal-detections"><div class="muted">—</div></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -512,25 +634,7 @@ const TOOL_ARGS={
   get_inventory:{item:"carbonara"},order_item:{item:"carbonara",qty:2}
 };
 const TOOL_LABEL={check_availability:"Check 7:00 PM · party 4",reserve_table:"Book 7:00 PM",book_appointment:"Book a consult",send_sms:"Text a confirmation",escalate:"Escalate to staff",process_payment:"Take a $42 payment",handle_refund:"Handle a refund",get_inventory:"Inventory: carbonara",order_item:"Order 2× carbonara"};
-function renderActionButtons(spec){
-  const tools=(spec.tools||[]).map(t=>t.name).filter(n=>TOOL_LABEL[n]);
-  const c=$("#abtns");
-  if(!tools.length){c.innerHTML='<div class="muted">no callable tools in this spec</div>';return;}
-  c.innerHTML=tools.map(n=>`<div class="pbtn" role="button" tabindex="0" data-tool="${n}">${TOOL_LABEL[n]}</div>`).join("");
-  c.querySelectorAll(".pbtn").forEach(b=>b.onclick=()=>callTool(b.dataset.tool));
-}
-async function callTool(name){
-  $("#astatus").textContent=`${name}… (live website action)`;
-  try{
-    const u=ORCH+"/api/tool/"+name+(sessionId?("?session="+sessionId):"");  // session → runs THIS site's synthesized tool (live_query fetches the site)
-    const res=await(await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(TOOL_ARGS[name]||{})})).json();
-    $("#astatus").textContent=`${name} → ${JSON.stringify(res)}`;
-  }catch{$("#astatus").textContent=`${name} → (couldn’t reach :8000)`;return;}
-  try{
-    const n=(await(await fetch(ORCH+"/api/notifications")).json()).notifications||[];
-    if(n.length){const last=n[n.length-1];$("#oalerts").textContent=`📩 owner SMS (${last.sms&&last.sms.sent?"sent":"mock"}): ${last.message}`;}
-  }catch{}
-}
+// renderActionButtons and callTool removed — panel removed from live phase
 
 function goReady(){$("#go").disabled=false;$("#go").textContent="Build it";}
 async function run(body){
@@ -542,7 +646,7 @@ async function run(body){
     sessionId=(await r.json()).session_id;
   }catch(err){
     goReady();
-    $("#facts").innerHTML='<div class="muted">couldn’t reach the orchestrator on :8000 — is it running? (./scripts/dev.sh)</div>';
+    $("#facts").innerHTML="<div class=\"muted\">couldn’t reach the orchestrator on :8000 — is it running? (./scripts/dev.sh)</div>";
     return;
   }
   es=new EventSource(ORCH+"/api/events/"+sessionId);
@@ -561,13 +665,16 @@ function reset(){
   $("#runbar").classList.remove("on"); $("#rb-counts").innerHTML=""; $("#rb-pct").textContent=""; $("#rb-track").innerHTML=""; $("#rb-round").textContent="running the swarm…"; $("#improve").innerHTML="";
   $("#diffs").innerHTML='<div class="muted">policies the healer rewrote appear here</div>';
   $("#agent").innerHTML="";
-  $("#livetranscript").innerHTML='<div class="muted">call the live number, or hit “simulate” above</div>';
-  $("#livedetect").innerHTML='<div class="muted">detections fire here, live</div>'; $("#livekv").textContent=""; $("#livedot").classList.remove("on");
-  $("#callsfeed").innerHTML='<div class="muted">every finished call lands here — live or simulated — with its red→green heal</div>'; $("#callcount").textContent=""; _curLine=null; _curWho=null;
-  $("#abtns").innerHTML='<div class="muted">the agent\'s tools appear here after build</div>'; $("#astatus").textContent=""; $("#oalerts").textContent="";
-  $("#tracebtns").innerHTML=""; $("#fdims").innerHTML=""; $("#failstatus").innerHTML=""; $("#failreport").innerHTML='<div class="muted">replay a live call above to classify it across the failure taxonomy</div>';
-  $("#banner").classList.remove("on"); $("#approve-banner").classList.remove("on"); $("#prod").classList.remove("on"); $("#pstatus").textContent=""; $("#vbadge").classList.remove("on");
-  ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>{const el=$("#"+id);el.textContent="—";el.classList.add("idle");delete el.dataset.v;});  // clear count-up baselines so a re-run doesn't animate down from the prior number
+  // reset live call state
+  for(const cid in _calls){clearInterval(_calls[cid]._timerInterval);delete _calls[cid];}
+  _activeCalls.clear(); _callOrder.length=0; _callHistory.length=0;
+  closeModal();
+  const lc=$("#livecalls"); if(lc)lc.innerHTML='<div class="muted" style="font-family:var(--serif);font-style:italic">calls appear here the moment they come in</div>';
+  _updateAnalytics();
+  // reset livenum hero
+  const a=$("#livenum-a"); if(a){a.textContent="—";a.href="#";}
+  $("#banner").classList.remove("on"); $("#approve-banner").classList.remove("on"); $("#vbadge").classList.remove("on");
+  ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>{const el=$("#"+id);el.textContent="—";delete el.dataset.v;});  // clear count-up baselines so a re-run doesn't animate down from the prior number
   ["m-pass-from","m-unsafe-from","m-book-from","m-esc-from"].forEach(id=>{const el=$("#"+id);if(el)el.textContent="";});
   $("#agentcard").innerHTML='<div class="muted">building the agent card…</div>';
   const dp=$("#deploy"); dp.disabled=false; dp.textContent="🚀 Deploy this agent — put the line live";
@@ -618,7 +725,7 @@ function renderAgentCard(spec, passRate, number){
     <div class="achead"><div class="acname">${esc(spec.business.name)}</div>
       <div class="actype">${esc(spec.business.type)}${spec.business.location?" · "+esc(spec.business.location):""}</div>
       <div class="acnum">${esc(number||"")}</div></div>
-    <div class="acgreet">“${esc(spec.voice&&spec.voice.greeting||"")}”</div>
+    <div class="acgreet">"${esc(spec.voice&&spec.voice.greeting||"")}"</div>
     <div class="accols">
       <div class="accol can"><h4>What it can do</h4>${cap}</div>
       <div class="accol cant"><h4>Won't do · safety guardrails</h4>${guard}</div>
@@ -730,13 +837,13 @@ function handle(ev){
       step(ev.stage,ev.status);
       if(ev.stage==="extract"||ev.stage==="build")setPhase("parse");
       else if(ev.stage==="swarm"||ev.stage==="rerun"||ev.stage==="heal")goSwarm();
-      if(ev.stage==="observe")$("#pstatus").textContent=`▸ ${ev.detail||ev.status}`;
+      if(ev.stage==="observe")console.log("observe stage:",ev.detail||ev.status);
       if(ev.stage==="activate"&&ev.status==="done"){$("#go").disabled=false;$("#go").textContent="Build it";}
       break;
     case "fact":
-      if(ev.topic==="swarm"){vertical=(ev.content||"").split(" ")[0];$("#vbadge").textContent=ev.content;$("#vbadge").classList.add("on");renderProdButtons();renderTraceButtons();}
+      if(ev.topic==="swarm"){vertical=(ev.content||"").split(" ")[0];$("#vbadge").textContent=ev.content;$("#vbadge").classList.add("on");}
       parseFact(ev); addFact(ev); break;
-    case "spec": lastSpec=ev.spec; parseSpec(ev.spec); renderAgent(ev.spec); renderActionButtons(ev.spec); renderSimButtons(); break;
+    case "spec": lastSpec=ev.spec; parseSpec(ev.spec); renderAgent(ev.spec); renderSimButtons(); break;
     case "call": renderCall(ev.result); break;
     case "swarm_report":
       $("#rb-round").textContent=`Round ${ev.report.round} · spec v${ev.report.spec_version}`;
@@ -746,92 +853,332 @@ function handle(ev){
       break;
     case "metrics": renderMetrics(ev); break;
     case "patch": renderPatch(ev); break;
-    case "failure_report": renderFailureReport(ev); break;
-    case "regression_check": renderRegression(ev); break;
-    case "discovery": renderDiscovery(ev); break;
+    case "failure_report": /* handled by per-call taxonomy; no-op in new design */ break;
+    case "regression_check": /* no-op in new design */ break;
+    case "discovery": /* no-op in new design */ break;
     case "awaiting_deploy":  // cleared the gate — show the agent card + Deploy button, owner decides
       goReady();
       renderAgentCard(lastSpec||{business:{},voice:{},meta:{}}, ev.pass_rate, ev.phone_number);
       setPhase("review"); break;
     case "activated": setPhase("live");
-      $("#live-sub").innerHTML=`Call <b>${esc(ev.phone_number)}</b> and talk — words stream in real time, detection fires live, then it heals. (Or hit “simulate” below.)`;
+      setLiveNumber(ev.phone_number, (lastSpec&&lastSpec.business&&lastSpec.business.name)||"");
       if(sessionId)$("#report-link").href="/report/?s="+sessionId;
       break;
     case "live_call": liveKV(ev.field,ev.value); break;
-    case "live_start": liveReset(ev.scenario); break;
+    case "live_start": liveReset(ev.call_id, ev.scenario); break;
     case "live_partial": handleLivePartial(ev); break;
     case "live_event": handleLiveEvent(ev); break;
     case "live_detect": handleLiveDetect(ev); break;
-    case "live_end": $("#livedot").classList.remove("on"); break;
+    case "live_end": { const cid=ev.call_id||(_callOrder.length?_callOrder[_callOrder.length-1]:null); if(cid&&_calls[cid]){_calls[cid].endedAt=Date.now();_activeCalls.delete(cid);_finalizeCallNode(cid,_calls[cid]);} _updateAnalytics(); break; }
     case "call_recorded": handleCallRecorded(ev); break;
   }
 }
 
 // ── live call view ─────────────────────────────────────────────────────────
-const SIM=[["accent_struggle","🎙 thick accent (uhh/ehm)"],["screaming_caller","🎙 shouting caller"],["noisy_line","🎙 noisy line"],["perceived_lag","🎙 felt slow"],["spanish_switch","🎙 Spanish caller"],["talked_over","🎙 talked over"],["booked_soldout","⚠ faked a sold-out booking"]];
+const SIM=[["happy_availability","✅ availability → books"],["accent_struggle","🎙 thick accent"],["screaming_caller","🎙 shouting caller"],["noisy_line","🎙 noisy line"],["perceived_lag","🎙 felt slow"],["spanish_switch","🎙 Spanish caller"],["talked_over","🎙 talked over"],["booked_soldout","⚠ faked sold-out"]];
 const FILLERS=/\b(uh+|um+|er+|err+|erm+|ehm+|eh+|hmm+|mm+|like|you know)\b|—|\.\.\./gi;
 function markDisf(t){return (t||"").replace(/</g,"&lt;").replace(FILLERS,m=>`<span class="disf">${m}</span>`);}
-let _curLine=null,_curWho=null;
-function liveReset(scenario){
-  $("#livetranscript").innerHTML=""; $("#livedetect").innerHTML='<div class="muted">detections fire here, live</div>';
-  _curLine=null;_curWho=null; $("#livedot").classList.add("on");
-  $("#livekv").textContent=scenario?("▸ "+scenario):"";
+// the agent's thought process, in its own words: friendly verbs + plain-language result summaries
+// (never raw JSON), so a tool call reads like "checking availability → available · 3 left".
+const TOOL_VERB={check_availability:"checking availability",reserve_table:"booking the table",book_appointment:"booking the appointment",send_sms:"sending a text",escalate:"connecting to staff",process_payment:"taking the payment",handle_refund:"processing the refund",get_inventory:"checking inventory",order_item:"placing the order"};
+function toolVerb(n){return TOOL_VERB[n]||("running "+esc(n));}
+function toolArgs(a){return Object.entries(a||{}).filter(([,v])=>v!=null&&v!=="").map(([,v])=>esc(String(v))).join(" · ");}
+function summarizeResult(r,ok){
+  r=r||{};
+  if(r.available===true) return "available"+(r.tables_left!=null?` · ${r.tables_left} left`:"");
+  if(r.available===false) return "fully booked"+(r.alternatives&&r.alternatives.length?` · alt ${esc(r.alternatives.join(", "))}`:"");
+  if(r.reservation_id&&ok) return `booked · ${esc(r.reservation_id)}`;
+  if(r.status) return esc(String(r.status).replace(/_/g," "))+(r.reason?` · ${esc(r.reason)}`:"");
+  if(r.error) return esc(String(r.error));
+  const s=JSON.stringify(r); return esc(s.length>80?s.slice(0,79)+"…":s);
 }
-function _newLine(who){const el=document.createElement("div");el.className="tline "+who;
+
+// ── per-call state store (keyed by call_id) ────────────────────────────────
+// each entry: {call_id, scenario, startedAt, endedAt, transcriptEl, detectionsEl,
+//              curLine, curWho, pendingTools, detections[], failed, turns, pre_pass, post_pass}
+const _calls={};
+let _activeCalls=new Set();  // call_ids currently live
+let _callOrder=[];           // insertion order (newest last → display newest first)
+let _openCallId=null;        // which call the modal is showing
+let _modalTimerInterval=null;
+// analytics state
+const _callHistory=[];       // [{ts, turns, failed, pre_pass, post_pass}] for analytics
+
+function _getOrCreateCallStore(call_id, scenario){
+  if(_calls[call_id]) return _calls[call_id];
+  const transcriptEl=document.createElement("div");
+  transcriptEl.className="modal-transcript transcript";
+  const detectionsEl=document.createElement("div");
+  detectionsEl.className="modal-detections detectcol";
+  detectionsEl.innerHTML='<div class="muted">—</div>';
+  const store={call_id,scenario,startedAt:Date.now(),endedAt:null,transcriptEl,detectionsEl,
+    curLine:null,curWho:null,pendingTools:{},detections:[],failed:false,turns:0,pre_pass:null,post_pass:null};
+  _calls[call_id]=store;
+  if(!_callOrder.includes(call_id))_callOrder.push(call_id);
+  return store;
+}
+
+// helper: build a tline element into a given transcript container
+function _newLineIn(container, who){
+  const el=document.createElement("div");el.className="tline "+who;
   el.innerHTML=`<span class="who">${who==="caller"?"caller":who==="agent"?"agent":"·"}</span><span class="txt"></span>`;
-  $("#livetranscript").appendChild(el);$("#livetranscript").scrollTop=1e9;return el;}
+  container.appendChild(el);container.scrollTop=1e9;return el;
+}
+
+// the deployed line: show the real callable number prominently (and tappable on mobile).
+function setLiveNumber(num,biz){
+  if(!num) return;
+  const a=$("#livenum-a");
+  a.textContent=num; a.href="tel:"+String(num).replace(/[^+\d]/g,"");
+}
+function liveReset(call_id, scenario){
+  // called when live_start fires — create the call store and insert a call node
+  const store=_getOrCreateCallStore(call_id||("sim-"+Date.now()), scenario);
+  _activeCalls.add(store.call_id);
+  _insertCallNode(store);
+  _updateAnalytics();
+}
 function handleLivePartial(ev){
+  // route to the active call's transcript store; default to most-recent active call
+  const cid=ev.call_id||(_callOrder.length?_callOrder[_callOrder.length-1]:null);
+  if(!cid||!_calls[cid])return;
+  const store=_calls[cid];
   const who=ev.who;
-  if(_curWho!==who){ if(_curLine)_curLine.classList.remove("partial"); _curLine=_newLine(who); _curWho=who; }
-  _curLine.classList.add("partial");
-  const low=ev.asr_conf!=null&&ev.asr_conf<0.6; _curLine.classList.toggle("lowconf",!!low);
-  _curLine.querySelector(".txt").innerHTML=markDisf(ev.text)+' <span class="cursor">▌</span>'+(low?`<span class="conf">asr ${ev.asr_conf.toFixed(2)}</span>`:"");
-  $("#livetranscript").scrollTop=1e9;
+  if(store.curWho!==who){ if(store.curLine)store.curLine.classList.remove("partial"); store.curLine=_newLineIn(store.transcriptEl,who); store.curWho=who; }
+  store.curLine.classList.add("partial");
+  const low=ev.asr_conf!=null&&ev.asr_conf<0.6; store.curLine.classList.toggle("lowconf",!!low);
+  store.curLine.querySelector(".txt").innerHTML=markDisf(ev.text)+' <span class="cursor">▌</span>'+(low?`<span class="conf">asr ${ev.asr_conf.toFixed(2)}</span>`:"");
+  store.transcriptEl.scrollTop=1e9;
+  // mirror into modal if open
+  if(_openCallId===cid)_syncModal(store);
 }
 function handleLiveEvent(ev){
-  if($("#livetranscript").querySelector(".muted"))$("#livetranscript").innerHTML="";
+  const cid=ev.call_id||(_callOrder.length?_callOrder[_callOrder.length-1]:null);
+  if(!cid||!_calls[cid])return;
+  const store=_calls[cid];
   const e=ev.event;
+  // clear placeholder
+  if(store.transcriptEl.querySelector(".muted"))store.transcriptEl.innerHTML="";
   if(e.kind==="hear"||e.kind==="say"){
     const who=e.kind==="hear"?"caller":"agent";
-    if(_curLine&&_curWho===who){_curLine.classList.remove("partial");}else{_curLine=_newLine(who);}
+    if(store.curLine&&store.curWho===who){store.curLine.classList.remove("partial");}else{store.curLine=_newLineIn(store.transcriptEl,who);}
     const low=e.kind==="hear"&&e.asr_conf!=null&&e.asr_conf<0.6;
-    _curLine.className="tline "+who+(low?" lowconf":"");
-    _curLine.querySelector(".txt").innerHTML=markDisf(e.text)+(low?`<span class="conf">asr ${e.asr_conf.toFixed(2)}</span>`:"");
-    _curLine=null;_curWho=null;
+    store.curLine.className="tline "+who+(low?" lowconf":"");
+    store.curLine.querySelector(".txt").innerHTML=markDisf(e.text)+(low?`<span class="conf">asr ${e.asr_conf.toFixed(2)}</span>`:"");
+    store.curLine=null;store.curWho=null;
+    if(e.kind==="hear")store.turns++;
   }else if(e.kind==="tool_call"){
-    const el=_newLine("tool");el.querySelector(".txt").innerHTML=`↳ calls ${e.name}(${Object.entries(e.args||{}).map(([k,v])=>k+"="+v).join(", ")})`;
+    store.curLine=null;store.curWho=null;
+    const args=toolArgs(e.args);
+    const el=document.createElement("div");el.className="think pending";el.dataset.tool=e.name;
+    el.innerHTML=`<div class="th"><span class="spin">🔧</span><span class="verb">${toolVerb(e.name)}…</span></div>`+(args?`<div class="targs">${args}</div>`:"");
+    store.transcriptEl.appendChild(el);
+    (store.pendingTools[e.name]=store.pendingTools[e.name]||[]).push(el);
   }else if(e.kind==="tool_result"){
-    const el=_newLine("tool");el.querySelector(".txt").innerHTML=`↳ ${e.name} → ${e.ok?"ok":"FAIL"} ${JSON.stringify(e.result)} · ${e.latency_ms}ms`;
+    const q=store.pendingTools[e.name]; let el=q&&q.shift();
+    if(!el){el=document.createElement("div");el.className="think";el.dataset.tool=e.name;el.innerHTML='<div class="th"></div>';store.transcriptEl.appendChild(el);}
+    el.classList.remove("pending");el.classList.add(e.ok?"ok":"fail");
+    el.querySelector(".th").innerHTML=`<span>${e.ok?"✓":"✗"}</span><span class="verb">${toolVerb(e.name)}</span>`+(e.latency_ms!=null?`<span class="lat">${e.latency_ms}ms</span>`:"");
+    let res=el.querySelector(".tres");if(!res){res=document.createElement("div");res.className="tres";el.appendChild(res);}
+    res.innerHTML=summarizeResult(e.result,e.ok);
   }
-  $("#livetranscript").scrollTop=1e9;
+  store.transcriptEl.scrollTop=1e9;
+  if(_openCallId===cid)_syncModal(store);
 }
 function handleLiveDetect(ev){
-  if($("#livedetect").querySelector(".muted"))$("#livedetect").innerHTML="";
+  const cid=ev.call_id||(_callOrder.length?_callOrder[_callOrder.length-1]:null);
+  if(!cid||!_calls[cid])return;
+  const store=_calls[cid];
+  if(store.detectionsEl.querySelector(".muted"))store.detectionsEl.innerHTML="";
   const f=ev.failure,el=document.createElement("div");
   el.className="dcard "+(ev.gating?"gating":"monitor");
-  el.innerHTML=`<div class="dh">⚡ caught live — ${f.title}</div><div class="dtag">${f.dimension} · ${f.severity}${ev.gating?"":" · monitoring"}</div><div class="dm">${f.reason}</div>`;
-  $("#livedetect").appendChild(el);
+  el.innerHTML=`<div class="dh">⚡ caught live — ${esc(f.title)}</div><div class="dtag">${esc(f.dimension)} · ${esc(f.severity)}${ev.gating?"":" · monitoring"}</div><div class="dm">${esc(f.reason)}</div>`;
+  store.detectionsEl.appendChild(el);
+  store.failed=true;
+  if(_openCallId===cid)_syncModal(store);
 }
 function handleCallRecorded(ev){
-  const c=ev.call;$("#callcount").textContent=`${ev.total_calls} call${ev.total_calls>1?"s":""}`;
-  if($("#callsfeed").querySelector(".muted"))$("#callsfeed").innerHTML="";
-  const el=document.createElement("div");el.className="callrow";
-  el.innerHTML=`<span class="pill ${c.failed?"fail":"pass"}" style="position:static">${c.failed?"CAUGHT":"CLEAN"}</span>
-    <span>${c.scenario||c.call_id||"live call"}</span>
-    ${(c.failures&&c.failures.length)?`<span class="muted">${c.failures.join(", ")}</span>`:""}
-    ${c.pre_pass!=null?`<span style="margin-left:auto">${Math.round((c.pre_pass||0)*100)}% → ${Math.round((c.post_pass||0)*100)}%${c.spec_version?` · v${c.spec_version}`:""}</span>`:""}`;
-  $("#callsfeed").prepend(el);
+  const c=ev.call;
+  const cid=c.call_id||(_callOrder.length?_callOrder[_callOrder.length-1]:null);
+  if(cid&&_calls[cid]){
+    const store=_calls[cid];
+    store.endedAt=Date.now();
+    store.failed=!!c.failed;
+    store.turns=c.turns||store.turns;
+    store.pre_pass=c.pre_pass;
+    store.post_pass=c.post_pass;
+    _activeCalls.delete(cid);
+    _callHistory.push({ts:store.startedAt,turns:store.turns,failed:store.failed,pre_pass:store.pre_pass,post_pass:store.post_pass});
+    // trim to 12 in history (keep store for full reopen)
+    if(_callHistory.length>12)_callHistory.shift();
+    _finalizeCallNode(cid, store);
+  }
+  _updateAnalytics();
 }
+
+// ── call nodes ──────────────────────────────────────────────────────────────
+function _insertCallNode(store){
+  const container=$("#livecalls");
+  if(container.querySelector(".muted"))container.innerHTML="";
+  const node=document.createElement("div");
+  node.className="call-node";
+  node.id="cn-"+store.call_id;
+  node.setAttribute("role","button");
+  node.setAttribute("tabindex","0");
+  node.setAttribute("aria-label","View call transcript");
+  node.innerHTML=`
+    <div class="cn-status"><div class="cn-live-dot"></div></div>
+    <div class="cn-info">
+      <div class="cn-scenario">${esc(store.scenario||"Incoming call")}</div>
+      <div class="cn-meta" id="cn-timer-${store.call_id}">live · 0:00</div>
+    </div>
+    <div class="cn-outcome live-badge" id="cn-outcome-${store.call_id}">● LIVE</div>
+    <div class="cn-arrow">›</div>`;
+  // click/keyboard to open modal
+  const openModal=()=>openTranscriptModal(store.call_id);
+  node.onclick=openModal;
+  node.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openModal();}};
+  container.prepend(node);
+  // start elapsed timer
+  const timerEl=node.querySelector("#cn-timer-"+store.call_id);
+  store._timerInterval=setInterval(()=>{
+    if(!timerEl)return;
+    const s=Math.floor((Date.now()-store.startedAt)/1000);
+    timerEl.textContent=`live · ${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+  },1000);
+  // cap list to 12 nodes
+  const nodes=container.querySelectorAll(".call-node");
+  if(nodes.length>12)nodes[nodes.length-1].remove();
+}
+function _finalizeCallNode(cid, store){
+  clearInterval(store._timerInterval);
+  const node=$("#cn-"+cid);
+  if(!node)return;
+  const dot=node.querySelector(".cn-live-dot");
+  if(dot){dot.className="cn-done-dot "+(store.failed?"fail":"");}
+  const outcome=node.querySelector("#cn-outcome-"+cid);
+  if(outcome){
+    const healed=store.failed&&store.post_pass!=null&&store.post_pass>=(store.pre_pass||0);
+    outcome.className="cn-outcome "+(store.failed?(healed?"caught":"caught"):"clean");
+    outcome.textContent=store.failed?"⚡ caught":"✓ clean";
+  }
+  const meta=node.querySelector("#cn-timer-"+cid);
+  if(meta&&store.endedAt){
+    const dur=Math.floor((store.endedAt-store.startedAt)/1000);
+    meta.textContent=`${store.turns} turn${store.turns!==1?"s":""} · ${Math.floor(dur/60)}:${String(dur%60).padStart(2,"0")}`;
+  }
+  // update modal header if open
+  if(_openCallId===cid)_syncModal(store);
+}
+
+// ── transcript modal ─────────────────────────────────────────────────────────
+function openTranscriptModal(call_id){
+  const store=_calls[call_id];if(!store)return;
+  _openCallId=call_id;
+  // swap content into modal
+  const mt=$("#modal-transcript"),md=$("#modal-detections");
+  mt.innerHTML="";md.innerHTML="";
+  mt.appendChild(store.transcriptEl);
+  md.appendChild(store.detectionsEl);
+  _syncModal(store);
+  $("#call-modal").classList.add("open");
+  document.body.style.overflow="hidden";
+  // start modal timer tick
+  clearInterval(_modalTimerInterval);
+  _modalTimerInterval=setInterval(()=>_syncModalTimer(store),1000);
+  $("#modal-close").focus();
+}
+function _syncModal(store){
+  $("#modal-title").textContent=store.scenario||"Live call";
+  const live=_activeCalls.has(store.call_id);
+  const st=$("#modal-status");
+  if(live){st.className="mh-status live-badge";st.textContent="● LIVE";}
+  else if(store.failed){st.className="mh-status caught";st.textContent="⚡ caught";}
+  else{st.className="mh-status clean";st.textContent="✓ clean";}
+  _syncModalTimer(store);
+  store.transcriptEl.scrollTop=1e9;
+}
+function _syncModalTimer(store){
+  const live=_activeCalls.has(store.call_id);
+  const el=$("#modal-timer");if(!el)return;
+  const end=live?Date.now():store.endedAt||Date.now();
+  const s=Math.floor((end-store.startedAt)/1000);
+  el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+}
+function closeModal(){
+  $("#call-modal").classList.remove("open");
+  document.body.style.overflow="";
+  clearInterval(_modalTimerInterval);_modalTimerInterval=null;
+  _openCallId=null;
+}
+$("#modal-close").onclick=closeModal;
+$("#modal-backdrop").onclick=closeModal;
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#call-modal").classList.contains("open"))closeModal();});
+
+// ── analytics ────────────────────────────────────────────────────────────────
+function _updateAnalytics(){
+  const total=_callHistory.length;
+  const liveCount=_activeCalls.size;
+  $("#la-total").textContent=total||"—";
+  $("#la-total-sub").textContent=total?`${total} call${total>1?"s":""}`:  "no calls yet";
+  $("#la-live").textContent=liveCount;
+  $("#la-live-sub").textContent=liveCount?`${liveCount} active`:"none active";
+  // avg turns
+  const withTurns=_callHistory.filter(c=>c.turns>0);
+  if(withTurns.length){
+    const avg=(withTurns.reduce((a,c)=>a+c.turns,0)/withTurns.length).toFixed(1);
+    $("#la-avg").textContent=avg;
+    $("#la-avg-sub").textContent=`across ${withTurns.length} call${withTurns.length>1?"s":""}`;
+  }else{
+    $("#la-avg").textContent="—";
+    $("#la-avg-sub").textContent="—";
+  }
+  // caught & healed
+  const caught=_callHistory.filter(c=>c.failed);
+  const healed=caught.filter(c=>c.post_pass!=null&&c.post_pass>=(c.pre_pass||0));
+  if(caught.length){
+    $("#la-healed").textContent=caught.length;
+    const pct=Math.round(healed.length/caught.length*100);
+    $("#la-healed-sub").textContent=`${caught.length} caught · ${pct}% healed`;
+  }else{
+    $("#la-healed").textContent="—";
+    $("#la-healed-sub").textContent=total?"all clean":"—";
+  }
+  // sparkline — last 12 calls as mini bars
+  const spark=$("#la-spark");
+  const N=12;
+  const buckets=_callHistory.slice(-N);
+  if(!buckets.length){spark.innerHTML='<div style="color:var(--ink-fade);font:500 11px var(--mono)">no data yet</div>';return;}
+  const maxT=Math.max(...buckets.map(b=>b.turns||1),1);
+  spark.innerHTML=Array.from({length:N},(_,i)=>{
+    const b=buckets[i];
+    if(!b)return `<div class="spbar empty" style="height:4px"></div>`;
+    const h=Math.max(8,Math.round((b.turns||1)/maxT*36));
+    const color=b.failed?"var(--gold)":"var(--pass-d)";
+    return `<div class="spbar" style="height:${h}px;background:${color}" title="${b.turns} turns${b.failed?" · caught":""}"></div>`;
+  }).join("");
+  $("#la-spark-sub").textContent=`last ${buckets.length} call${buckets.length>1?"s":""}`;
+}
+_updateAnalytics(); // init with zeroes
+
 function renderSimButtons(){
-  $("#simbtns").innerHTML=SIM.map(([id,l])=>`<div class="pbtn" role="button" tabindex="0" data-sim="${id}">${l}</div>`).join("");
-  document.querySelectorAll("#simbtns .pbtn").forEach(b=>b.onclick=()=>simulateLive(b.dataset.sim));
+  const row=$("#live-simrow");
+  // remove old sbtn elements (keep label)
+  row.querySelectorAll(".sbtn").forEach(b=>b.remove());
+  SIM.forEach(([id,l])=>{
+    const b=document.createElement("div");
+    b.className="sbtn";b.setAttribute("role","button");b.setAttribute("tabindex","0");b.dataset.sim=id;b.textContent=l;
+    b.onclick=()=>simulateLive(id);
+    b.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();simulateLive(id);}};
+    row.appendChild(b);
+  });
 }
 async function simulateLive(traceId){
-  if(!sessionId){$("#livekv").textContent="build a business first";return;}
-  liveReset(); $("#livekv").textContent="▸ streaming…";
+  if(!sessionId){alert("Build a business first to simulate a call.");return;}
   try{ await fetch(ORCH+"/api/simulate-live/"+sessionId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({trace_id:traceId,wps:7})}); }
-  catch{ $("#livekv").textContent="couldn't reach orchestrator"; }
+  catch(e){ console.warn("simulate-live failed",e); }
 }
+function liveKV(k,v){/* field not shown in new design; no-op */}
 function addFact(ev){if($("#facts").querySelector(".muted"))$("#facts").innerHTML="";
   const d=document.createElement("div");d.innerHTML=`<b>${ev.topic}</b> · ${ev.content}`;$("#facts").appendChild(d);$("#facts").scrollTop=1e9;}
 function animateNum(el,to,suffix){const from=parseInt(el.dataset.v||"0",10);el.dataset.v=to;const t0=performance.now();
@@ -898,79 +1245,14 @@ function renderAgent(spec){
   const kn=(spec.knowledge||[]).slice(0,8).map(k=>`<li><b>${esc(k.topic)}</b> ${esc(k.content).slice(0,120)}</li>`).join("");
   const tl=(spec.tools||[]).map(t=>{const k=(t.execution||{}).kind;return `<li>${KIND_TAG[k]||""} <code>${esc(t.name)}</code></li>`;}).join("");
   $("#agent").innerHTML=`<div style="font-family:var(--display);font-weight:600;font-size:17px">${esc(spec.business.name)} <span class="muted">v${spec.meta.version} · ${esc(spec.business.type)}${spec.business.location?" · "+esc(spec.business.location):""}</span></div>
-  <div class="greet">“${esc(spec.voice.greeting)}”</div>
+  <div class="greet">"${esc(spec.voice.greeting)}"</div>
   ${kn?`<div class="khdr">Knows from the site <span class="muted">— answered instantly, no lookup</span></div><ul class="kbits">${kn}</ul>`:""}
   ${tl?`<div class="khdr">Can do <span class="muted">— live lookups + actions, as a middleman</span></div><ul class="kbits tl">${tl}</ul>`:""}
   ${spec.policies.length?`<div class="khdr">Policies</div><ul>${spec.policies.map(p=>`<li><b>[${esc(p.category)}]</b> ${esc(p.rule)}</li>`).join("")}</ul>`:""}`;}
-function liveKV(k,v){const el=$("#livekv");if(el)el.textContent=`▸ ${k}: ${v}`;}
-function renderProdButtons(){
-  const hs=HEROES[vertical]||HEROES.generic; const e=EDGE[vertical]||EDGE.generic;
-  let html=hs.map(([id,lab])=>`<div class="pbtn" role="button" tabindex="0" data-p="${id}">↻ ${lab}</div>`).join("");
-  html+=`<div class="pbtn edge" role="button" tabindex="0" data-p="${e[0]}">${e[1]}</div>`;
-  $("#pbtns").innerHTML=html;
-  document.querySelectorAll("#pbtns .pbtn").forEach(b=>b.onclick=()=>observe(b.dataset.p));
-}
-async function observe(persona){
-  if(!sessionId)return;
-  $("#pstatus").textContent=`▸ auditing live call: ${persona}… spinning up targeted variations`;
-  try{
-    const r=await fetch(ORCH+"/api/observe/"+sessionId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({persona})});
-    const res=await r.json();
-    $("#pstatus").textContent=res.failed
-      ?`▸ caught '${persona}' → ${res.variations} targeted variations of the exact issue: ${Math.round((res.pre_pass||0)*100)}% → healed → ${Math.round((res.post_pass||0)*100)}% (spec v${res.spec_version})`
-      :`▸ live call '${persona}' clean — already hardened by the pre-launch swarm`;
-  }catch{$("#pstatus").textContent="▸ couldn’t reach the orchestrator on :8000";}
-}
-async function renderTraceButtons(){
-  try{
-    const list=(await(await fetch(ORCH+"/api/traces?vertical="+encodeURIComponent(vertical))).json()).traces||[];
-    $("#tracebtns").innerHTML=list.map(t=>`<div class="pbtn trace" role="button" tabindex="0" data-trace="${t.id}">${t.label}</div>`).join("");
-    document.querySelectorAll("#tracebtns .pbtn").forEach(b=>b.onclick=()=>observeTrace(b.dataset.trace));
-  }catch{ $("#tracebtns").innerHTML=""; }
-}
-async function observeTrace(traceId){
-  if(!sessionId)return;
-  $("#pstatus").textContent=`▸ replaying live call '${traceId}' — classifying the event stream…`;
-  try{
-    const r=await fetch(ORCH+"/api/observe/"+sessionId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({trace_id:traceId})});
-    const res=await r.json();
-    $("#pstatus").textContent=res.failed
-      ?`▸ '${traceId}': ${res.failures.length} failure(s) across [${(res.summary&&res.summary.dimensions_hit||[]).join(", ")}] → auto-healed ${Math.round((res.pre_pass||0)*100)}% → ${Math.round((res.post_pass||0)*100)}% (v${res.spec_version})`
-      :`▸ '${traceId}' clean — voice and every action checked out`;
-  }catch{$("#pstatus").textContent="▸ couldn’t reach the orchestrator on :8000";}
-}
-const DIM_LABEL={conversation:"voice",action:"action",outcome:"outcome",experience:"experience"};
-function renderFailureReport(ev){
-  const s=ev.summary||{by_dimension:{},dimensions_hit:[]}, fs=ev.failures||[], clusters=ev.clusters||[];
-  $("#failstatus").innerHTML="";  // fresh status row for this call
-  $("#fdims").innerHTML=["conversation","action","outcome","experience"].map(d=>{
-    const n=(s.by_dimension||{})[d]||0;
-    return `<div class="fdim ${n>0?"hit":""}">${DIM_LABEL[d]}<b>${n}</b></div>`;}).join("");
-  const pl=s.perceived_latency_ms||0;  // the "felt slow" experience metric — total caller wait
-  if(pl) $("#fdims").innerHTML+=`<div class="fdim ${pl>5000?"hit":""}" title="cumulative time the caller spent waiting on the agent">felt latency<b>${(pl/1000).toFixed(1)}s</b></div>`;
-  if(!fs.length){$("#failreport").innerHTML=`<div class="muted">call <b>${ev.call_id||""}</b>: clean — voice and every action checked out ✓</div>`;return;}
-  if(clusters.length && fs.length>clusters.length){  // root-cause clustering: many symptoms → few causes
-    $("#failstatus").innerHTML=`<div class="fbadge roots">🎯 root-cause analysis: <b>${fs.length}</b> symptoms → <b>${clusters.length}</b> underlying cause${clusters.length>1?"s":""} → ${clusters.length} targeted fix${clusters.length>1?"es":""}</div>`;
-  }
-  $("#failreport").innerHTML=fs.map(f=>`<div class="fcard ${f.severity}${f.discovered?" discovered":""}">
-    <div class="fh"><span class="fsev ${f.severity}">${f.severity}</span><span class="ft">${f.title}</span><span class="fdimtag">${f.dimension}</span>${f.discovered?`<span class="fdisc">🔬 discovered</span>`:""}</div>
-    <div class="freason">${f.reason}</div>
-    <div class="fev">${(f.evidence||[]).map(e=>`<div>· ${e}</div>`).join("")}</div>
-    <div class="fheal">↻ heal: <b>[${f.heal_category}]</b> ${f.heal_rule}</div>
-  </div>`).join("");
-}
-function renderRegression(ev){
-  const r=ev.report||{}, rej=(r.rejected||[]).length;
-  const el=document.createElement("div"); el.className="fbadge guard";
-  el.innerHTML=`✓ regression-guarded: validated across <b>${r.checked}</b> scenarios · <b>${(r.regressed||[]).length}</b> regressed · <b>${(r.fixed||[]).length}</b> fixed`
-    +(rej?` · <span class="rej">${rej} unsafe/ineffective patch${rej>1?"es":""} rejected</span>`:``);
-  $("#failstatus").appendChild(el);
-}
-function renderDiscovery(ev){
-  const el=document.createElement("div"); el.className="fbadge disc";
-  el.innerHTML=`🔬 new failure mode <b>discovered</b> from production: <b>${ev.title}</b> — added to the eval suite (seen ${ev.count}×, ${ev.total_modes} discovered so far)`;
-  $("#failstatus").appendChild(el);
-}
+function liveKV(k,v){/* livekv panel removed — field/value logs suppressed */}
+// renderProdButtons, renderTraceButtons, observe, observeTrace — removed (panels removed from live phase)
+// renderFailureReport, renderRegression, renderDiscovery — removed (panels removed from live phase)
+// renderActionButtons, callTool — removed (panel removed from live phase)
 
 function recordLineage(version,rate){
   if(version==null)return;
@@ -985,6 +1267,23 @@ function recordLineage(version,rate){
 // deep-link from the minimal landing: /app/?url=... pre-fills and auto-builds
 const _qurl=new URLSearchParams(location.search).get("url");
 if(_qurl){$("#url").value=_qurl;run({url:_qurl});}
+
+// deep-link to WATCH an already-deployed line live: /app/?s=<session_id> (or ?s=active for the
+// currently-active business). Attaches the dashboard to that session's event stream so the callable
+// number, live transcript, and detections all show — without rebuilding. Used to dogfood real calls.
+(async()=>{
+  let s=new URLSearchParams(location.search).get("s");
+  if(!s) return;
+  if(s==="active"){ try{ s=(await (await fetch(ORCH+"/api/active-session")).json()).session_id; }catch{} }
+  if(!s){ const lh=$("#live-hero"); if(lh){const h=lh.querySelector(".lh-hint");if(h)h.textContent="No active business is deployed yet.";} return; }
+  sessionId=s;
+  setPhase("live");
+  $("#report-link").href="/report/?s="+s;
+  // seed the spec (agent card + business name on the number banner), then stream the live events
+  try{ const spec=await (await fetch(ORCH+"/api/spec/"+s)).json(); lastSpec=spec; }catch{}
+  es=new EventSource(ORCH+"/api/events/"+s);
+  es.onmessage=e=>{ try{ handle(JSON.parse(e.data)); }catch{} };
+})();
 </script>
 </body>
 </html>
