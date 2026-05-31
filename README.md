@@ -2,9 +2,8 @@
 
 **Paste a business website. Get a working phone line that fixes itself, in 30 seconds.**
 
-> We're not selling a voice agent. We're selling **confidence that a business can safely let
-> AI answer the phone.** The hosts said it best: *"we're not looking for the best sounding
-> voice. We're looking for the best **system**."* Otto is the system.
+> **Otto sells one thing: confidence that a business can safely let AI answer its phone.** The
+> hosts kept saying the win is the best **system**, end to end. That is exactly what Otto is.
 
 Built at the **Voice Agents Hackathon** (YC SF, May 30 2026), hosted by **Daily** and
 **Cekura** with **NVIDIA**, **AWS**, and **Twilio**. It runs the full four part brief: Build and
@@ -96,8 +95,7 @@ flowchart LR
 
 ### Cekura: two swarms, opposite shapes, one fixing engine
 
-We don't run one round of testing. We run two swarms built for opposite jobs, and that contrast
-is the whole idea.
+We run two swarms built for opposite jobs, and that contrast is the whole idea.
 
 **The first swarm goes wide, and it runs before the agent goes live.** It's a set of fake callers
 built for that exact kind of business: allergy questions and large party bookings for a
