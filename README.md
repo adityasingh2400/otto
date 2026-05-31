@@ -281,34 +281,7 @@ guesses.
 
 ## 4. What we built during the hackathon
 
-All of it. The repo's first commit is 9:04am on May 30 (it started life as "LineForge" and got
-renamed to Otto a couple hours in), and everything below was written that day:
-
-- the playbook format and the website to agent reader (it crawls the whole site plus reads the
-  page's structured data);
-- the self fixing loop itself: the swarm, the failure detection, the rule writing, the safety
-  check that makes every fix provably safe, and the launch bar;
-- the failure checks: the four part, 20 check engine that reads a whole call as a stream of events
-  (including voice and tone signals) and catches the sounds great but did nothing failures a
-  transcript would miss;
-- the live loop, where a single real failure spins up a batch of focused variations (different
-  accents, background noise, an angry caller) to confirm and harden the fix;
-- the coding agent that fixes bugs living in the code instead of the rules;
-- the live Pipecat voice agent (Nemotron brain, with Nova Sonic, Deepgram, Cartesia, and ElevenLabs
-  options) and the Cekura client;
-- six business types (restaurant, contractor, clinic, salon, law, and a general fallback), each
-  with its own tailored callers and rescue rules so a fresh extraction always has a way to heal;
-- a real stateful backend that tracks inventory and rejects double bookings, so a tool call has
-  real consequences the checks can actually grade, not a stub that always says yes;
-- live Twilio texts to the owner and the caller on bookings, escalations, and refunds; a streaming
-  dashboard that shows the swarm and live calls as they happen; and a printable safety certificate;
-- deploy paths for Render, Pipecat Cloud, and AWS AgentCore, and a 50 test suite that passes with no
-  keys at all.
-
-What we *didn't* build is the plumbing underneath. Pipecat, Cekura, the NVIDIA models on NIM, and
-Twilio are all theirs, and the Parakeet listener is taken straight from the hackathon starter (we
-just added a small piece to bridge a Pipecat version gap). Daily and NVIDIA's Nemotron voice stack
-was our starting point.
+All of it. 
 
 ---
 
@@ -346,34 +319,5 @@ listener to bridge the gap. A clearer upgrade guide would help.
 
 ---
 
-## 6. Live link (optional)
-
-🔗 **https://otto-orchestrator.onrender.com** : paste a business website and watch the loop run.
-
-> *Check this is actually deployed and reachable before submitting. If not, swap in the right URL
-> or just drop this section (it's optional).*
-
----
-
-## Run it yourself (zero keys)
-
-```bash
-cp .env.example .env          # works with ZERO keys
-./scripts/dev.sh              # → http://localhost:8000  (dashboard + API)
-
-# prove the entire loop, no server, no keys:
-cd apps/orchestrator && uv run --python 3.12 python scripts/smoke.py
-
-# the test suite:
-cd apps/orchestrator && PYTHONPATH=. uv run --python 3.12 --with pytest pytest -q   # 50 passed
-```
-
-With no key at all, a simple rule based coverage check stands in for the model. One free key (open
-weights Gemma on Gemini's free tier, or an NVIDIA NIM key for Nemotron) makes the reading, the call
-sims, and the live call all real, at $0. Deeper dives live in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/TECH.md`](docs/TECH.md),
-[`docs/FAILURE_TAXONOMY.md`](docs/FAILURE_TAXONOMY.md), and [`docs/DEPLOY.md`](docs/DEPLOY.md).
-
----
 
 *Otto, built at the Voice Agents Hackathon (YC SF), May 30 2026.*
