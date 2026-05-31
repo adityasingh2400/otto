@@ -240,11 +240,75 @@ interruption handling that make the "interrupter" caller a real test instead of 
 also an AWS Nova Sonic speech to speech path in there as an option, instead of the usual listen,
 think, speak chain. (See [`docs/TECH.md`](docs/TECH.md).)
 
+### Under the hood
+
+A few specifics for the engineers reading this.
+
+**The agent is a typed contract, not a prompt.** Everything Otto reads off a site becomes an
+`AgentSpec`: greeting, knowledge, capabilities, tools, and a list of typed policies tagged safety,
+booking, knowledge, or voice behavior. The live phone agent, the swarm, and the fixing loop all
+compile from that one object, which is why a fix proven in testing is the same code that answers
+the phone.
+
+**The failure engine is 20 deterministic checks across four dimensions, not an LLM judge.** They
+read the call as an event stream of `hear`, `say`, `tool_call`, and `tool_result`, and fire on hard
+signals: a success line spoken after a tool returned failure, an availability claim with no
+`check_availability` behind it, a booking reported as done with no confirmation id, a card number
+written into a tool argument, a tool slower than its limit, dead air. Five of them read voice and
+tone (low transcription confidence standing in for a heavy accent, high arousal for a distressed
+caller, low signal to noise for a bad line), and one optional pass can ask an LLM to name a brand
+new failure when none of the fixed checks fire. The loop's reliability never hangs on a model
+agreeing with itself.
+
+**The safety check is literally set subtraction.** Before a fix ships, the whole scenario set runs,
+the patch goes on, the set runs again, and the patch is kept only if every scenario that passed
+before still passes. A fix that closes the target but breaks anything else is rejected and logged
+with the exact tests it would have broken. That is what makes "never gets worse" a property instead
+of a wish.
+
+**Code fixes are checked by a replay oracle, not a vibe.** For a bug that lives in the tool code,
+the coding agent's change is verified by replaying that call's exact recorded tool steps through the
+patched code and re-running the same detectors. There is no model in the verification path, so the
+red to green result can't be argued into existence. It starts on a cheap model and only escalates to
+a stronger one if the cheap one can't produce a passing change.
+
+**The timing the experience checks run on is real.** The live agent taps the Pipecat frame stream
+(the start and end of each model response, every transcription) to stamp every turn with a true
+monotonic timestamp, so the latency and dead air checks score real numbers on a live call, not
+guesses.
+
 ---
 
 ## 4. What we built during the hackathon
 
-Everything in this repo was built today.
+All of it. The repo's first commit is 9:04am on May 30 (it started life as "LineForge" and got
+renamed to Otto a couple hours in), and everything below was written that day:
+
+- the playbook format and the website to agent reader (it crawls the whole site plus reads the
+  page's structured data);
+- the self fixing loop itself: the swarm, the failure detection, the rule writing, the safety
+  check that makes every fix provably safe, and the launch bar;
+- the failure checks: the four part, 20 check engine that reads a whole call as a stream of events
+  (including voice and tone signals) and catches the sounds great but did nothing failures a
+  transcript would miss;
+- the live loop, where a single real failure spins up a batch of focused variations (different
+  accents, background noise, an angry caller) to confirm and harden the fix;
+- the coding agent that fixes bugs living in the code instead of the rules;
+- the live Pipecat voice agent (Nemotron brain, with Nova Sonic, Deepgram, Cartesia, and ElevenLabs
+  options) and the Cekura client;
+- six business types (restaurant, contractor, clinic, salon, law, and a general fallback), each
+  with its own tailored callers and rescue rules so a fresh extraction always has a way to heal;
+- a real stateful backend that tracks inventory and rejects double bookings, so a tool call has
+  real consequences the checks can actually grade, not a stub that always says yes;
+- live Twilio texts to the owner and the caller on bookings, escalations, and refunds; a streaming
+  dashboard that shows the swarm and live calls as they happen; and a printable safety certificate;
+- deploy paths for Render, Pipecat Cloud, and AWS AgentCore, and a 50 test suite that passes with no
+  keys at all.
+
+What we *didn't* build is the plumbing underneath. Pipecat, Cekura, the NVIDIA models on NIM, and
+Twilio are all theirs, and the Parakeet listener is taken straight from the hackathon starter (we
+just added a small piece to bridge a Pipecat version gap). Daily and NVIDIA's Nemotron voice stack
+was our starting point.
 
 ---
 
@@ -279,6 +343,15 @@ claim is true, and they came basically for free, which is a big deal. Tool calli
 handling were solid out of the box. The one thing that bit us was the API churn between the 0.0.x
 and 1.x versions: some import paths moved, and we had to add a small shim to the vendored Parakeet
 listener to bridge the gap. A clearer upgrade guide would help.
+
+---
+
+## 6. Live link (optional)
+
+🔗 **https://otto-orchestrator.onrender.com** : paste a business website and watch the loop run.
+
+> *Check this is actually deployed and reachable before submitting. If not, swap in the right URL
+> or just drop this section (it's optional).*
 
 ---
 
