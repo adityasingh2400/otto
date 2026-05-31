@@ -57,18 +57,19 @@
   .step .n{font:600 11px var(--mono);opacity:.6;display:block}
   .step.active{color:var(--ink);background:var(--gold-light);border-color:var(--gold)}
   .step.done{color:var(--ink);background:var(--pass-bg);border-color:var(--pass)}.step.done .n{color:var(--pass-d)}.step.done .n::after{content:" ✓"}
-  .lineage{display:none;align-items:center;gap:8px;margin:12px 2px 0;flex-wrap:wrap}
+  .lineage{display:none;align-items:center;gap:8px;margin:12px 2px 0;flex-wrap:wrap;background:rgba(255,255,255,.72);border:1px solid var(--line);border-radius:13px;padding:9px 11px;width:max-content;max-width:100%;box-shadow:var(--sh-sm)}
   .lineage.on{display:flex}
-  .lineage .ll{font:600 11px var(--mono);color:var(--ink-fade);text-transform:uppercase;letter-spacing:.5px;margin-right:2px}
-  .vchip{font:600 12px var(--mono);color:var(--ink);background:var(--card);border:1px solid var(--line2);border-radius:999px;padding:5px 12px;box-shadow:var(--sh-sm);animation:rise .35s both}
+  .lineage .ll{font:800 10px var(--mono);color:var(--ink-fade);text-transform:uppercase;letter-spacing:.08em;margin-right:2px}
+  .vchip{font:700 12px var(--mono);color:var(--ink);background:#fff;border:1px solid var(--line2);border-radius:8px;padding:5px 10px;box-shadow:none;animation:rise .35s both}
   .vchip b{font-family:var(--display);font-weight:600}
-  .vchip.gced{background:var(--pass-bg);border-color:var(--pass);color:var(--pass-d)}.vchip.gced::after{content:" ✓"}
-  .lineage .arrow{color:var(--maroon-l);font-weight:700}
+  .vchip.gced{background:#F5FAF1;border-color:#BBD4A9;color:var(--pass-d)}.vchip.gced::after{content:" ✓"}
+  .lineage .arrow{color:var(--line2);font-weight:700}
   .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,190px));gap:14px;margin-top:16px;justify-content:start}
   .metric{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;box-shadow:var(--sh-md)}
   .metric .v{font-family:var(--display);font-weight:600;font-size:36px;line-height:1;color:var(--ink)}
   .metric .v.foil{color:var(--maroon)}
   .metric .v.fail{color:var(--danger)} .metric .v.pass{color:var(--pass)}
+  .metric .v.idle{color:var(--line2)}
   .metric .l{font:600 12px var(--sans);color:var(--ink-soft);margin-top:8px}
   .metric .from{font:500 11px var(--mono);color:var(--ink-fade);margin-top:3px;min-height:14px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
@@ -78,18 +79,51 @@
   .muted{font-family:var(--serif);font-style:italic;color:var(--ink-fade);font-size:13px}
   #facts{font:500 13px var(--mono);max-height:160px;overflow:auto}#facts div{padding:4px 0;color:var(--ink-soft);border-bottom:1px dashed var(--line)}
   #facts b{color:var(--maroon);text-transform:uppercase;font-weight:600}
-  #arena{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  .call{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:13px;position:relative;box-shadow:var(--sh-sm);animation:rise .4s ease both;transition:border-color .4s,box-shadow .4s,background .4s}
+  #arena{display:flex;flex-direction:column}
+  .panel.arena-panel{padding:0;overflow:hidden}
+  .panel.arena-panel h3{display:flex;align-items:center;justify-content:space-between;margin:0;padding:18px 20px 13px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fcf8f2)}
+  .panel.arena-panel .roundtag{float:none}
+  .panel.arena-panel #arena{padding:0}
+  #arena>.muted{padding:18px 20px}
+  .panel.compact-panel{padding:0;overflow:hidden}
+  .panel.compact-panel h3{margin:0;padding:18px 20px 12px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fcf8f2)}
+  .panel.compact-panel > div:not(.muted){padding:16px 20px 20px}
+  /* ── swarm arena: a QA test-runner report — one row per scenario, not cards ── */
   @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  @keyframes flash{0%{box-shadow:0 0 0 3px rgba(74,122,46,.55)}100%{box-shadow:var(--sh-sm)}}
-  .call.justpassed{animation:flash 1s ease}
-  .call.pass{border-color:var(--pass);background:var(--pass-bg)}
-  .call.fail{border-color:var(--danger);background:var(--danger-bg)}
-  .call .clab{font:700 13px var(--sans);padding-right:56px}
-  .call .cat{font:500 11px var(--mono);color:var(--ink-fade);margin-top:3px}
-  .call .why{font-size:12px;color:var(--ink-soft);margin-top:8px;line-height:1.4}
-  .pill{position:absolute;top:11px;right:11px;font:600 10px var(--mono);letter-spacing:.4px;padding:3px 9px;border-radius:999px}
-  .pill.pass{background:var(--pass);color:#fff}.pill.fail{background:var(--danger);color:#fff}
+  @keyframes flash{0%{background:rgba(74,122,46,.26)}100%{background:transparent}}
+  /* run-summary strip: live pass/fail tally as the swarm streams */
+  .runbar{display:none;align-items:center;gap:18px;padding:11px 20px;border-bottom:1px solid var(--line);background:var(--paper);font:600 12px var(--mono)}
+  .runbar.on{display:flex}
+  .runbar .rb-round{color:var(--maroon);letter-spacing:.02em}
+  .runbar .rb-counts{display:flex;gap:16px;align-items:center}
+  .runbar .rb-counts span{display:inline-flex;align-items:center;gap:7px}
+  .runbar .rb-ok{color:var(--pass-d)}.runbar .rb-bad{color:var(--danger)}
+  .runbar .rb-dot{width:8px;height:8px;border-radius:50%}
+  .runbar .rb-dot.ok{background:var(--pass)}.runbar .rb-dot.bad{background:var(--danger)}
+  .runbar .rb-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .runbar .rb-pct{font:700 13px var(--mono);color:var(--ink)}
+  .runbar .rb-track{flex:0 0 120px;height:6px;border-radius:999px;background:var(--line);overflow:hidden;display:flex}
+  .runbar .rb-track i{height:100%;display:block;transition:flex-grow .45s}
+  .runbar .rb-track .seg-pass{background:var(--pass)}.runbar .rb-track .seg-fail{background:var(--danger)}
+  /* test rows */
+  .trow{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:start;column-gap:13px;padding:13px 20px;border-top:1px solid var(--line);animation:rise .3s ease both;transition:background .4s}
+  .trow:first-child{border-top:0}
+  .trow.fail{background:var(--danger-bg)}
+  .trow.justpassed{animation:flash 1.1s ease}
+  .trow .tstat{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font:700 12px var(--mono);margin-top:1px}
+  .trow.pass .tstat{color:var(--pass-d);background:var(--pass-bg)}
+  .trow.fail .tstat{color:var(--danger);background:#fff;border:1px solid #E6C4C4}
+  .trow .tmain{min-width:0}
+  .trow .tlabel{font:700 14px var(--sans);color:var(--ink);line-height:1.3}
+  .trow .treason{font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin-top:5px;max-width:74ch}
+  .trow.pass .treason{color:var(--ink-fade)}
+  .trow .tmeta{display:flex;align-items:center;gap:10px;font:600 11px var(--mono);white-space:nowrap;margin-top:2px}
+  .trow .tcat{text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft)}
+  .trow.fail .tcat{color:var(--danger)}
+  .trow .tlat{color:var(--ink-fade)}
+  /* pill kept for the live-phase call-history rows */
+  .pill{position:static;flex:0 0 auto;font:800 9.5px var(--mono);letter-spacing:.08em;padding:4px 8px;border-radius:7px;border:1px solid currentColor;background:#fff;text-transform:uppercase;line-height:1}
+  .pill.pass{color:var(--pass-d)}.pill.fail{color:var(--danger)}
   /* ── live call view ── */
   .livedot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--line2);margin-left:8px;vertical-align:middle}
   .livedot.on{background:#e0303a;animation:lpulse 1.2s infinite}
@@ -137,7 +171,8 @@
   main.ph-parse .parse-hero{display:grid}
   main.ph-swarm .metrics{display:grid}
   main.ph-swarm .lineage{display:flex}
-  .improve{margin-top:14px;font:500 13px var(--sans);color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-left:4px solid var(--pass);border-radius:13px;padding:13px 16px;box-shadow:var(--sh-sm);animation:rise .4s both}
+  .improve{margin-top:14px;font:500 13px var(--sans);color:var(--ink-soft);background:linear-gradient(180deg,#fff,var(--pass-bg));border:1px solid var(--line);border-radius:13px;padding:14px 18px;box-shadow:var(--sh-sm);animation:rise .4s both}
+  main.ph-swarm .improve:empty{display:none}
   .improve b{font:600 17px var(--display);color:var(--ink)}
   .improve .ip{font:700 13px var(--mono);color:var(--pass-d);background:var(--pass-bg);border-radius:8px;padding:3px 9px;margin-left:7px}
   .improve .im{color:var(--ink-fade);font-size:12px;display:block;margin-top:5px}
@@ -215,13 +250,23 @@
   .synthcard{border:1px solid var(--line);border-radius:15px;padding:15px;background:var(--card);box-shadow:var(--sh-sm)}
   .synthcard h4{font:700 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--ink-fade);margin:0 0 10px}
   .toolchip{display:inline-block;font:600 12px var(--mono);background:var(--paper);border:1px solid var(--line2);border-radius:9px;padding:5px 10px;margin:0 6px 6px 0;color:var(--maroon);animation:pop .3s both}
-  .cluster{margin-bottom:12px}.cluster .ch{font:600 12px var(--mono);color:var(--danger);text-transform:uppercase}
-  .cluster ul{margin:5px 0 0;padding-left:18px;color:var(--ink-soft);font-size:13px}
-  .diff{border:1px solid var(--line);border-radius:13px;padding:13px;margin-bottom:11px;background:var(--card);box-shadow:var(--sh-sm);animation:rise .4s both}
-  .diff .id{font:600 12px var(--mono);color:var(--maroon)}.diff .tagline{font:500 11px var(--mono);color:var(--ink-fade)}
-  .diff .row{font-size:13px;margin-top:8px;padding:9px 11px;border-radius:9px;white-space:pre-wrap;line-height:1.45}
-  .diff .before{background:var(--danger-bg);border-left:3px solid var(--danger);color:#6b1717}
-  .diff .after{background:var(--pass-bg);border-left:3px solid var(--pass);color:#33521f}
+  /* ── failure map: a diagnostic rollup — which dimensions the suite fails on ── */
+  #failmap{display:flex;flex-direction:column;gap:16px}
+  .fm-clean{font:600 13px var(--mono);color:var(--pass-d)}
+  .fmhead{display:flex;align-items:center;gap:9px;padding-bottom:7px;border-bottom:1px solid var(--line);margin-bottom:8px}
+  .fmcat{font:700 11px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--maroon)}
+  .fmn{margin-left:auto;font:700 10px var(--mono);color:#fff;background:var(--danger);border-radius:999px;min-width:20px;text-align:center;padding:2px 7px}
+  .fmlist{display:flex;flex-direction:column;gap:5px}
+  .fmitem{font:500 13.5px var(--sans);color:var(--ink-soft);line-height:1.45;padding-left:15px;position:relative}
+  .fmitem::before{content:"";position:absolute;left:3px;top:8px;width:5px;height:5px;border-radius:50%;background:var(--danger)}
+  .diff{border:1px solid var(--line);border-radius:13px;margin-bottom:13px;background:linear-gradient(180deg,#fff,#fcf8f2);box-shadow:var(--sh-sm);animation:rise .4s both;overflow:hidden}
+  .diff .id{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--line);font:700 12px var(--mono);color:var(--ink);background:#fff}
+  .diff .change{font:800 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--maroon);border:1px solid rgba(122,27,45,.28);background:#fbf1ef;border-radius:7px;padding:4px 7px}
+  .diff .tagline{font:600 11px var(--mono);color:var(--ink-fade);margin-left:auto}
+  .diff .body{padding:13px;display:grid;gap:9px}
+  .diff .row{font-size:13.5px;padding:12px 13px;border-radius:10px;white-space:pre-wrap;line-height:1.45;border:1px solid transparent}
+  .diff .before{background:#F9EBEA;border-color:#E8C9C7;color:#6b1717}
+  .diff .after{background:#EEF7E8;border-color:#CFE2C1;color:#33521f}
   #agent .greet{font-family:var(--serif);font-style:italic;color:var(--ink-soft);margin:6px 0 10px;font-size:14px}
   #agent ul{margin:0 0 8px;padding-left:18px;font-size:13px;color:var(--ink-soft)}#agent b{color:var(--maroon)}
   #agent .khdr{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.5px;color:var(--maroon);margin:10px 0 4px}
@@ -281,10 +326,11 @@
     .steps{flex-wrap:wrap;gap:8px}.step{flex:1 1 28%}
     .metrics{grid-template-columns:repeat(2,1fr)}
     .grid{grid-template-columns:1fr}.span2{grid-column:1}
-    #arena{grid-template-columns:1fr 1fr}
+    .trow{grid-template-columns:20px 1fr}.trow .tmeta{grid-column:2;margin-top:7px}
+    .runbar{flex-wrap:wrap;gap:10px}.runbar .rb-right{margin-left:0;width:100%}
     .banner{flex-wrap:wrap}.banner .report-link{margin-left:0}.banner .num{margin-left:auto}
   }
-  @media(max-width:440px){#arena{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}}
+  @media(max-width:440px){.metrics{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -349,19 +395,21 @@
   <div class="lineage" data-phase="swarm" id="lineage"><span class="ll">learns:</span></div>
 
   <div class="metrics" data-phase="swarm">
-    <div class="metric"><div class="v foil" id="m-pass">—</div><div class="l">Pass rate</div><div class="from" id="m-pass-from"></div></div>
-    <div class="metric"><div class="v fail" id="m-unsafe">—</div><div class="l">Unsafe answers</div><div class="from" id="m-unsafe-from"></div></div>
-    <div class="metric"><div class="v" id="m-book">—</div><div class="l">Booking accuracy</div><div class="from" id="m-book-from"></div></div>
-    <div class="metric"><div class="v" id="m-esc">—</div><div class="l">Safety / escalation</div><div class="from" id="m-esc-from"></div></div>
+    <div class="metric"><div class="v foil idle" id="m-pass">—</div><div class="l">Pass rate</div><div class="from" id="m-pass-from"></div></div>
+    <div class="metric"><div class="v fail idle" id="m-unsafe">—</div><div class="l">Unsafe answers</div><div class="from" id="m-unsafe-from"></div></div>
+    <div class="metric"><div class="v idle" id="m-book">—</div><div class="l">Booking accuracy</div><div class="from" id="m-book-from"></div></div>
+    <div class="metric"><div class="v idle" id="m-esc">—</div><div class="l">Safety / escalation</div><div class="from" id="m-esc-from"></div></div>
   </div>
   <div class="improve" id="improve" data-phase="swarm"></div>
 
   <div class="grid">
     <div class="panel" data-phase="parse"><h3>Extraction</h3><div id="facts"><div class="muted">waiting…</div></div></div>
     <div class="panel" data-phase="parse"><h3>Agent taking shape</h3><div id="agent"><div class="muted">greeting + policies appear after build</div></div></div>
-    <div class="panel span2" data-phase="swarm"><h3>Swarm arena <span class="roundtag" id="roundtag"></span></h3><div id="arena"><div class="muted">synthetic callers appear here, archetyped to the business</div></div></div>
-    <div class="panel" data-phase="swarm"><h3>Failure map</h3><div id="failmap"><div class="muted">no failures yet</div></div></div>
-    <div class="panel" data-phase="swarm"><h3>Auto-patch diff</h3><div id="diffs"><div class="muted">policies the healer rewrote appear here</div></div></div>
+    <div class="panel span2 arena-panel" data-phase="swarm"><h3>Swarm arena <span class="roundtag" id="roundtag"></span></h3>
+      <div class="runbar" id="runbar"><span class="rb-round" id="rb-round">running the swarm…</span><span class="rb-counts" id="rb-counts"></span><span class="rb-right"><span class="rb-pct" id="rb-pct"></span><span class="rb-track" id="rb-track"></span></span></div>
+      <div id="arena"><div class="muted">synthetic callers appear here, archetyped to the business</div></div></div>
+    <div class="panel compact-panel fail-panel" data-phase="swarm"><h3>Failure map</h3><div id="failmap"><div class="muted">no failures yet</div></div></div>
+    <div class="panel compact-panel diff-panel" data-phase="swarm"><h3>Auto-patch diff</h3><div id="diffs"><div class="muted">policies the healer rewrote appear here</div></div></div>
     <div class="panel span2" data-phase="live" id="prod">
       <h3>Production loop — every live call is evaluated</h3>
       <div class="muted">A failure on a real call triggers a targeted, high-volume swarm-heal on that one thing. Replay a live call — a tricky <b>voice</b> moment:</div>
@@ -509,7 +557,8 @@ function reset(){
   for(const k in lineage)delete lineage[k]; lineageOrder.length=0;
   $("#lineage").classList.remove("on"); $("#lineage").innerHTML='<span class="ll">learns:</span>';
   firstRate=null; firstM=null;
-  $("#facts").innerHTML=""; $("#arena").innerHTML=""; $("#failmap").innerHTML='<div class="muted">no failures yet</div>';
+  $("#facts").innerHTML=""; $("#arena").innerHTML='<div class="muted">synthetic callers appear here, archetyped to the business</div>'; $("#failmap").innerHTML='<div class="muted">no failures yet</div>';
+  $("#runbar").classList.remove("on"); $("#rb-counts").innerHTML=""; $("#rb-pct").textContent=""; $("#rb-track").innerHTML=""; $("#rb-round").textContent="running the swarm…"; $("#improve").innerHTML="";
   $("#diffs").innerHTML='<div class="muted">policies the healer rewrote appear here</div>';
   $("#agent").innerHTML="";
   $("#livetranscript").innerHTML='<div class="muted">call the live number, or hit “simulate” above</div>';
@@ -518,7 +567,7 @@ function reset(){
   $("#abtns").innerHTML='<div class="muted">the agent\'s tools appear here after build</div>'; $("#astatus").textContent=""; $("#oalerts").textContent="";
   $("#tracebtns").innerHTML=""; $("#fdims").innerHTML=""; $("#failstatus").innerHTML=""; $("#failreport").innerHTML='<div class="muted">replay a live call above to classify it across the failure taxonomy</div>';
   $("#banner").classList.remove("on"); $("#approve-banner").classList.remove("on"); $("#prod").classList.remove("on"); $("#pstatus").textContent=""; $("#vbadge").classList.remove("on");
-  ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>{const el=$("#"+id);el.textContent="—";delete el.dataset.v;});  // clear count-up baselines so a re-run doesn't animate down from the prior number
+  ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>{const el=$("#"+id);el.textContent="—";el.classList.add("idle");delete el.dataset.v;});  // clear count-up baselines so a re-run doesn't animate down from the prior number
   ["m-pass-from","m-unsafe-from","m-book-from","m-esc-from"].forEach(id=>{const el=$("#"+id);if(el)el.textContent="";});
   $("#agentcard").innerHTML='<div class="muted">building the agent card…</div>';
   const dp=$("#deploy"); dp.disabled=false; dp.textContent="🚀 Deploy this agent — put the line live";
@@ -690,7 +739,8 @@ function handle(ev){
     case "spec": lastSpec=ev.spec; parseSpec(ev.spec); renderAgent(ev.spec); renderActionButtons(ev.spec); renderSimButtons(); break;
     case "call": renderCall(ev.result); break;
     case "swarm_report":
-      $("#roundtag").textContent=`round ${ev.report.round} · v${ev.report.spec_version} · ${ev.report.passed}/${ev.report.total}`;
+      $("#rb-round").textContent=`Round ${ev.report.round} · spec v${ev.report.spec_version}`;
+      updateRunbar();
       if(firstRate===null){firstRate=ev.report.pass_rate;$("#m-pass-from").textContent=`from ${Math.round(firstRate*100)}%`;}
       recordLineage(ev.report.spec_version,ev.report.pass_rate);
       break;
@@ -788,6 +838,7 @@ function animateNum(el,to,suffix){const from=parseInt(el.dataset.v||"0",10);el.d
   (function tick(t){const k=Math.min(1,(t-t0)/650);const e=1-Math.pow(1-k,3);el.textContent=Math.round(from+(to-from)*e)+suffix;if(k<1)requestAnimationFrame(tick);})(t0);}
 let firstM=null;
 function renderMetrics(m){
+  ["m-pass","m-unsafe","m-book","m-esc"].forEach(id=>$("#"+id).classList.remove("idle"));
   if(!firstM){firstM=m;
     $("#m-book-from").textContent=`from ${Math.round(m.booking*100)}%`;
     $("#m-esc-from").textContent=`from ${Math.round(m.escalation*100)}%`;
@@ -805,26 +856,40 @@ function renderMetrics(m){
       : `<b>Baseline ${a}%</b><span class="ip">round 1</span><span class="im">attacking with the adversarial swarm — failures get patched and re-tested until the gate clears</span>`;
   }
 }
+function fmtLat(ms){ if(ms==null)return""; return ms>=1000?(ms/1000).toFixed(1)+"s":ms+"ms"; }
+function updateRunbar(){
+  const rb=$("#runbar"); if(!rb)return;
+  const keys=Object.keys(cards);
+  const np=keys.filter(k=>prevPass[k]===true).length, nf=keys.filter(k=>prevPass[k]===false).length, tot=np+nf;
+  if(!tot){rb.classList.remove("on");return;}
+  rb.classList.add("on");
+  $("#rb-counts").innerHTML=`<span class="rb-ok"><span class="rb-dot ok"></span>${np} passed</span><span class="rb-bad"><span class="rb-dot bad"></span>${nf} failed</span>`;
+  $("#rb-pct").textContent=Math.round(100*np/tot)+"%";
+  $("#rb-track").innerHTML=`<i class="seg-pass" style="flex:${np||0.0001}"></i><i class="seg-fail" style="flex:${nf||0.0001}"></i>`;
+}
 function renderCall(r){
   let el=cards[r.persona];
-  if(!el){el=document.createElement("div");el.className="call";cards[r.persona]=el;if($("#arena").querySelector(".muted"))$("#arena").innerHTML="";$("#arena").appendChild(el);}
+  if(!el){el=document.createElement("div");cards[r.persona]=el;if($("#arena").querySelector(".muted"))$("#arena").innerHTML="";$("#arena").appendChild(el);}
   const wasFail=prevPass[r.persona]===false;
-  el.className="call "+(r.passed?"pass":"fail")+((wasFail&&r.passed)?" justpassed":"");
-  el.innerHTML=`<div class="pill ${r.passed?"pass":"fail"}">${r.passed?"PASS":"FAIL"}</div>
-    <div class="clab">${r.label}</div><div class="cat">${r.category} · ${r.backend}${r.latency_ms?` · ${r.latency_ms}ms`:""}</div>
-    <div class="why">${r.reason||""}</div>`;
-  prevPass[r.persona]=r.passed; redrawFailmap();
+  el.className="trow "+(r.passed?"pass":"fail")+((wasFail&&r.passed)?" justpassed":"");
+  el.dataset.label=r.label||""; el.dataset.cat=r.category||"other";
+  el.innerHTML=`<span class="tstat">${r.passed?"✓":"✕"}</span>
+    <div class="tmain"><div class="tlabel">${esc(r.label)}</div>${r.reason?`<div class="treason">${esc(r.reason)}</div>`:""}</div>
+    <div class="tmeta"><span class="tcat">${esc(r.category)}</span>${r.latency_ms?`<span class="tlat">${fmtLat(r.latency_ms)}</span>`:""}</div>`;
+  prevPass[r.persona]=r.passed; redrawFailmap(); updateRunbar();
 }
 function redrawFailmap(){
-  const fails=Object.entries(cards).filter(([k])=>prevPass[k]===false).map(([,e])=>({label:e.querySelector(".clab").textContent,cat:e.querySelector(".cat").textContent.split(" · ")[0],why:e.querySelector(".why").textContent}));
-  if(!fails.length){$("#failmap").innerHTML='<div class="muted">no failures — all green</div>';return;}
-  const by={};fails.forEach(f=>(by[f.cat]=by[f.cat]||[]).push(f));
-  $("#failmap").innerHTML=Object.entries(by).map(([c,a])=>`<div class="cluster"><div class="ch">${c}</div><ul>${a.map(f=>`<li>${f.label}: ${f.why}</li>`).join("")}</ul></div>`).join("");
+  const fails=Object.entries(cards).filter(([k])=>prevPass[k]===false).map(([,e])=>({label:e.dataset.label,cat:e.dataset.cat||"other"}));
+  if(!fails.length){$("#failmap").innerHTML='<div class="fm-clean">✓ all scenarios passing</div>';return;}
+  const by={};fails.forEach(f=>(by[f.cat]=by[f.cat]||[]).push(f.label));
+  $("#failmap").innerHTML=Object.entries(by).map(([c,a])=>
+    `<div class="fmgroup"><div class="fmhead"><span class="fmcat">${esc(c)}</span><span class="fmn">${a.length}</span></div>`
+    +`<div class="fmlist">${a.map(l=>`<div class="fmitem">${esc(l)}</div>`).join("")}</div></div>`).join("");
 }
 function renderPatch(ev){if($("#diffs").querySelector(".muted"))$("#diffs").innerHTML="";
   ev.diffs.forEach(d=>{const el=document.createElement("div");el.className="diff";
-    el.innerHTML=`<div class="id">${d.change.toUpperCase()} · ${d.policy_id} <span class="tagline">[${d.category}] round ${ev.round}</span></div>
-      ${d.before?`<div class="row before">− ${d.before.rule}</div>`:""}<div class="row after">+ ${d.after.rule}</div>`;
+    el.innerHTML=`<div class="id"><span class="change">${esc(d.change)}</span><span>${esc(d.policy_id)}</span><span class="tagline">[${esc(d.category)}] round ${ev.round}</span></div>
+      <div class="body">${d.before?`<div class="row before">- ${esc(d.before.rule)}</div>`:""}<div class="row after">+ ${esc(d.after.rule)}</div></div>`;
     $("#diffs").appendChild(el);});
 }
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
