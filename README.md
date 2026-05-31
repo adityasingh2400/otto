@@ -34,27 +34,23 @@ what it **did**, how the call **ended**, and how it **felt** to the caller, usin
 mostly run on fixed rules. Every failure it finds builds its own fix. (See
 [`docs/FAILURE_TAXONOMY.md`](docs/FAILURE_TAXONOMY.md).)
 
-**Why it's worth building.** For a local business the phone is the front door, not a support
-line. Nearly 8 in 10 people say a call matters when they need to reach a business, and 55% reach
-for the phone first when it's urgent (TransUnion, 2024).[^transunion] Those calls are worth more
-than anything else: across 60M+ calls, 37% of phone leads close right there on the line, versus
-under 2% for a web form (Invoca, 2025).[^invoca25] But nobody's there to pick up. Restaurants
-are short staffed, with 45% saying they don't have enough people to meet demand (NRA,
-2024),[^nra] so the phone rings while the team is buried. About a quarter of calls to home
-services businesses go unanswered, and almost nobody who lands in voicemail leaves a message
-(Invoca, 2024).[^invoca24] A missed call isn't a callback later. It's a customer who already
-dialed someone else, and 1 in 3 businesses say they've lost money simply because they couldn't
-get to the phone (Hiya, 2025).[^hiya]
+**Why it's worth building.** For a local business the phone is the front door. Nearly 8 in 10
+people say a call matters when they need to reach a business, and 55% reach for the phone first
+when it's urgent. Those calls are also worth more than anything else: across 60M+
+calls, 37% of phone leads close right there on the line, versus under 2% for a web form. But
+nobody's there to pick up. Restaurants are short staffed, with 45% saying they don't have enough
+people to meet demand, so the phone rings while the team is buried. About a quarter of calls to
+home services businesses go unanswered, and almost nobody who lands in voicemail leaves a message.
+A missed call isn't a callback later. It's a customer who already dialed someone else, and 1 in 3
+businesses say they've lost money simply because they couldn't get to the phone.
 
-So why not just hand the phone to an AI? Because for these businesses a wrong answer is worse
-than a missed one, and AI fails in the exact way that scares them: it says the wrong thing with
-total confidence. Speech to text invents words that were never spoken in about 1% of transcripts,
-and roughly 40% of those made up words are actively harmful (ACM FAccT, 2024).[^whisper] Models
-quietly get worse over time in 91% of cases (Nature, 2022).[^aging] And about 95% of company AI
-projects show no real impact on the bottom line (MIT, 2025).[^mit] The hard part was never making
-the voice sound good. It's earning enough trust to turn it on, and that's only possible when the
-job is small enough to test every way it can go wrong. One restaurant's phone calls are exactly
-that small. That's the bet Otto makes.
+So why not just hand the phone to an AI? Because for these businesses a wrong answer is worse than
+a missed one, and AI fails in the exact way that scares them: it says the wrong thing with total
+confidence. Speech to text invents words that were never spoken in about 1% of transcripts, and
+roughly 40% of those made up words are actively harmful. Models quietly get worse over time in 91%
+of cases. And about 95% of company AI projects show no real impact on the bottom line. The hard part was never making the voice sound good. It's earning enough trust to turn it
+on, and that's only possible when the job is small enough to test every way it can go wrong. One
+restaurant's phone calls are exactly that small. That's the bet Otto makes.
 
 ---
 
@@ -93,60 +89,62 @@ flowchart LR
   classDef spec fill:#1f3a5f,stroke:#13263d,color:#fff;
 ```
 
-### Cekura: two swarms, opposite shapes, one fixing engine
+### Cekura: two swarms, one fixing engine
 
 We run two swarms built for opposite jobs, and that contrast is the whole idea.
 
-**The first swarm goes wide, and it runs before the agent goes live.** It's a set of fake callers
-built for that exact kind of business: allergy questions and large party bookings for a
-restaurant, emergency calls and licensing traps for a contractor. They hit the new agent from
-every angle at once, and the phone number can't turn on until the agent passes a set bar. The
-point here is coverage. Find every weak spot before a real customer ever calls.
+**First, before the agent ever touches a real customer, we run a generalized swarm based on the
+business type.** It's a set of fake callers shaped by what that kind of business has to handle:
+allergy questions and large party bookings for a restaurant, emergency calls and licensing traps
+for a contractor. They hit the new agent from every angle at once, and **the phone number can't
+turn on until the agent passes the bar.** This is the net that catches the obvious failures before
+a single real customer is ever on the line.
 
-**The second swarm goes deep, and it runs on live calls.** Every real call is scored the moment it
-ends, across 20 plain checks that run on fixed rules and look at what the agent said, what it did,
-how the call ended, and how it felt to the caller. When a call fails, we choose on purpose not to
-just patch that one call. Fixing off a single call teaches the agent the exact words that broke it
-and nothing else. Instead we take that one failure and spin it into about 30 harder versions of
-the same call: the same request but with a thick accent, with background noise, from an angry
-caller, from someone who keeps interrupting, from someone who switches language partway through.
-Now the fix has to hold up against the whole family of that failure, not the single call that
-exposed it. One bad call becomes a tight test set aimed straight at that weak spot.
+**Then, on live traffic, we run targeted swarm fixes: we replicate any failure that happens in
+production so it can never happen again.** A real call is scored the moment it ends, across 20
+plain checks that look at what the agent said, what it did, how the call ended, and how it felt to
+the caller. When a call fails, instead of patching just that one call, we take the exact failure
+and replicate it into about 30 harder versions of itself: the same request but with a thick accent,
+with background noise, from an angry caller, from someone who keeps interrupting, from someone who
+switches language partway through. Now the fix has to beat the **whole family of that failure**,
+not the single call that happened to expose it. One bad call becomes a tight test set aimed
+straight at that weak spot, and once it passes, **that entire class of failure is closed for
+good.**
 
-Running all 30 as real voice calls would be slow and costly, so the deep swarm groups them. Many
-of those 30 versions are really the same type of difficulty, so they can share one real voice
-call. That folds about 30 versions down to about 10 real calls that still cover the full range
-(`cekura.py:69-82`, proven in `test_loop.py:882`). This is the trick that lets the deep testing
-run on real audio instead of faking it with text, and still stay fast enough to watch live.
+Running all 30 as real voice calls would be slow and costly, so we group them. **Many of those 30
+versions are really the same kind of difficulty, so they share one real voice call**, which folds
+about 30 versions down to about 10 real calls that still cover the full range. This is the trick
+that lets the deep testing run on real audio instead of faking it with text, and still stay fast
+enough to watch live.
 
-**How a live fix actually happens.** First we sort the failure by what kind of bug it is. If it's
-a missing or weak rule, the agent rewrites its own rule. If it's a bug in the tool code that no
-rule could ever fix, like a booking tool that can double book, a tool that sometimes never
-replies, or a path that could write a card number into a record, then a coding agent writes a real
-code change and proves it by replaying that exact call's tool steps through the fixed code and
-running the same checks again. Two kinds of fixes, one scoring system. Either fix then has to pass
-a safety check: it ships only if it breaks nothing that was already passing, so the agent can only
-get better, never worse, by design. And that same check runs against the wide swarm from before
-launch too, so fixing a rare live case can never quietly undo the safety the agent shipped with.
-That last guarantee is the part most demos that claim an agent fixes itself quietly skip.
+**How a live fix actually happens.** First we sort the failure by what kind of bug it is. **If
+it's a missing or weak rule, the agent rewrites its own rule.** **If it's a bug in the tool code
+that no rule could ever fix** (a booking tool that can double book, a tool that sometimes never
+replies, a path that could write a card number into a record), **a coding agent writes a real code
+change** and proves it by replaying that exact call's tool steps through the fixed code and running
+the same checks again. Two kinds of fixes, one scoring system. Either fix then has to pass a
+**safety check: it ships only if it breaks nothing that was already passing**, so the agent can
+only get better, never worse, by design. That same check runs against the generalized swarm from
+before launch too, so fixing a rare live case can never quietly undo the safety the agent shipped
+with. That last guarantee is the part most demos that claim an agent fixes itself quietly skip.
 
-Both swarms run through one switch. A single setting picks the engine under them: the real Cekura
-voice swarm over a Daily room, or a fast local version, and if a key is missing it falls back on
-its own so the loop always runs (`swarm.py:54-77`). The same checks score all of it. And Cekura
-scores actions, not just words: whether the agent called the right tools and whether the booking
-actually landed, not whether the transcript sounded nice. That's how the system catches the call
-that sounds perfect and never booked the table.
+Both swarms run through one switch: a single setting picks the engine under them, the real Cekura
+voice swarm over a Daily room or a fast local version, and if a key is missing it falls back on its
+own so the loop always runs. The same checks score all of it. And **Cekura scores actions, not
+just words**: whether the agent called the right tools and whether the booking actually landed, not
+whether the transcript sounded nice. That's how the system catches the call that sounds perfect and
+never booked the table.
 
 ```mermaid
 flowchart TB
-  subgraph GEN["① WIDE SWARM · runs before launch"]
+  subgraph GEN["① GENERALIZED SWARM · before any real customer"]
     direction TB
     GA["Fake callers built for that exact<br/>type of business, hitting the agent<br/>from every angle at once"] --> GB["Phone number can't turn on<br/>until the agent passes the bar"]
   end
-  subgraph PROD["② DEEP SWARM · runs on live calls"]
+  subgraph PROD["② TARGETED FIXES · replicate live failures"]
     direction TB
-    PA["One real call fails"] --> PB["Spin it into ~30 harder versions<br/>(accent, noise, anger,<br/>interrupting, language switch)"]
-    PB --> PC["Group the similar ones into ~10<br/>real voice calls: hammer that one<br/>weak spot from every angle"]
+    PA["A real call fails"] --> PB["Replicate it into ~30 harder versions<br/>(accent, noise, anger,<br/>interrupting, language switch)"]
+    PB --> PC["Group the similar ones into ~10<br/>real voice calls: close that whole<br/>class of failure for good"]
   end
   GB --> ENG
   PC --> ENG{"What kind of bug?"}
@@ -154,7 +152,7 @@ flowchart TB
   ENG -->|"bug in the code"| RC["Coding agent fixes the tool,<br/>proven by replaying the call's<br/>tool steps through the new code"]:::hot
   RP --> GUARD
   RC --> GUARD
-  GUARD{"Safety check: does the fix break<br/>anything that already passed,<br/>here OR in the wide swarm?"}
+  GUARD{"Safety check: does the fix break<br/>anything that already passed,<br/>here OR in the generalized swarm?"}
   GUARD -->|"yes, reject"| ENG
   GUARD -->|"no"| CONF["Cekura runs the exact<br/>failing versions again: RED to GREEN"]:::cek
   CONF --> SHIP["Ship it, and it can't drop<br/>the safety it launched with"]
@@ -325,11 +323,4 @@ sims, and the live call all real, at $0. Deeper dives live in
 
 ---
 
-[^transunion]: TransUnion, "The Call Conundrum," Oct 2024. Survey of 1,556 U.S. adults. [source](https://newsroom.transunion.com/nearly-80-of-consumers-consider-phone-channel-important-for-communicating-with-businesses-despite-reluctance-to-answer-calls/).
-[^invoca25]: Invoca, *Call Conversion Industry Benchmarks Report 2025*. AI analysis of 60M+ calls; 37% of phone leads convert on the call (web form near 1.7% is the derived contrast). [source](https://www.invoca.com/reports/the-invoca-call-conversion-industry-benchmarks-report-2025).
-[^nra]: National Restaurant Association, *2024 State of the Restaurant Industry*. [source](https://restaurant.org/research-and-media/media/press-releases/restaurant-industry-sales-forecast-to-set-1-1-trillion-record-in-2024/).
-[^invoca24]: Invoca, first party call tracking data, 2024. [source](https://www.invoca.com/blog/how-much-missed-sales-calls-cost-home-services-businesses).
-[^hiya]: Hiya, *2025 State of the Call* (survey of about 1,800 working professionals). [source](https://www.businesswire.com/news/home/20250930624483/en/).
-[^whisper]: Koenecke et al., "Careless Whisper: Speech to Text Hallucination Harms," ACM FAccT 2024. [coverage](https://www.science.org/content/article/ai-transcription-tools-hallucinate-too).
-[^aging]: Vela et al., "Temporal quality degradation in AI models," *Scientific Reports* (Nature), 2022. Degradation in 91% of 128 (model, dataset) cases. [source](https://www.nature.com/articles/s41598-022-15245-z).
-[^mit]: MIT NANDA, *The GenAI Divide: State of AI in Business 2025*. About 95% of organizations saw no measurable P&L impact from GenAI. [coverage](https://fortune.com/2025/08/18/mit-report-95-percent-generative-ai-pilots-at-companies-failing-cfo/).
+*Otto, built at the Voice Agents Hackathon (YC SF), May 30 2026.*
