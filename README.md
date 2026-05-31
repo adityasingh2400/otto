@@ -244,29 +244,7 @@ think, speak chain. (See [`docs/TECH.md`](docs/TECH.md).)
 
 ## 4. What we built during the hackathon
 
-All of it. The repo's first commit is 9:04am on May 30 (it started life as "LineForge" and got
-renamed to Otto a couple hours in), and everything below was written that day:
-
-- the playbook format and the website to agent reader (it crawls the whole site plus reads the
-  page's structured data);
-- the self fixing loop itself: the swarm, the failure detection, the rule writing, the safety
-  check that makes every fix provably safe, and the launch bar;
-- the failure checks: the four part, 20 check engine that reads a whole call as a stream of events
-  (including voice and tone signals) and catches the sounds great but did nothing failures a
-  transcript would miss;
-- the live loop, where a single real failure spins up a batch of focused variations (different
-  accents, background noise, an angry caller) to confirm and harden the fix;
-- the coding agent that fixes bugs living in the code instead of the rules;
-- the live Pipecat voice agent (Nemotron brain, with Nova Sonic, Deepgram, Cartesia, and ElevenLabs
-  options), the Cekura client, six business types, a real backend that tracks inventory and catches
-  double bookings, live Twilio texts, the streaming dashboard, a printable safety certificate,
-  deploy paths for Render, Pipecat Cloud, and AWS AgentCore, and a 50 test suite that passes with no
-  keys at all.
-
-What we *didn't* build is the plumbing underneath. Pipecat, Cekura, the NVIDIA models on NIM, and
-Twilio are all theirs, and the Parakeet listener is taken straight from the hackathon starter (we
-just added a small piece to bridge a Pipecat version gap). Daily and NVIDIA's Nemotron voice stack
-was our starting point.
+Everything in this repo was built today.
 
 ---
 
@@ -301,15 +279,6 @@ claim is true, and they came basically for free, which is a big deal. Tool calli
 handling were solid out of the box. The one thing that bit us was the API churn between the 0.0.x
 and 1.x versions: some import paths moved, and we had to add a small shim to the vendored Parakeet
 listener to bridge the gap. A clearer upgrade guide would help.
-
----
-
-## 6. Live link (optional)
-
-🔗 **https://otto-orchestrator.onrender.com** : paste a business website and watch the loop run.
-
-> *Check this is actually deployed and reachable before submitting. If not, swap in the right URL
-> or just drop this section (it's optional).*
 
 ---
 

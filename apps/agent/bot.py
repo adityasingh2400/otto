@@ -528,10 +528,28 @@ def _transport_params() -> dict:
     }
 
 
+def _apply_start_overrides(runner_args: RunnerArguments) -> None:
+    """When the orchestrator starts this agent for a Cekura swarm run, it passes the build's session
+    id (and its own public URL) in the start `body` — which Pipecat delivers as `runner_args.body`.
+    Honor them so THIS instance serves that build's CANDIDATE spec via /api/spec/<session> (what the
+    heal loop's before→after depends on), not the last-activated business. Pipecat Cloud runs one
+    session per microVM, so setting process env here is safe — there's no cross-call bleed."""
+    body = getattr(runner_args, "body", None) or {}
+    if not isinstance(body, dict):
+        return
+    sess = body.get("session") or body.get("otto_session")
+    orch = body.get("orch_base_url")
+    if sess:
+        os.environ["OTTO_SESSION"] = str(sess)
+    if orch:
+        os.environ["ORCH_BASE_URL"] = str(orch)
+
+
 async def bot(runner_args: RunnerArguments) -> None:
     """Pipecat runner entrypoint — local dev (WebRTC), the Cekura swarm + Pipecat Cloud
     (Daily), and the live phone (Twilio), all from the same pipeline. The swarm tests the
     exact code that answers the phone. Run locally: `uv run bot.py` → http://localhost:7860"""
+    _apply_start_overrides(runner_args)  # swarm runs pin the candidate spec via the start body
     transport = await create_transport(runner_args, _transport_params())
     spec = await load_spec()
     await run_bot(transport, spec)

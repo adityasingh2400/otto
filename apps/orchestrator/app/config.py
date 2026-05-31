@@ -70,15 +70,19 @@ CRAWL_MAX_PAGES = _i("CRAWL_MAX_PAGES", 6)  # pages to crawl when extracting fro
 # "can it handle concurrent calling" without each call needing its own backoff.
 LLM_MAX_RETRIES = _i("LLM_MAX_RETRIES", 3)         # attempts per call (1 = no retry)
 LLM_RETRY_BASE_MS = _i("LLM_RETRY_BASE_MS", 800)   # exponential backoff base (0.8s, 1.6s, 3.2s …) + jitter
-LLM_MAX_CONCURRENCY = _i("LLM_MAX_CONCURRENCY", 4) # max simultaneous outbound LLM calls (per event loop)
+LLM_MAX_CONCURRENCY = _i("LLM_MAX_CONCURRENCY", 8) # max simultaneous outbound LLM calls (per event loop)
+# Per-call wall-clock cap. WITHOUT this the OpenAI/Anthropic SDKs default to 600s, so one slow/stuck
+# NIM call camps a concurrency slot for 10 min and silently starves the whole swarm (looks like a hang).
+# A bounded timeout turns that into a fast _retry instead. Server-side reasoning calls finish in ~20s.
+LLM_TIMEOUT_S = _f("LLM_TIMEOUT_S", 45.0)          # seconds before an LLM call is aborted + retried
 
 # Swarm / eval
 SWARM_MODE = os.getenv("SWARM_MODE", "local")  # local (LLM sim if keyed, else static) | static (force) | cekura
 PASS_GATE = _f("PASS_GATE", 0.85)
-SWARM_PERSONAS = _i("SWARM_PERSONAS", 12)
+SWARM_PERSONAS = _i("SWARM_PERSONAS", 6)
 SWARM_CONCURRENCY = _i("SWARM_CONCURRENCY", 6)  # lower to 1-2 for rate-limited free LLM tiers
 SWARM_TURNS = _i("SWARM_TURNS", 4)  # caller<->agent exchanges per simulated call (each = 2 LLM calls)
-MAX_HEAL_ROUNDS = _i("MAX_HEAL_ROUNDS", 3)
+MAX_HEAL_ROUNDS = _i("MAX_HEAL_ROUNDS", 1)
 # HEAL_USE_LLM=1 has the LLM (e.g. Nemotron) author the policy fix from failure evidence — a
 # nice "watch it reason" beat, but adds a call per heal round. Default off = instant curated
 # fixes (snappy demo). The curated fix is always applied as a backstop regardless.
@@ -168,10 +172,35 @@ OWNER_PHONE = os.getenv("OWNER_PHONE", "")  # business owner's number for event 
 # instead so a live test call always lands a real confirmation SMS. Empty in prod.
 DEMO_RESERVER_PHONE = os.getenv("DEMO_RESERVER_PHONE", "")
 
-# Daily (Cekura WebRTC swarm joins this room; also the agent's WebRTC transport)
+# Daily (Cekura's simulated caller joins this room; also the agent's WebRTC transport).
+# The swarm needs an agent-under-test sitting in a Daily room for Cekura to call — and it must be
+# serving THIS build's candidate spec, not the live one (so heal's before→after is real). There are
+# three ways to get that, tried in order by cekura._acquire_room (first one configured wins):
+#   static : DAILY_ROOM_URL set → use it as-is. An agent must already be running in it
+#            (apps/agent/daily_runner.py). Operator override / manual ops.
+#   pcc    : PCC_API_KEY + PCC_AGENT_NAME set → start the deployed Pipecat Cloud agent into a fresh
+#            room PER ROUND, passing this session id so it loads /api/spec/<session> (the candidate).
+#   local  : DAILY_API_KEY set → provision a room on our OWN Daily domain (app/daily.py) and run the
+#            agent locally against it (full token control; works on localhost where PCC can't reach us).
+# CEKURA_AGENT_HOST pins one explicitly (auto|static|pcc|local); default auto = the precedence above.
 DAILY_API_KEY = os.getenv("DAILY_API_KEY", "")
 DAILY_ROOM_URL = os.getenv("DAILY_ROOM_URL", "")
 DAILY_ROOM_TOKEN = os.getenv("DAILY_ROOM_TOKEN", "")
+CEKURA_AGENT_HOST = os.getenv("CEKURA_AGENT_HOST", "auto").lower()  # auto | static | pcc | local
+CEKURA_ROOM_EXP_S = _i("CEKURA_ROOM_EXP_S", 600)  # room/session TTL → a swarm run tears itself down
+
+# Pipecat Cloud — the host of the agent-under-test for the Cekura swarm. Starting a session puts our
+# deployed agent into a Daily room bound to a specific build; we hand that room to Cekura's caller.
+# PCC_AGENT_NAME mirrors apps/agent/pcc-deploy.toml (agent_name). The started agent calls back to the
+# orchestrator at ORCH_PUBLIC_URL to load /api/spec/<session>, so that MUST be publicly reachable
+# (your Render URL) — a localhost orchestrator is unreachable from Pipecat Cloud (use the local host).
+PCC_API_KEY = os.getenv("PCC_API_KEY", "")              # Pipecat Cloud public API key (pk_…)
+PCC_AGENT_NAME = os.getenv("PCC_AGENT_NAME", "otto-agent")
+PCC_BASE_URL = os.getenv("PCC_BASE_URL", "https://api.pipecat.daily.co")
+ORCH_PUBLIC_URL = (os.getenv("ORCH_PUBLIC_URL", "") or PUBLIC_BASE_URL).rstrip("/")  # how the agent reaches us
+# Local host path: the agent venv's python that can import pipecat (the orchestrator venv can't).
+AGENT_PYTHON = os.getenv("AGENT_PYTHON", "") or str(_ROOT / "apps" / "agent" / ".venv" / "bin" / "python")
+LOCAL_AGENT_WARMUP_S = _f("LOCAL_AGENT_WARMUP_S", 6.0)  # seconds to let a spawned local agent join the room
 
 
 def llm_available() -> bool:
@@ -190,3 +219,8 @@ def llm_available() -> bool:
 
 def cekura_available() -> bool:
     return bool(CEKURA_API_KEY)
+
+
+def pcc_available() -> bool:
+    """Can we start the agent-under-test on Pipecat Cloud (so Cekura has something to call)?"""
+    return bool(PCC_API_KEY and PCC_AGENT_NAME)

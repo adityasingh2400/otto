@@ -103,17 +103,18 @@ def _oai_client_model() -> tuple[Any, str, str]:
         import os
         # Prefer the agent's tool-capable Nemotron so the sim's tool-calling fidelity matches the live line.
         model = os.getenv("AGENT_NVIDIA_MODEL") or config.NVIDIA_MODEL
-        return AsyncOpenAI(api_key=config.NVIDIA_API_KEY, base_url=config.NVIDIA_BASE_URL), model, "detailed thinking off\n\n"
+        return AsyncOpenAI(api_key=config.NVIDIA_API_KEY, base_url=config.NVIDIA_BASE_URL, timeout=config.LLM_TIMEOUT_S), model, "detailed thinking off\n\n"
     if provider == "gemini":
         if not config.GEMINI_API_KEY:
             raise LLMUnavailable("GEMINI_API_KEY not set")
         return (AsyncOpenAI(api_key=config.GEMINI_API_KEY,
-                            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"),
+                            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                            timeout=config.LLM_TIMEOUT_S),
                 config.GEMINI_MODEL, "")
     if provider == "openai" or config.OPENAI_API_KEY:
         if not config.OPENAI_API_KEY:
             raise LLMUnavailable("OPENAI_API_KEY not set")
-        return AsyncOpenAI(api_key=config.OPENAI_API_KEY), config.LLM_MODEL, ""
+        return AsyncOpenAI(api_key=config.OPENAI_API_KEY, timeout=config.LLM_TIMEOUT_S), config.LLM_MODEL, ""
     raise LLMUnavailable(f"tool-calling not supported for provider={provider}")
 
 
@@ -182,7 +183,7 @@ async def _anthropic_tools(system: str, messages: list[dict], tools: list[dict],
         from anthropic import AsyncAnthropic
     except ImportError as e:  # pragma: no cover
         raise LLMUnavailable("anthropic SDK not installed") from e
-    client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
+    client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY, timeout=config.LLM_TIMEOUT_S)
     model = model or (config.LLM_MODEL if config.LLM_PROVIDER == "anthropic" else "claude-haiku-4-5")
     extra = {"tool_choice": {"type": "any"}} if force_tool else {}  # any => must call SOME tool
     async with _gate():
@@ -241,7 +242,7 @@ async def _openai(system: str, user: str, json_mode: bool, temperature: float, m
         from openai import AsyncOpenAI
     except ImportError as e:  # pragma: no cover
         raise LLMUnavailable("openai SDK not installed") from e
-    client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
+    client = AsyncOpenAI(api_key=config.OPENAI_API_KEY, timeout=config.LLM_TIMEOUT_S)
     kwargs: dict[str, Any] = {
         "model": model or config.LLM_MODEL,
         "temperature": temperature,
@@ -266,7 +267,8 @@ async def _gemini(system: str, user: str, json_mode: bool, temperature: float, m
     except ImportError as e:  # pragma: no cover
         raise LLMUnavailable("openai SDK not installed") from e
     client = AsyncOpenAI(api_key=config.GEMINI_API_KEY,
-                         base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+                         base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                         timeout=config.LLM_TIMEOUT_S)
     kwargs: dict[str, Any] = {
         "model": model or config.GEMINI_MODEL,
         "temperature": temperature,
@@ -290,7 +292,7 @@ async def _nvidia(system: str, user: str, json_mode: bool, temperature: float, m
         from openai import AsyncOpenAI
     except ImportError as e:  # pragma: no cover
         raise LLMUnavailable("openai SDK not installed") from e
-    client = AsyncOpenAI(api_key=config.NVIDIA_API_KEY, base_url=config.NVIDIA_BASE_URL)
+    client = AsyncOpenAI(api_key=config.NVIDIA_API_KEY, base_url=config.NVIDIA_BASE_URL, timeout=config.LLM_TIMEOUT_S)
     # "detailed thinking off" = the Llama-Nemotron reasoning toggle. For our JSON tasks we want a
     # clean object, not a <think> trace (which both bloats latency and breaks parsing on big specs).
     sys = "detailed thinking off\n\n" + system
@@ -308,7 +310,7 @@ async def _anthropic(system: str, user: str, json_mode: bool, temperature: float
         from anthropic import AsyncAnthropic
     except ImportError as e:  # pragma: no cover
         raise LLMUnavailable("anthropic SDK not installed") from e
-    client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY)
+    client = AsyncAnthropic(api_key=config.ANTHROPIC_API_KEY, timeout=config.LLM_TIMEOUT_S)
     sys = system + ("\n\nRespond with a single valid JSON object and nothing else." if json_mode else "")
     resp = await client.messages.create(
         model=model or (config.LLM_MODEL if config.LLM_PROVIDER == "anthropic" else "claude-sonnet-4-6"),

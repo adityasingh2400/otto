@@ -1,8 +1,13 @@
 """Cekura integration — the real eval engine (sponsor / co-host).
 
 Contracts below are taken verbatim from docs.cekura.ai/api-reference (auth header
-`X-CEKURA-API-KEY`). Our agent exposes a Daily WebRTC room (apps/agent/daily_runner.py),
-so we use the **Pipecat/Daily** run path — Cekura's simulated caller joins our room:
+`X-CEKURA-API-KEY`). We use Cekura's **manual Pipecat** run path — we put an agent-under-test in a
+Daily room and Cekura's simulated caller joins it. (The *automated* Pipecat mode, where Cekura
+starts the agent itself from a Pipecat Cloud key, can't pass a per-build session id, so it can only
+test the live agent — not the candidate spec under heal. We need the candidate, hence manual mode.)
+
+`_acquire_room` (below) is what stands an agent-in-a-room up, per round, bound to THIS build's
+candidate spec — static room, Pipecat Cloud, or a locally-spawned agent. See config.CEKURA_AGENT_HOST.
 
   POST /test_framework/v1/scenarios-external/run_scenarios_pipecat/
        body: {"scenarios": [{"scenario": <id>, "pipecat_room_url": <daily url>, "pipecat_token": <tok?>}]}
@@ -25,6 +30,8 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import os
+from typing import Awaitable, Callable
 
 import httpx
 
@@ -60,8 +67,6 @@ async def run_suite(session_id: str, spec: AgentSpec, personas: list[Persona], r
 
     if not config.cekura_available():
         raise RuntimeError("CEKURA_API_KEY not set")
-    if not config.DAILY_ROOM_URL:
-        raise RuntimeError("DAILY_ROOM_URL not set (the agent must expose a Daily room for Cekura to join)")
 
     async with _client() as c:
         scenario_for = await _resolve_scenarios(c, personas)  # persona.id -> scenario id (may raise)
@@ -80,19 +85,28 @@ async def run_suite(session_id: str, spec: AgentSpec, personas: list[Persona], r
             await bus.publish(session_id, {"type": "fact", "topic": "cekura",
                                            "content": f"{len(personas)} variations → {len(rep)} reusable Cekura scenario(s): one real voice call per adversarial axis."})
 
-        items = []
-        for sid in rep:
-            item = {"scenario": sid, "pipecat_room_url": config.DAILY_ROOM_URL}
-            if config.DAILY_ROOM_TOKEN:
-                item["pipecat_token"] = config.DAILY_ROOM_TOKEN
-            items.append(item)
+        # Stand up the agent-under-test in a Daily room, serving THIS build's candidate spec. A fresh
+        # agent per round is exactly what makes the before→after real: the post-heal run starts an
+        # agent that loads the just-healed spec. Tear it down no matter how the run ends.
+        room_url, token, teardown, host = await _acquire_room(session_id)
+        await bus.publish(session_id, {"type": "fact", "topic": "cekura",
+                                       "content": f"agent-under-test live in a Daily room ({host}) → Cekura calling {len(rep)} scenario(s) for real"})
+        try:
+            items = []
+            for sid in rep:
+                item = {"scenario": sid, "pipecat_room_url": room_url}
+                if token:
+                    item["pipecat_token"] = token
+                items.append(item)
 
-        resp = await c.post("/test_framework/v1/scenarios-external/run_scenarios_pipecat/", json={"scenarios": items})
-        resp.raise_for_status()
-        result_id = resp.json().get("id")
-        if not result_id:  # no id => fall back to local eval immediately, don't poll /results/None/ for 4 min
-            raise RuntimeError("Cekura run returned no result id")
-        runs = await _poll_results(c, result_id)
+            resp = await c.post("/test_framework/v1/scenarios-external/run_scenarios_pipecat/", json={"scenarios": items})
+            resp.raise_for_status()
+            result_id = resp.json().get("id")
+            if not result_id:  # no id => fall back to local eval immediately, don't poll /results/None/ for 4 min
+                raise RuntimeError("Cekura run returned no result id")
+            runs = await _poll_results(c, result_id)
+        finally:
+            await teardown()
 
     results = []
     for run in runs:
@@ -105,6 +119,84 @@ async def run_suite(session_id: str, spec: AgentSpec, personas: list[Persona], r
         await bus.publish(session_id, {"type": "call", "result": dataclasses.asdict(res)})
         results.append(res)
     return results
+
+
+async def _acquire_room(session_id: str) -> tuple[str, str, Callable[[], Awaitable[None]], str]:
+    """Get an agent-under-test sitting in a Daily room for Cekura to call, serving THIS session's
+    candidate spec. Returns (room_url, join_token, teardown, host_label).
+
+    Precedence (config.CEKURA_AGENT_HOST pins one explicitly; 'auto' tries them in order):
+      static — DAILY_ROOM_URL set; an agent is already running in it (e.g. apps/agent/daily_runner.py).
+      pcc    — start the deployed Pipecat Cloud agent into a fresh room, this session id in the body.
+      local  — provision our own room (+ both tokens) and spawn the agent locally against it.
+    Raises if none is configured, so swarm.py falls back to the local sim — the loop never stalls.
+    """
+    host = config.CEKURA_AGENT_HOST
+
+    async def _noop() -> None:
+        return None
+
+    # 1. static room — an operator manages the agent in it (manual ops / explicit override)
+    if config.DAILY_ROOM_URL and host in ("auto", "static"):
+        return config.DAILY_ROOM_URL, config.DAILY_ROOM_TOKEN, _noop, "static"
+
+    # 2. Pipecat Cloud — the deployed agent, started fresh per round bound to the candidate spec
+    if config.pcc_available() and host in ("auto", "pcc"):
+        from . import pcc
+        s = await pcc.start_session(session_id)
+        await asyncio.sleep(2.0)  # let the (pre-warmed) microVM finish joining before Cekura dials in
+        return s["room_url"], s.get("token", ""), _noop, "pcc"  # room `exp` auto-reclaims the session
+
+    # 3. local — we own the room + both tokens and run the agent ourselves (best for localhost dev,
+    #    where a Pipecat Cloud worker couldn't reach a localhost orchestrator for the candidate spec)
+    if config.DAILY_API_KEY and host in ("auto", "local"):
+        from . import daily
+        room = await daily.create_room(prefix=f"otto-{session_id[:6]}")
+        name = room["name"]
+        agent_tok = await daily.mint_token(name, is_owner=True, user_name="otto-agent")
+        cekura_tok = await daily.mint_token(name, is_owner=False, user_name="cekura-caller")
+        proc = await _spawn_local_agent(session_id, room["url"], agent_tok)
+
+        async def _td() -> None:
+            await _kill(proc)
+            await daily.delete_room(name)
+
+        return room["url"], cekura_tok, _td, "local"
+
+    raise RuntimeError(
+        "no agent-in-room path for Cekura: set DAILY_ROOM_URL (+ run the agent), or "
+        "PCC_API_KEY+PCC_AGENT_NAME (Pipecat Cloud), or DAILY_API_KEY (local agent)")
+
+
+async def _spawn_local_agent(session_id: str, room_url: str, token: str) -> "asyncio.subprocess.Process":
+    """Launch apps/agent/daily_runner.py against `room_url`, serving `session_id`'s candidate spec.
+    Runs under the agent venv (config.AGENT_PYTHON) — the orchestrator venv has no pipecat installed."""
+    py = config.AGENT_PYTHON
+    runner = config.ROOT / "apps" / "agent" / "daily_runner.py"
+    if not os.path.exists(py):
+        raise RuntimeError(f"agent python not found at {py} (set AGENT_PYTHON, or use the pcc/static host)")
+    env = {**os.environ,
+           "OTTO_SESSION": session_id,            # → the agent loads /api/spec/<session>, the candidate
+           "DAILY_ROOM_URL": room_url, "DAILY_ROOM_TOKEN": token,
+           "ORCH_BASE_URL": config.ORCH_PUBLIC_URL or os.getenv("ORCH_BASE_URL", "http://localhost:8000")}
+    proc = await asyncio.create_subprocess_exec(
+        py, str(runner), cwd=str(runner.parent), env=env,
+        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+    await asyncio.sleep(config.LOCAL_AGENT_WARMUP_S)  # let it import pipecat + join the room before Cekura dials
+    return proc
+
+
+async def _kill(proc: "asyncio.subprocess.Process") -> None:
+    """Best-effort stop of a spawned local agent; the room `exp` is the real backstop if this misses."""
+    try:
+        if proc.returncode is None:
+            proc.terminate()
+            await asyncio.wait_for(proc.wait(), timeout=5.0)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
 
 
 def _scenario_key(p: Persona) -> str:

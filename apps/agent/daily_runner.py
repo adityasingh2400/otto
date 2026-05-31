@@ -5,10 +5,11 @@ caller; the agent runs the SAME pipeline as the phone path. Run one of these per
 scenario, or keep a pool warm.
 
 Run:  uv run --python 3.12 python daily_runner.py
-Env:  DAILY_ROOM_URL, DAILY_API_KEY, OTTO_SESSION (or falls back to cached piccino)
+Env:  DAILY_ROOM_URL, DAILY_ROOM_TOKEN, OTTO_SESSION, ORCH_BASE_URL.
 
-D3 TODO(team): wire this to app/cekura.py run_suite (it passes DAILY_ROOM_URL as the
-agent websocket). Confirm DailyTransport params against the pinned Pipecat version.
+This is the agent for the orchestrator's `local` Cekura host path: cekura._spawn_local_agent
+launches it with OTTO_SESSION set, so it loads /api/spec/<session> — the build's CANDIDATE spec —
+and joins the room we provisioned for Cekura's caller. (Pipecat Cloud uses bot.py directly instead.)
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ import bot
 
 async def main() -> None:
     spec = await bot.load_spec()
-    from pipecat.transports.services.daily import DailyParams, DailyTransport
+    from pipecat.transports.daily.transport import DailyParams, DailyTransport  # pipecat 1.x path (matches bot.py)
 
     transport = DailyTransport(
         room_url=os.environ["DAILY_ROOM_URL"],

@@ -897,3 +897,124 @@ def test_cekura_axis_scenario_reuse():
         assert len(axes) < len(variants)                        # genuine collapse (10 axes << 30 variations)
     finally:
         config.CEKURA_AXIS_SCENARIO_MAP = {}
+
+
+import contextlib as _contextlib
+
+
+@_contextlib.contextmanager
+def _cfg(**overrides):
+    """Temporarily set app.config attributes (the swarm reads them at call time), then restore."""
+    from app import config
+    saved = {k: getattr(config, k) for k in overrides}
+    for k, v in overrides.items():
+        setattr(config, k, v)
+    try:
+        yield config
+    finally:
+        for k, v in saved.items():
+            setattr(config, k, v)
+
+
+def test_cekura_acquire_room_precedence_and_teardown(monkeypatch):
+    """_acquire_room is what stands an agent-in-a-room up for Cekura, serving the candidate spec.
+    Precedence: static DAILY_ROOM_URL → Pipecat Cloud → local-provision → raise (so the swarm falls
+    back to the local sim). The local path must mint tokens, spawn the agent, and clean BOTH up."""
+    from app import cekura, daily, pcc
+
+    # 1. static wins when DAILY_ROOM_URL is set — and the agent is assumed already running in it
+    with _cfg(CEKURA_AGENT_HOST="auto", DAILY_ROOM_URL="https://x.daily.co/r", DAILY_ROOM_TOKEN="t0",
+              PCC_API_KEY="pk", PCC_AGENT_NAME="otto-agent", DAILY_API_KEY="dk"):
+        url, tok, td, host = _run(cekura._acquire_room("sess1"))
+        assert (url, tok, host) == ("https://x.daily.co/r", "t0", "static")
+        _run(td())  # static teardown is a no-op (must not raise)
+
+    # 2. with no static room, Pipecat Cloud starts the deployed agent into a fresh room
+    async def fake_start(session_id, **kw):
+        assert session_id == "sess2"  # the build's session is threaded through → candidate spec
+        return {"room_url": "https://pcc.daily.co/room", "token": "ptok", "pcc_session_id": "ps1"}
+    monkeypatch.setattr(pcc, "start_session", fake_start)
+    with _cfg(CEKURA_AGENT_HOST="auto", DAILY_ROOM_URL="", PCC_API_KEY="pk", PCC_AGENT_NAME="otto-agent"):
+        url, tok, td, host = _run(cekura._acquire_room("sess2"))
+        assert (url, tok, host) == ("https://pcc.daily.co/room", "ptok", "pcc")
+
+    # 3. with neither static nor PCC, provision our own room + run the agent locally; teardown cleans up
+    spy = {"killed": False, "deleted": None, "spawned": None}
+    async def fake_create(prefix="otto", exp_s=None):
+        return {"url": "https://own.daily.co/abc", "name": "abc"}
+    async def fake_mint(name, *, is_owner, user_name, exp_s=None):
+        return f"{'owner' if is_owner else 'guest'}-tok"
+    async def fake_delete(name):
+        spy["deleted"] = name
+    async def fake_spawn(session_id, room_url, token):
+        spy["spawned"] = (session_id, room_url, token)
+        return "PROC"
+    async def fake_kill(proc):
+        spy["killed"] = (proc == "PROC")
+    monkeypatch.setattr(daily, "create_room", fake_create)
+    monkeypatch.setattr(daily, "mint_token", fake_mint)
+    monkeypatch.setattr(daily, "delete_room", fake_delete)
+    monkeypatch.setattr(cekura, "_spawn_local_agent", fake_spawn)
+    monkeypatch.setattr(cekura, "_kill", fake_kill)
+    with _cfg(CEKURA_AGENT_HOST="auto", DAILY_ROOM_URL="", PCC_API_KEY="", DAILY_API_KEY="dk"):
+        url, tok, td, host = _run(cekura._acquire_room("sess3xyz"))
+        assert (url, tok, host) == ("https://own.daily.co/abc", "guest-tok", "local")  # Cekura gets the guest token
+        assert spy["spawned"] == ("sess3xyz", "https://own.daily.co/abc", "owner-tok")  # agent gets the owner token
+        _run(td())
+        assert spy["killed"] is True and spy["deleted"] == "abc"  # teardown stops the agent AND deletes the room
+
+    # 4. nothing configured → raise, so swarm.py falls back to the local sim (the loop never stalls)
+    with _cfg(CEKURA_AGENT_HOST="auto", DAILY_ROOM_URL="", PCC_API_KEY="", DAILY_API_KEY=""):
+        try:
+            _run(cekura._acquire_room("sess4"))
+            assert False, "expected RuntimeError when no agent-in-room path is configured"
+        except RuntimeError:
+            pass
+
+
+def test_cekura_run_suite_tears_the_room_down_even_when_the_run_errors(monkeypatch):
+    """The room/agent acquired for a run must be released no matter how the run ends — a Cekura error
+    mid-run cannot leak a live Pipecat Cloud session or a Daily room. Verifies the finally: teardown."""
+    from app import cekura
+    spec = _spec("piccino")
+    persona = archetypes.select_for("restaurant", 12)[0]
+    torn = {"down": 0}
+
+    async def fake_resolve(c, personas):
+        return {personas[0].id: 4242}
+    async def fake_teardown():
+        torn["down"] += 1
+    async def fake_acquire(session_id):
+        return "https://room", "tok", fake_teardown, "test"
+
+    class _Resp:
+        def raise_for_status(self): pass
+        def json(self): return {"id": "res-1"}
+    class _Client:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def post(self, url, json=None): return _Resp()
+
+    monkeypatch.setattr(cekura, "_resolve_scenarios", fake_resolve)
+    monkeypatch.setattr(cekura, "_acquire_room", fake_acquire)
+    monkeypatch.setattr(cekura, "_client", lambda: _Client())
+
+    # success path: a clean run still tears the room down exactly once
+    async def poll_ok(c, result_id, **kw):
+        return []
+    monkeypatch.setattr(cekura, "_poll_results", poll_ok)
+    with _cfg(CEKURA_API_KEY="k"):
+        out = _run(cekura.run_suite("s-ok", spec, [persona], 1))
+        assert out == [] and torn["down"] == 1
+
+    # error path: a polling failure must STILL run teardown (and then propagate)
+    async def poll_boom(c, result_id, **kw):
+        raise RuntimeError("cekura results timed out")
+    monkeypatch.setattr(cekura, "_poll_results", poll_boom)
+    with _cfg(CEKURA_API_KEY="k"):
+        try:
+            _run(cekura.run_suite("s-err", spec, [persona], 1))
+            assert False, "expected the polling error to propagate"
+        except RuntimeError:
+            pass
+        assert torn["down"] == 2  # teardown ran on the error path too
