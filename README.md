@@ -56,7 +56,11 @@ restaurant's phone calls are exactly that small. That's the bet Otto makes.
 
 ## 2. Demo video (under 60 seconds)
 
-▶️ **[watch the 60 second demo](ADD_VIDEO_LINK_HERE)**
+<video src="media/ycvoiceagentsmay30th.mp4" controls width="100%">
+  Watch the Otto demo video.
+</video>
+
+▶️ **[watch or download the 60 second demo](media/ycvoiceagentsmay30th.mp4)**
 
 > *Build a phone agent from a URL. A swarm of fake callers attacks it and it goes red. It
 > rewrites its own rules and the pass rate jumps to green. The number goes live. We call it and
